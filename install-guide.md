@@ -36,7 +36,7 @@ This installs all dependencies defined in package.json.
 Vite will display the local URL where the application is running,
 usually http://localhost:5173.
 
-# Installation guide (devenv)
+# [recommended] Installation guide (devenv)
 
 ## Requirements
 
