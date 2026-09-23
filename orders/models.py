@@ -17,15 +17,19 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     order_status = models.CharField(
         max_length=2,
-        choices=OrderStatus.choices
+        choices=OrderStatus.choices,
+        default=OrderStatus.WAITING,
     )
-    delivery_notes = models.CharField(max_length=256)
+    delivery_notes = models.CharField(
+        max_length=256,
+        blank=True,
+    )
     subtotal_price = models.DecimalField(max_digits=10, decimal_places=2)
     shipping_costs = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return self.pk
+        return f"Order #{self.pk}"
     
 
 class OrderAddress(models.Model):
@@ -46,7 +50,7 @@ class OrderAddress(models.Model):
     )
 
     def __str__(self):
-        return self.street_name, self.house_number, self.house_number_addition
+        return f"{self.street_name} {self.house_number}{self.house_number_addition}"
 
 class OrderItem(models.Model):
     order = models.ForeignKey(
@@ -59,12 +63,13 @@ class OrderItem(models.Model):
          on_delete=models.PROTECT,
          related_name="order_items"
     )
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    stl_file = models.CharField(
-        max_length=100,
+    stl_file = models.FileField(
+        upload_to="stl/",
         blank=True,
     )
+    # stl_file = models.URLField(blank=True) if we are using URLs
 
     def __str__(self):
-        return self.pk, self.order, self.product
+        return f"{self.quantity}x {self.product} (Order #{self.order_id})"
