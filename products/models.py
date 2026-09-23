@@ -11,7 +11,8 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     product_type = models.CharField(
         max_length=2,
-        choices=ProductType.choices
+        choices=ProductType.choices,
+        default= ProductType.CUSTOM_STAMP,
     )
 
     def __str__(self):

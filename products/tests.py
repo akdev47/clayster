@@ -3,14 +3,23 @@ from django.test import TestCase
 from .models import Product
 
 class ProductTests(TestCase):
-    def test_sample_true(self):
+    def setUp(self):
         """
-        Sample TestCase. Returns True.
+        First object
         """
-        self.assertTrue(True, "Input was not true.")
+        Product.objects.create(
+            name = "Test product unit test",
+            description = "A product that is created in the unit test test_create_product() at /products/test.py.",
+            price = 40.0,
+            product_type = Product.ProductType.STANDARD,
+        )
+        
 
-    def test_sample_false(self):
+    def test_get_object(self):
         """
-        Sample TestCase. Returns False.
+        Tests getting an object by primary key from the database.
         """
-        self.assertTrue(False, "Input was true.")
+        test_product = Product.objects.get(pk=1)
+        self.assertEqual(test_product.name, "Test product unit test")
+
+    
