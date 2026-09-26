@@ -10,12 +10,12 @@
  * font, including an uploaded one; a character count cannot.
  */
 export const TEXT_LIMITS = {
-    // The widest a single row of text may be.
-    rowWidth: 60,
+  // The widest a single row of text may be.
+  rowWidth: 60,
 
-    // How many rows it may run to before the text counts as too long.
-    rows: 4,
+  // How many rows it may run to before the text counts as too long.
+  rows: 4,
 
-    // Lower bound for automatic shrinking, not a guarantee of printable detail.
-    minSize: 6
+  // Lower bound for automatic shrinking, not a guarantee of printable detail.
+  minSize: 6,
 };

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
 /**
  * The canonical 2D form every input converges on before anything 3D happens.
@@ -22,47 +22,53 @@ const CURVE_SEGMENTS = 8;
 // Both SVG and opentype hand us Y-down coordinates, and both arrive as
 // THREE.Shape because ShapePath.toShapes() already works out which contours are
 // holes. Flipping happens once, here, rather than in each source.
-export function fromShapes(shapes, { flipY = true, curveSegments = CURVE_SEGMENTS } = {}) {
-    const polygons = [];
+export function fromShapes(
+  shapes,
+  { flipY = true, curveSegments = CURVE_SEGMENTS } = {},
+) {
+  const polygons = [];
 
-    for (const shape of shapes) {
-        const { shape: outline, holes } = shape.extractPoints(curveSegments);
+  for (const shape of shapes) {
+    const { shape: outline, holes } = shape.extractPoints(curveSegments);
 
-        const polygon = [ringFrom(outline, flipY)];
-        for (const hole of holes) {
-            polygon.push(ringFrom(hole, flipY));
-        }
-
-        // A polygon whose outer ring collapsed carries no area at all.
-        if (polygon[0].length >= 3) {
-            polygons.push(polygon.filter((ring) => ring.length >= 3));
-        }
+    const polygon = [ringFrom(outline, flipY)];
+    for (const hole of holes) {
+      polygon.push(ringFrom(hole, flipY));
     }
 
-    return polygons;
+    // A polygon whose outer ring collapsed carries no area at all.
+    if (polygon[0].length >= 3) {
+      polygons.push(polygon.filter((ring) => ring.length >= 3));
+    }
+  }
+
+  return polygons;
 }
 
 function ringFrom(points, flipY) {
-    const ring = [];
+  const ring = [];
 
-    for (const point of points) {
-        const x = point.x;
-        const y = flipY ? -point.y : point.y;
+  for (const point of points) {
+    const x = point.x;
+    const y = flipY ? -point.y : point.y;
 
-        // extractPoints often repeats the first point at the end, and curve
-        // tessellation can emit the same point twice at a join.
-        const last = ring[ring.length - 1];
-        if (last !== undefined && near(last[0], x) && near(last[1], y)) continue;
+    // extractPoints often repeats the first point at the end, and curve
+    // tessellation can emit the same point twice at a join.
+    const last = ring[ring.length - 1];
+    if (last !== undefined && near(last[0], x) && near(last[1], y)) continue;
 
-        ring.push([x, y]);
-    }
+    ring.push([x, y]);
+  }
 
-    while (ring.length >= 2 && near(ring[0][0], ring[ring.length - 1][0])
-        && near(ring[0][1], ring[ring.length - 1][1])) {
-        ring.pop();
-    }
+  while (
+    ring.length >= 2 &&
+    near(ring[0][0], ring[ring.length - 1][0]) &&
+    near(ring[0][1], ring[ring.length - 1][1])
+  ) {
+    ring.pop();
+  }
 
-    return ring;
+  return ring;
 }
 
 /**
@@ -78,9 +84,11 @@ function ringFrom(points, flipY) {
  * thins its own outlines.
  */
 export function simplify(multiPolygon, tolerance) {
-    if (!(tolerance > 0)) return multiPolygon;
+  if (!(tolerance > 0)) return multiPolygon;
 
-    return multiPolygon.map((polygon) => polygon.map((ring) => simplifyRing(ring, tolerance)));
+  return multiPolygon.map((polygon) =>
+    polygon.map((ring) => simplifyRing(ring, tolerance)),
+  );
 }
 
 // Douglas-Peucker, for a ring rather than a line. A closed ring has no ends to
@@ -89,171 +97,190 @@ export function simplify(multiPolygon, tolerance) {
 // each half is thinned as an open chain. Anything this leaves self-intersecting
 // is caught by the union in validate.js.
 function simplifyRing(ring, tolerance) {
-    if (ring.length <= 4) return ring;
+  if (ring.length <= 4) return ring;
 
-    let far = 0;
-    let furthest = -1;
+  let far = 0;
+  let furthest = -1;
 
-    for (let i = 1; i < ring.length; i++) {
-        const distance = squaredDistance(ring[0], ring[i]);
-        if (distance > furthest) {
-            furthest = distance;
-            far = i;
-        }
+  for (let i = 1; i < ring.length; i++) {
+    const distance = squaredDistance(ring[0], ring[i]);
+    if (distance > furthest) {
+      furthest = distance;
+      far = i;
     }
+  }
 
-    const head = thin(ring.slice(0, far + 1), tolerance);
-    const tail = thin([...ring.slice(far), ring[0]], tolerance);
+  const head = thin(ring.slice(0, far + 1), tolerance);
+  const tail = thin([...ring.slice(far), ring[0]], tolerance);
 
-    // Each half ends where the other begins, so both closing points go.
-    const simplified = [...head.slice(0, -1), ...tail.slice(0, -1)];
+  // Each half ends where the other begins, so both closing points go.
+  const simplified = [...head.slice(0, -1), ...tail.slice(0, -1)];
 
-    return simplified.length >= 3 ? simplified : ring;
+  return simplified.length >= 3 ? simplified : ring;
 }
 
 function thin(points, tolerance) {
-    if (points.length < 3) return points;
+  if (points.length < 3) return points;
 
-    const start = points[0];
-    const end = points[points.length - 1];
+  const start = points[0];
+  const end = points[points.length - 1];
 
-    let index = 0;
-    let worst = 0;
+  let index = 0;
+  let worst = 0;
 
-    for (let i = 1; i < points.length - 1; i++) {
-        const distance = fromLine(points[i], start, end);
-        if (distance > worst) {
-            worst = distance;
-            index = i;
-        }
+  for (let i = 1; i < points.length - 1; i++) {
+    const distance = fromLine(points[i], start, end);
+    if (distance > worst) {
+      worst = distance;
+      index = i;
     }
+  }
 
-    if (worst <= tolerance) return [start, end];
+  if (worst <= tolerance) return [start, end];
 
-    return [
-        ...thin(points.slice(0, index + 1), tolerance).slice(0, -1),
-        ...thin(points.slice(index), tolerance)
-    ];
+  return [
+    ...thin(points.slice(0, index + 1), tolerance).slice(0, -1),
+    ...thin(points.slice(index), tolerance),
+  ];
 }
 
 // Perpendicular distance from a point to the line through a and b, falling
 // back to plain distance when the two are the same point.
 function fromLine([x, y], [ax, ay], [bx, by]) {
-    const dx = bx - ax;
-    const dy = by - ay;
-    const length = Math.hypot(dx, dy);
+  const dx = bx - ax;
+  const dy = by - ay;
+  const length = Math.hypot(dx, dy);
 
-    if (length < 1e-12) return Math.hypot(x - ax, y - ay);
+  if (length < 1e-12) return Math.hypot(x - ax, y - ay);
 
-    return Math.abs((dy * (x - ax)) - (dx * (y - ay))) / length;
+  return Math.abs(dy * (x - ax) - dx * (y - ay)) / length;
 }
 
 function squaredDistance([ax, ay], [bx, by]) {
-    return ((bx - ax) ** 2) + ((by - ay) ** 2);
+  return (bx - ax) ** 2 + (by - ay) ** 2;
 }
 
 // Convert our shared polygon arrays back to Three.js shapes for extrusion.
 export function toShapes(multiPolygon) {
-    return multiPolygon.map(([outer, ...holes]) => {
-        const shape = new THREE.Shape(outer.map(([x, y]) => new THREE.Vector2(x, y)));
+  return multiPolygon.map(([outer, ...holes]) => {
+    const shape = new THREE.Shape(
+      outer.map(([x, y]) => new THREE.Vector2(x, y)),
+    );
 
-        for (const hole of holes) {
-            shape.holes.push(new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, y))));
-        }
+    for (const hole of holes) {
+      shape.holes.push(
+        new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, y))),
+      );
+    }
 
-        return shape;
-    });
+    return shape;
+  });
 }
 
 export function isEmpty(multiPolygon) {
-    return multiPolygon.length === 0;
+  return multiPolygon.length === 0;
 }
 
 export function bounds(multiPolygon) {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
-    for (const polygon of multiPolygon) {
-        for (const [x, y] of polygon[0]) {
-            if (x < minX) minX = x;
-            if (y < minY) minY = y;
-            if (x > maxX) maxX = x;
-            if (y > maxY) maxY = y;
-        }
+  for (const polygon of multiPolygon) {
+    for (const [x, y] of polygon[0]) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
     }
+  }
 
-    if (minX === Infinity) {
-        return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
-    }
+  if (minX === Infinity) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
+  }
 
-    return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+  return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
 // Mirroring flips the ring direction, so every ring is reversed to keep outers
 // and holes wound the way they were.
-export function transform(multiPolygon, { scale = 1, offsetX = 0, offsetY = 0, mirrorX = false } = {}) {
-    const sx = mirrorX ? -scale : scale;
+export function transform(
+  multiPolygon,
+  { scale = 1, offsetX = 0, offsetY = 0, mirrorX = false } = {},
+) {
+  const sx = mirrorX ? -scale : scale;
 
-    return multiPolygon.map((polygon) => polygon.map((ring) => {
-        const moved = ring.map(([x, y]) => [x * sx + offsetX, y * scale + offsetY]);
-        return mirrorX ? moved.reverse() : moved;
-    }));
+  return multiPolygon.map((polygon) =>
+    polygon.map((ring) => {
+      const moved = ring.map(([x, y]) => [
+        x * sx + offsetX,
+        y * scale + offsetY,
+      ]);
+      return mirrorX ? moved.reverse() : moved;
+    }),
+  );
 }
 
 // Scales the artwork to sit inside a box of the given size and centres it on
 // the origin, which is where the stamp face expects to find it.
 export function fitInto(multiPolygon, width, height) {
-    const box = bounds(multiPolygon);
-    if (box.width === 0 || box.height === 0) return multiPolygon;
+  const box = bounds(multiPolygon);
+  if (box.width === 0 || box.height === 0) return multiPolygon;
 
-    const scale = Math.min(width / box.width, height / box.height);
-    const centreX = (box.minX + box.maxX) / 2;
-    const centreY = (box.minY + box.maxY) / 2;
+  const scale = Math.min(width / box.width, height / box.height);
+  const centreX = (box.minX + box.maxX) / 2;
+  const centreY = (box.minY + box.maxY) / 2;
 
-    return multiPolygon.map((polygon) => polygon.map((ring) =>
-        ring.map(([x, y]) => [(x - centreX) * scale, (y - centreY) * scale])));
+  return multiPolygon.map((polygon) =>
+    polygon.map((ring) =>
+      ring.map(([x, y]) => [(x - centreX) * scale, (y - centreY) * scale]),
+    ),
+  );
 }
 
 // Triangulation expects outer rings and their holes wound in opposite
 // directions. Sources and boolean libraries each have their own habits, so the
 // winding is settled once, here, rather than trusted.
 export function normalizeWinding(multiPolygon) {
-    return multiPolygon.map((polygon) => polygon.map((ring, index) => {
-        const wantPositive = index === 0; // outer counter-clockwise, holes clockwise
-        return (ringArea(ring) > 0) === wantPositive ? ring : [...ring].reverse();
-    }));
+  return multiPolygon.map((polygon) =>
+    polygon.map((ring, index) => {
+      const wantPositive = index === 0; // outer counter-clockwise, holes clockwise
+      return ringArea(ring) > 0 === wantPositive ? ring : [...ring].reverse();
+    }),
+  );
 }
 
 // The sign gives the point order: positive is counter-clockwise, negative clockwise.
 export function ringArea(ring) {
-    let total = 0;
+  let total = 0;
 
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        total += (ring[j][0] * ring[i][1]) - (ring[i][0] * ring[j][1]);
-    }
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    total += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+  }
 
-    return total / 2;
+  return total / 2;
 }
 
 export function ringPerimeter(ring) {
-    let total = 0;
+  let total = 0;
 
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        total += Math.hypot(ring[i][0] - ring[j][0], ring[i][1] - ring[j][1]);
-    }
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    total += Math.hypot(ring[i][0] - ring[j][0], ring[i][1] - ring[j][1]);
+  }
 
-    return total;
+  return total;
 }
 
 // Net area of a polygon: its outer ring less whatever its holes take out.
 export function polygonArea(polygon) {
-    return polygon.reduce((total, ring, index) =>
-        index === 0 ? Math.abs(ringArea(ring)) : total - Math.abs(ringArea(ring)),
-    0);
+  return polygon.reduce(
+    (total, ring, index) =>
+      index === 0 ? Math.abs(ringArea(ring)) : total - Math.abs(ringArea(ring)),
+    0,
+  );
 }
 
 function near(a, b) {
-    return Math.abs(a - b) < 1e-9;
+  return Math.abs(a - b) < 1e-9;
 }

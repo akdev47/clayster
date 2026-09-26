@@ -1,138 +1,223 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clayster</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-<div id="app">
-    <div id="viewport">
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="viewport">
         <div class="view-toggle" id="view-toggle">
-            <button data-view="both" class="on">Both</button>
-            <button data-view="stamp">Stamp</button>
-            <button data-view="clay">Impression</button>
+          <button data-view="both" class="on">Both</button>
+          <button data-view="stamp">Stamp</button>
+          <button data-view="clay">Impression</button>
         </div>
         <p class="working" id="working" hidden>Building…</p>
         <p class="drag-hint" id="drag-hint">Drag the stamp to resize it</p>
-    </div>
+      </div>
 
-    <aside id="panel">
+      <aside id="panel">
         <header>
-            <h1>Clayster</h1>
-            <p class="sub">Type or upload artwork, get a printable clay stamp.</p>
+          <h1>Clayster</h1>
+          <p class="sub">Type or upload artwork, get a printable clay stamp.</p>
         </header>
 
         <section>
-            <h2><span class="step">1</span> Artwork</h2>
+          <h2><span class="step">1</span> Artwork</h2>
 
-            <div class="row segmented" id="source-tabs">
-                <button data-kind="text" class="on">Text</button>
-                <button data-kind="svg">SVG</button>
-            </div>
+          <div class="row segmented" id="source-tabs">
+            <button data-kind="text" class="on">Text</button>
+            <button data-kind="svg">SVG</button>
+          </div>
 
-            <div id="text-source">
-                <label class="field">Text
-                    <textarea id="text-input" rows="2" spellcheck="false">CLAY</textarea>
-                </label>
-                <label class="field">Font
-                    <select id="font-select"></select>
-                </label>
-                <div class="row">
-                    <button class="ghost" id="font-upload-button">Use my own font…</button>
-                </div>
-                <input type="file" id="font-file" accept=".ttf,.otf,font/ttf,font/otf" hidden>
-                <p class="hint" id="font-note" hidden></p>
-
-                <div class="grid3">
-                    <label>Size mm<input type="number" id="text-size" min="2" step="1" value="16"></label>
-                    <label>Letter mm<input type="number" id="letter-spacing" step="0.2" value="0"></label>
-                    <label>Line ×<input type="number" id="line-spacing" min="0.5" step="0.05" value="1.25"></label>
-                </div>
-
-                <h3>Alignment</h3>
-                <div class="row segmented" id="align-buttons">
-                    <button data-align="left">Left</button>
-                    <button data-align="center" class="on">Centre</button>
-                    <button data-align="right">Right</button>
-                </div>
-            </div>
-
-            <div id="svg-source" hidden>
-                <div class="dropzone" id="svg-drop">
-                    <strong>Drop an SVG here</strong>
-                    <span>or click to choose a file</span>
-                </div>
-                <input type="file" id="svg-file" accept=".svg,image/svg+xml" hidden>
-                <p class="hint" id="svg-note">Closed outlines only — strokes and open paths cannot be extruded.</p>
-                <div class="row">
-                    <button class="ghost" id="svg-sample">Use the sample pear</button>
-                </div>
-                <label class="field">Artwork size
-                    <input type="number" id="svg-size" min="2" step="1" value="30">
-                </label>
-            </div>
-        </section>
-
-        <section>
-            <h2><span class="step">2</span> Check</h2>
-            <ul class="issues" id="issue-list"></ul>
-        </section>
-
-        <section>
-            <h2><span class="step">3</span> Stamp</h2>
-
-            <h3>Face</h3>
-            <div class="row segmented" id="face-shape">
-                <button data-shape="round" class="on">Round</button>
-                <button data-shape="square">Square</button>
-                <button data-shape="outline">Follow art</button>
-            </div>
-            <label class="check"><input type="checkbox" id="auto-face" checked> Size the face to the artwork</label>
-            <div class="grid3">
-                <label>Face mm<input type="number" id="face-size" min="5" step="1" value="40" disabled></label>
-                <label>Plate mm<input type="number" id="face-thickness" min="1" step="0.5" value="4"></label>
-                <label>Margin mm<input type="number" id="margin" min="0" step="0.5" value="3"></label>
-            </div>
-
-            <h3>Relief</h3>
-            <div class="row segmented" id="relief-mode">
-                <button data-mode="emboss" class="on">Raised</button>
-                <button data-mode="deboss">Recessed</button>
-            </div>
-            <label class="slider">
-                <span>Depth <output id="relief-readout">2 mm</output></span>
-                <input type="range" id="relief-depth" min="0.4" max="8" step="0.2" value="2">
+          <div id="text-source">
+            <label class="field"
+              >Text
+              <textarea id="text-input" rows="2" spellcheck="false">
+CLAY</textarea>
             </label>
-            <label class="check"><input type="checkbox" id="mirror" checked> Mirror, so the impression reads correctly</label>
+            <label class="field"
+              >Font
+              <select id="font-select"></select>
+            </label>
+            <div class="row">
+              <button class="ghost" id="font-upload-button">
+                Use my own font…
+              </button>
+            </div>
+            <input
+              type="file"
+              id="font-file"
+              accept=".ttf,.otf,font/ttf,font/otf"
+              hidden
+            />
+            <p class="hint" id="font-note" hidden></p>
 
-            <h3>Handle</h3>
-            <select id="handle-select">
-                <option value="none">No handle — face only</option>
-                <option value="sample">Sample handle</option>
-            </select>
+            <div class="grid3">
+              <label
+                >Size mm<input
+                  type="number"
+                  id="text-size"
+                  min="2"
+                  step="1"
+                  value="16"
+              /></label>
+              <label
+                >Letter mm<input
+                  type="number"
+                  id="letter-spacing"
+                  step="0.2"
+                  value="0"
+              /></label>
+              <label
+                >Line ×<input
+                  type="number"
+                  id="line-spacing"
+                  min="0.5"
+                  step="0.05"
+                  value="1.25"
+              /></label>
+            </div>
+
+            <h3>Alignment</h3>
+            <div class="row segmented" id="align-buttons">
+              <button data-align="left">Left</button>
+              <button data-align="center" class="on">Centre</button>
+              <button data-align="right">Right</button>
+            </div>
+          </div>
+
+          <div id="svg-source" hidden>
+            <div class="dropzone" id="svg-drop">
+              <strong>Drop an SVG here</strong>
+              <span>or click to choose a file</span>
+            </div>
+            <input
+              type="file"
+              id="svg-file"
+              accept=".svg,image/svg+xml"
+              hidden
+            />
+            <p class="hint" id="svg-note">
+              Closed outlines only — strokes and open paths cannot be extruded.
+            </p>
+            <div class="row">
+              <button class="ghost" id="svg-sample">Use the sample pear</button>
+            </div>
+            <label class="field"
+              >Artwork size
+              <input type="number" id="svg-size" min="2" step="1" value="30" />
+            </label>
+          </div>
         </section>
 
         <section>
-            <h2><span class="step">4</span> Export</h2>
-            <dl class="readout" id="summary">
-                <div><dt>Width</dt><dd id="total-x">—</dd></div>
-                <div><dt>Depth</dt><dd id="total-y">—</dd></div>
-                <div><dt>Height</dt><dd id="total-z">—</dd></div>
-            </dl>
-            <p class="hint" id="triangle-count">—</p>
-            <div class="row">
-                <button id="export-stl">Export STL</button>
-                <button id="export-3mf">Export 3MF</button>
+          <h2><span class="step">2</span> Check</h2>
+          <ul class="issues" id="issue-list"></ul>
+        </section>
+
+        <section>
+          <h2><span class="step">3</span> Stamp</h2>
+
+          <h3>Face</h3>
+          <div class="row segmented" id="face-shape">
+            <button data-shape="round" class="on">Round</button>
+            <button data-shape="square">Square</button>
+            <button data-shape="outline">Follow art</button>
+          </div>
+          <label class="check"
+            ><input type="checkbox" id="auto-face" checked /> Size the face to
+            the artwork</label
+          >
+          <div class="grid3">
+            <label
+              >Face mm<input
+                type="number"
+                id="face-size"
+                min="5"
+                step="1"
+                value="40"
+                disabled
+            /></label>
+            <label
+              >Plate mm<input
+                type="number"
+                id="face-thickness"
+                min="1"
+                step="0.5"
+                value="4"
+            /></label>
+            <label
+              >Margin mm<input
+                type="number"
+                id="margin"
+                min="0"
+                step="0.5"
+                value="3"
+            /></label>
+          </div>
+
+          <h3>Relief</h3>
+          <div class="row segmented" id="relief-mode">
+            <button data-mode="emboss" class="on">Raised</button>
+            <button data-mode="deboss">Recessed</button>
+          </div>
+          <label class="slider">
+            <span>Depth <output id="relief-readout">2 mm</output></span>
+            <input
+              type="range"
+              id="relief-depth"
+              min="0.4"
+              max="8"
+              step="0.2"
+              value="2"
+            />
+          </label>
+          <label class="check"
+            ><input type="checkbox" id="mirror" checked /> Mirror, so the
+            impression reads correctly</label
+          >
+
+          <h3>Handle</h3>
+          <select id="handle-select">
+            <option value="none">No handle — face only</option>
+            <option value="sample">Sample handle</option>
+          </select>
+        </section>
+
+        <section>
+          <h2><span class="step">4</span> Export</h2>
+          <dl class="readout" id="summary">
+            <div>
+              <dt>Width</dt>
+              <dd id="total-x">—</dd>
             </div>
-            <p class="hint">The stamp is exported, not the clay. 3MF records millimetres and colour; STL is a plain mesh.</p>
+            <div>
+              <dt>Depth</dt>
+              <dd id="total-y">—</dd>
+            </div>
+            <div>
+              <dt>Height</dt>
+              <dd id="total-z">—</dd>
+            </div>
+          </dl>
+          <p class="hint" id="triangle-count">—</p>
+          <div class="row">
+            <button id="export-stl">Export STL</button>
+            <button id="export-3mf">Export 3MF</button>
+          </div>
+          <p class="hint">
+            The stamp is exported, not the clay. 3MF records millimetres and
+            colour; STL is a plain mesh.
+          </p>
         </section>
 
         <p class="status" id="status" hidden></p>
-    </aside>
-</div>
+      </aside>
+    </div>
 
-<script type="module" src="/main.js"></script>
-</body>
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>
