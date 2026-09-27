@@ -32,7 +32,12 @@ export async function loadSVGShapes(source) {
     text = await response.text();
   }
 
-  // Apply the same checks to uploaded files and bundled samples.
+  return parseSVGShapes(text);
+}
+
+// Traced raster artwork stays internal: it enters at the same validated SVG
+// boundary as uploaded vector artwork, without creating a user-facing file.
+export function parseSVGShapes(text) {
   validateSVGDocument(text);
   return getFilledSVGShapes(svgLoader.parse(text));
 }

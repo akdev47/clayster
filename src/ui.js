@@ -15,6 +15,7 @@ const DRAG_HINT = "Drag the stamp to resize it";
 const SIZE_FIELDS = {
   size: "textSize",
   svgSize: "svgSize",
+  pngSize: "pngSize",
   faceSize: "faceSize",
 };
 
@@ -37,6 +38,7 @@ export function createUI(viewer, pipeline) {
   segmented(dom.sourceTabs, "kind", (kind) => {
     dom.textSource.hidden = kind !== "text";
     dom.svgSource.hidden = kind !== "svg";
+    dom.pngSource.hidden = kind !== "png";
     pipeline.setSource({ kind });
   });
 
@@ -116,6 +118,35 @@ export function createUI(viewer, pipeline) {
 
       const file = dropEvent.dataTransfer?.files?.[0];
       if (event === "drop" && file !== undefined) useSVG(file);
+    });
+  }
+
+  const usePNG = (file) => {
+    dom.pngNote.textContent = `Using ${file.name}.`;
+    pipeline.setSource({ kind: "png", pngFile: file });
+  };
+
+  dom.pngDrop.addEventListener("click", () => dom.pngFile.click());
+  dom.pngFile.addEventListener("change", () => {
+    const file = dom.pngFile.files[0];
+    if (file !== undefined) usePNG(file);
+    dom.pngFile.value = "";
+  });
+  number(dom.pngSize, (pngSize) => pipeline.setSource({ pngSize }), {
+    min: 0.5,
+  });
+
+  for (const [event, over] of [
+    ["dragover", true],
+    ["dragleave", false],
+    ["drop", false],
+  ]) {
+    dom.pngDrop.addEventListener(event, (dropEvent) => {
+      dropEvent.preventDefault();
+      dom.pngDrop.classList.toggle("over", over);
+
+      const file = dropEvent.dataTransfer?.files?.[0];
+      if (event === "drop" && file !== undefined) usePNG(file);
     });
   }
 
@@ -337,6 +368,7 @@ function collectDOM() {
     sourceTabs: $("source-tabs"),
     textSource: $("text-source"),
     svgSource: $("svg-source"),
+    pngSource: $("png-source"),
     textInput: $("text-input"),
     fontSelect: $("font-select"),
     fontUploadButton: $("font-upload-button"),
@@ -351,6 +383,10 @@ function collectDOM() {
     svgNote: $("svg-note"),
     svgSample: $("svg-sample"),
     svgSize: $("svg-size"),
+    pngDrop: $("png-drop"),
+    pngFile: $("png-file"),
+    pngNote: $("png-note"),
+    pngSize: $("png-size"),
     issueList: $("issue-list"),
     faceShape: $("face-shape"),
     autoFace: $("auto-face"),

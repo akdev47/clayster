@@ -2,6 +2,7 @@
 // The UI listens for running/result/failed events rather than building geometry itself.
 import { loadFont, layoutText, wrapText } from "./text.js";
 import { loadSVGArtwork } from "./svg.js";
+import { loadPNGArtwork } from "./png.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
@@ -14,7 +15,7 @@ const SAMPLE_HANDLE = "./models/StampHandle.stl";
 const DEBOUNCE_MS = 300;
 
 export const DEFAULT_SOURCE = {
-  kind: "text", // 'text' | 'svg'
+  kind: "text", // 'text' | 'svg' | 'png'
   text: "CLAY",
   fontId: DEFAULT_FONT_ID,
   fontFile: null,
@@ -24,6 +25,8 @@ export const DEFAULT_SOURCE = {
   align: "center",
   svgFile: null,
   svgSize: 30,
+  pngFile: null,
+  pngSize: 30,
 };
 
 /**
@@ -31,7 +34,8 @@ export const DEFAULT_SOURCE = {
  *
  *     text + font + layout ─┐
  *                           ├─→ canonical 2D → validate/repair → stamp → mesh
- *     SVG upload ───────────┘
+ *     SVG upload ───────────┤
+ *     PNG upload → trace ───┘
  *
  * Edits are debounced, and the canonical artwork is reused when only stamp
  * parameters changed, so dragging a slider does not re-parse a font.
@@ -73,9 +77,13 @@ export class Pipeline extends EventTarget {
       return { field: "faceSize", value: this.stamp.faceSize };
     }
 
-    return this.source.kind === "svg"
-      ? { field: "svgSize", value: this.source.svgSize }
-      : { field: "size", value: this.source.size };
+    if (this.source.kind === "svg") {
+      return { field: "svgSize", value: this.source.svgSize };
+    }
+    if (this.source.kind === "png") {
+      return { field: "pngSize", value: this.source.pngSize };
+    }
+    return { field: "size", value: this.source.size };
   }
 
   applySize(millimetres) {
@@ -189,6 +197,15 @@ export class Pipeline extends EventTarget {
       return { canonical, issues: [] };
     }
 
+    if (source.kind === "png") {
+      if (source.pngFile === null) return { canonical: [], issues: [] };
+
+      const canonical = await loadPNGArtwork(source.pngFile, {
+        size: source.pngSize,
+      });
+      return { canonical, issues: [] };
+    }
+
     if (source.text.trim() === "") return { canonical: [], issues: [] };
 
     const font = await loadFont(source.fontFile ?? fontURL(source.fontId));
@@ -242,6 +259,12 @@ export class Pipeline extends EventTarget {
           : `${file.name}:${file.size}:${file.lastModified}`;
 
       return `svg:${id}:${source.svgSize}`;
+    }
+
+    if (source.kind === "png") {
+      const file = source.pngFile;
+      if (file === null) return "png:none";
+      return `png:${file.name}:${file.size}:${file.lastModified}:${source.pngSize}`;
     }
 
     return [
