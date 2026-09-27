@@ -7,13 +7,21 @@ import { fromShapes, bounds } from "./canonical.js";
 // same way the text source is driven by its point size. Both sources then hand
 // the rest of the pipeline artwork that is already the right size.
 export async function loadSVGArtwork(source, { size = 30 } = {}) {
+  return (await loadSVGArtworkDetails(source, { size })).artwork;
+}
+
+export async function loadSVGArtworkDetails(source, { size = 30 } = {}) {
   const { shapes, viewport } = await loadSVGData(source);
   const artwork = applySVGViewport(
     fromShapes(shapes, { flipY: true }),
     viewport,
   );
 
-  return scaleToSize(artwork, size);
+  return {
+    artwork: scaleToSize(artwork, size),
+    shapeCount: shapes.length,
+    polygonCount: artwork.length,
+  };
 }
 
 export function applySVGViewport(

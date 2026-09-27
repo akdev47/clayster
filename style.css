@@ -374,6 +374,30 @@ input:disabled {
   color: #f0a49d;
 }
 
+.diagnostics .diagnostic-message {
+  margin: 0;
+  font-size: 12px;
+}
+
+.diagnostic-message.working,
+.diagnostics ul {
+  color: var(--muted);
+}
+
+.diagnostic-message.ok {
+  color: var(--ok);
+}
+
+.diagnostic-message.error {
+  color: #f0a49d;
+}
+
+.diagnostics ul {
+  margin: 5px 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+}
+
 .readout {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

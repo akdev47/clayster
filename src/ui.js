@@ -244,6 +244,8 @@ export function createUI(viewer, pipeline) {
     dom.working.hidden = false;
     dom.exportSTL.disabled = dom.export3MF.disabled = true;
     showIssues([]); // Do not show the previous stamp's passing checks.
+    showDiagnostics();
+    if (pipeline.diagnostics !== null) status(null);
   });
 
   pipeline.addEventListener("result", () => {
@@ -254,6 +256,7 @@ export function createUI(viewer, pipeline) {
     viewer.show({ stamp: result.stamp, clay: result.clay });
 
     showIssues(result.issues, result.notes);
+    showDiagnostics();
     showSummary(result.info);
 
     if (result.stamp !== null) status(null);
@@ -264,10 +267,15 @@ export function createUI(viewer, pipeline) {
     dom.working.hidden = true;
     viewer.show({ stamp: null, clay: null });
     showSummary(null);
-    status(
-      `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
-      false,
-    );
+    showDiagnostics();
+    if (pipeline.diagnostics === null) {
+      status(
+        `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
+        false,
+      );
+    } else {
+      status(null);
+    }
   });
 
   function showIssues(issues, notes = []) {
@@ -289,6 +297,22 @@ export function createUI(viewer, pipeline) {
         text.textContent = issue.message;
 
         row.append(mark, text);
+        return row;
+      }),
+    );
+  }
+
+  function showDiagnostics() {
+    const diagnostics = pipeline.diagnostics;
+    dom.diagnostics.hidden = diagnostics === null;
+    if (diagnostics === null) return;
+
+    dom.diagnosticMessage.className = `diagnostic-message ${diagnostics.level}`;
+    dom.diagnosticMessage.textContent = diagnostics.message;
+    dom.diagnosticDetails.replaceChildren(
+      ...diagnostics.details.map((message) => {
+        const row = document.createElement("li");
+        row.textContent = message;
         return row;
       }),
     );
@@ -388,6 +412,9 @@ function collectDOM() {
     pngNote: $("png-note"),
     pngSize: $("png-size"),
     issueList: $("issue-list"),
+    diagnostics: $("diagnostics"),
+    diagnosticMessage: $("diagnostic-message"),
+    diagnosticDetails: $("diagnostic-details"),
     faceShape: $("face-shape"),
     autoFace: $("auto-face"),
     faceSize: $("face-size"),
