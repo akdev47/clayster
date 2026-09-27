@@ -1,5 +1,7 @@
 // Check the SVG before Three.js turns its filled outlines into shapes.
 // Uploaded markup stays data: we never insert it into the page.
+import { ShapeUtils } from "three";
+
 export function validateSVGDocument(text) {
   const document = new DOMParser().parseFromString(text, "image/svg+xml");
   if (
@@ -40,6 +42,19 @@ export function getFilledSVGShapes(data) {
       );
     }
     if (style.fill === "none" || Number(style.fillOpacity) === 0) continue;
+
+    // ShapePath.toShapes() silently skips zero-signed-area subpaths. A common
+    // cause is a self-intersecting bow-tie, which must not vanish while other
+    // valid artwork continues through the pipeline.
+    for (const subPath of path.subPaths) {
+      const points = subPath.getPoints();
+      if (points.length >= 3 && ShapeUtils.area(points) === 0) {
+        throw new Error(
+          "The SVG contains a self-intersecting or zero-area filled outline. Repair or simplify that outline before uploading.",
+        );
+      }
+    }
+
     shapes.push(...path.toShapes());
   }
 
