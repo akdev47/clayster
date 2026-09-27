@@ -98,6 +98,9 @@ export function traceMaskToSVG(mask, width, height) {
     x >= 0 && y >= 0 && x < width && y < height && mask[y * width + x] !== 0;
 
   const add = (sx, sy, ex, ey, direction) => {
+    if (edges.length >= MAX_EDGES) {
+      throw new Error("The PNG is too detailed to trace. Simplify or reduce the image first.");
+    }
     const edge = { sx, sy, ex, ey, direction, used: false };
     edges.push(edge);
     const key = `${sx},${sy}`;
@@ -120,9 +123,6 @@ export function traceMaskToSVG(mask, width, height) {
 
   if (edges.length === 0) {
     throw new Error("The PNG has no high-contrast artwork to turn into a stamp.");
-  }
-  if (edges.length > MAX_EDGES) {
-    throw new Error("The PNG is too detailed to trace. Simplify or reduce the image first.");
   }
 
   const paths = [];
