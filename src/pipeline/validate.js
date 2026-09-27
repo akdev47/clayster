@@ -64,6 +64,10 @@ export function validate(
 
   const repaired = repair(cleaned, issues);
 
+  if (repaired === null) {
+    return { artwork: [], issues };
+  }
+
   if (repaired.length === 0) {
     issues.push({
       level: "error",
@@ -95,10 +99,10 @@ function repair(artwork, issues) {
     result = union(artwork).map(stripClosingPoints);
   } catch (error) {
     issues.push({
-      level: "warning",
-      message: `Could not fully repair the outlines (${error.message}). Meshing will use them as they are.`,
+      level: "error",
+      message: `The artwork geometry could not be repaired safely (${error.message}). Simplify the SVG paths and try again.`,
     });
-    return artwork;
+    return null;
   }
 
   const after = totalArea(result);
