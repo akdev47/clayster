@@ -1,6 +1,13 @@
 // Converts loaded SVG outlines to the same millimetre-based polygons as the text input.
 import { loadSVGData } from "../loaders.js";
-import { fromShapes, bounds } from "./canonical.js";
+import {
+  fromShapes,
+  bounds,
+  removeShortEdges,
+  GEOMETRY_TOLERANCE_MM,
+} from "./canonical.js";
+
+export const SVG_SIMPLIFY_TOLERANCE_MM = GEOMETRY_TOLERANCE_MM / 2;
 
 // SVG user units mean nothing in millimetres — a drawing is commonly hundreds
 // of units across — so an uploaded file is scaled to a stated artwork size the
@@ -12,16 +19,41 @@ export async function loadSVGArtwork(source, { size = 30 } = {}) {
 
 export async function loadSVGArtworkDetails(source, { size = 30 } = {}) {
   const { shapes, viewport } = await loadSVGData(source);
-  const artwork = applySVGViewport(
-    fromShapes(shapes, { flipY: true }),
-    viewport,
-  );
+  const artwork = canonicalizeSVGShapes(shapes, viewport, size);
 
   return {
-    artwork: scaleToSize(artwork, size),
+    artwork,
     shapeCount: shapes.length,
     polygonCount: artwork.length,
   };
+}
+
+export function canonicalizeSVGShapes(shapes, viewport, size) {
+  // A cheap first pass estimates the conversion from SVG units to final mm.
+  // The second pass then samples each curve to a physical error tolerance, so
+  // larger stamps receive more points instead of exposing a fixed polygon.
+  const probe = applySVGViewport(
+    fromShapes(shapes, { flipY: true, curveSegments: 12 }),
+    viewport,
+  );
+  const probeBounds = bounds(probe);
+  const largest = Math.max(probeBounds.width, probeBounds.height);
+  if (largest === 0) return probe;
+
+  const millimetresPerViewportUnit = size / largest;
+  const viewportScale = Math.max(
+    Math.abs(viewport.scaleX ?? 1),
+    Math.abs(viewport.scaleY ?? 1),
+  );
+  const sourceTolerance =
+    SVG_SIMPLIFY_TOLERANCE_MM /
+    (millimetresPerViewportUnit * viewportScale);
+  const sampled = applySVGViewport(
+    fromShapes(shapes, { flipY: true, curveTolerance: sourceTolerance }),
+    viewport,
+  );
+
+  return removeShortEdges(scaleToSize(sampled, size));
 }
 
 export function applySVGViewport(

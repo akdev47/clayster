@@ -233,9 +233,8 @@ function expand(hull, margin) {
 // inside the plate when raised and pokes harmlessly above it when recessed, so
 // the finished stamp is identical either way.
 function buildRelief(artwork, settings) {
-  // No curveSegments here on purpose: the canonical form arrives already
-  // flattened to polylines, so the resolution knob is CURVE_SEGMENTS in
-  // canonical.js and setting one here would do nothing.
+  // No curveSegments here on purpose: canonical SVG curves have already been
+  // adaptively flattened at their final physical size.
   const geometry = new THREE.ExtrudeGeometry(toShapes(artwork), {
     depth: settings.reliefDepth + OVERLAP,
     bevelEnabled: false,

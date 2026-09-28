@@ -1,7 +1,10 @@
 // Coordinates input → 2D artwork → validation → 3D stamp and mug preview.
 // The UI listens for running/result/failed events rather than building geometry itself.
 import { loadFont, layoutText, wrapText } from "./text.js";
-import { loadSVGArtworkDetails } from "./svg.js";
+import {
+  loadSVGArtworkDetails,
+  SVG_SIMPLIFY_TOLERANCE_MM,
+} from "./svg.js";
 import { loadPNGArtwork } from "./png.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
@@ -192,8 +195,13 @@ export class Pipeline extends EventTarget {
       };
     }
 
-    const { canonical, issues, sourceStats = null } = await this.buildArtwork();
-    const checked = validate(canonical);
+    const {
+      canonical,
+      issues,
+      sourceStats = null,
+      validationTolerance,
+    } = await this.buildArtwork();
+    const checked = validate(canonical, { tolerance: validationTolerance });
 
     // What the wrap did to the text comes first: it explains the artwork
     // the check is reporting on.
@@ -225,6 +233,7 @@ export class Pipeline extends EventTarget {
           shapeCount: loaded.shapeCount,
           polygonCount: loaded.polygonCount,
         },
+        validationTolerance: SVG_SIMPLIFY_TOLERANCE_MM,
       };
     }
 
