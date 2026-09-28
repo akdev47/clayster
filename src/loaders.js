@@ -32,15 +32,23 @@ export async function loadSVGShapes(source) {
 
 export async function loadSVGData(source) {
   let text;
-  if (source instanceof File) {
-    text = await source.text();
-  } else {
-    const response = await fetch(source);
-    if (!response.ok) throw new Error("Could not load the SVG file.");
-    text = await response.text();
+  try {
+    if (source instanceof File) {
+      text = await source.text();
+    } else {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error("Could not load the SVG file.");
+      text = await response.text();
+    }
+  } catch (error) {
+    throw withSVGStage(error, "SVG loading");
   }
 
-  return parseSVGData(text);
+  try {
+    return parseSVGData(text);
+  } catch (error) {
+    throw withSVGStage(error, "SVG parsing");
+  }
 }
 
 // Traced raster artwork stays internal: it enters at the same validated SVG
@@ -56,6 +64,18 @@ function parseSVGData(text) {
     shapes: getFilledSVGShapes(data),
     viewport: getSVGViewportTransform(data.xml),
   };
+}
+
+function withSVGStage(error, stage) {
+  if (error?.svgStage) return error;
+
+  const message =
+    stage === "SVG loading"
+      ? "Could not load the SVG file."
+      : "The SVG could not be parsed.";
+  const diagnosed = new Error(message, { cause: error });
+  diagnosed.svgStage = stage;
+  return diagnosed;
 }
 
 // Give flat outlines thickness by adding front, back, and side faces.

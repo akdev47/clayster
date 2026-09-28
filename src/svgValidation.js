@@ -8,18 +8,52 @@ export function validateSVGDocument(text) {
     document.querySelector("parsererror") ||
     document.documentElement.localName !== "svg"
   ) {
-    throw new Error("Please choose a valid SVG file.");
+    throw svgError("Please choose a valid SVG file.", "SVG parsing");
   }
 
-  if (
-    document.querySelector(
-      "text, image, use, clipPath, mask, filter, script, foreignObject",
-    )
-  ) {
-    throw new Error(
-      "Use an SVG with filled outlines. Convert text to paths and remove images, linked shapes, masks, or effects.",
+  const unsupported = getUnsupportedSVGFeatures(document);
+  if (unsupported.length > 0) {
+    throw svgError(
+      unsupported[0],
+      "SVG parsing",
+      unsupported.slice(1),
     );
   }
+}
+
+export function getUnsupportedSVGFeatures(document) {
+  const checks = [
+    [
+      "text",
+      "Unsupported SVG text element. Convert text to paths before uploading.",
+    ],
+    ["image", "Embedded raster images are not supported inside SVG files."],
+    [
+      "use",
+      "Unsupported SVG use element. Expand linked or reused shapes before uploading.",
+    ],
+    [
+      "clipPath",
+      "Unsupported SVG clip path. Apply the clipping to the paths before uploading.",
+    ],
+    [
+      "mask",
+      "Unsupported SVG mask. Apply the mask to the paths before uploading.",
+    ],
+    [
+      "filter",
+      "Unsupported SVG filter or effect. Remove effects before uploading.",
+    ],
+    [
+      "foreignObject",
+      "Unsupported SVG foreignObject element. Convert it to filled paths before uploading.",
+    ],
+    ["script", "SVG scripts are not supported."],
+  ];
+
+  return checks
+    .filter(([selector]) => document.querySelector(selector) !== null)
+    .map(([, message]) => message);
 }
 
 // After SVGLoader parses the file, keep only outlines supported by our extrusion step.
@@ -45,8 +79,11 @@ export function getFilledSVGShapes(data) {
       Number(style.strokeOpacity) !== 0 &&
       Number(style.strokeWidth) !== 0
     ) {
-      throw new Error(
-        "Convert SVG strokes to filled outlines before uploading.",
+      throw svgError(
+        style.fill === "none" || Number(style.fillOpacity) === 0
+          ? "Unsupported stroke-only artwork. Convert strokes to filled outlines before uploading."
+          : "Unsupported SVG stroke. Convert strokes to filled outlines before uploading.",
+        "SVG shape conversion",
       );
     }
     if (style.fill === "none" || Number(style.fillOpacity) === 0) continue;
@@ -57,8 +94,9 @@ export function getFilledSVGShapes(data) {
     for (const subPath of path.subPaths) {
       const points = subPath.getPoints();
       if (points.length >= 3 && ShapeUtils.area(points) === 0) {
-        throw new Error(
+        throw svgError(
           "The SVG contains a self-intersecting or zero-area filled outline. Repair or simplify that outline before uploading.",
+          "SVG shape conversion",
         );
       }
     }
@@ -67,8 +105,9 @@ export function getFilledSVGShapes(data) {
   }
 
   if (shapes.length === 0) {
-    throw new Error(
-      "The SVG has no visible filled outlines to turn into a stamp.",
+    throw svgError(
+      "SVG contains no usable filled outlines.",
+      "SVG shape conversion",
     );
   }
   return shapes;
@@ -91,14 +130,17 @@ export function getSVGViewportTransform(root) {
     values[2] <= 0 ||
     values[3] <= 0
   ) {
-    throw new Error("The SVG has an invalid viewBox.");
+    throw svgError("The SVG has an invalid viewBox.", "SVG normalization");
   }
 
   const [minX, minY, viewWidth, viewHeight] = values;
   const width = svgLength(root.getAttribute("width")) ?? viewWidth;
   const height = svgLength(root.getAttribute("height")) ?? viewHeight;
   if (!(width > 0) || !(height > 0)) {
-    throw new Error("The SVG viewport must have a positive width and height.");
+    throw svgError(
+      "The SVG viewport must have a positive width and height.",
+      "SVG normalization",
+    );
   }
 
   let scaleX = width / viewWidth;
@@ -165,7 +207,10 @@ function parseAspectRatio(value) {
   const align = parts[0] || "xMidYMid";
   const mode = parts[1] === "slice" ? "slice" : "meet";
   if (align !== "none" && !/^x(?:Min|Mid|Max)Y(?:Min|Mid|Max)$/.test(align)) {
-    throw new Error("The SVG has an invalid preserveAspectRatio value.");
+    throw svgError(
+      "The SVG has an invalid preserveAspectRatio value.",
+      "SVG normalization",
+    );
   }
   return { align, mode };
 }
@@ -176,4 +221,11 @@ function alignment(value) {
 
 function identityViewport() {
   return { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0 };
+}
+
+function svgError(message, stage, details = []) {
+  const error = new Error(message);
+  error.svgStage = stage;
+  error.svgDetails = details;
+  return error;
 }

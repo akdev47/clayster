@@ -328,7 +328,7 @@ export class Pipeline extends EventTarget {
             level: "working",
             message: "Processing SVG…",
             details: [],
-            stage: "loading/parsing",
+            stage: "SVG loading",
             geometryProduced: false,
             rejected: false,
           }
@@ -344,7 +344,7 @@ export class Pipeline extends EventTarget {
 
     this.diagnostics.shapeCount = sourceStats.shapeCount;
     this.diagnostics.polygonCount = sourceStats.polygonCount;
-    this.diagnostics.stage = "validation";
+    this.diagnostics.stage = "geometry validation";
 
     const errors = issues.filter(({ level }) => level === "error");
     const warnings = issues.filter(({ level }) => level === "warning");
@@ -355,14 +355,17 @@ export class Pipeline extends EventTarget {
 
     if (sourceStats.shapeCount === 0) {
       this.diagnostics.level = "error";
-      this.diagnostics.message = "SVG parsing produced no usable shapes.";
+      this.diagnostics.message = "SVG contains no usable filled outlines.";
+      this.diagnostics.details.push("Stage: SVG shape conversion");
       this.diagnostics.details.push("Rejected before preview/export.");
       this.diagnostics.rejected = true;
     } else if (errors.length > 0) {
       this.diagnostics.level = "error";
-      this.diagnostics.message = `SVG validation failed: ${errors
-        .map(({ message }) => message)
-        .join(" ")}`;
+      this.diagnostics.message = errors[0].message;
+      this.diagnostics.details.push(
+        ...errors.slice(1).map(({ message }) => message),
+        "Stage: geometry validation",
+      );
       this.diagnostics.details.push("Rejected before preview/export.");
       this.diagnostics.rejected = true;
     }
@@ -384,17 +387,25 @@ export class Pipeline extends EventTarget {
 
     const stage = this.diagnostics.stage;
     const labels = {
-      "loading/parsing": "SVG loading/parsing failed",
-      validation: "SVG validation failed",
+      "SVG loading": "SVG loading failed",
       "stamp preparation": "Stamp preparation failed",
-      "stamp generation": "Stamp generation failed",
-      "final mesh validation":
-        "The generated stamp was rejected before preview/export",
+      "stamp generation": "Geometry generation failed",
+      "final mesh validation": "Stamp mesh validation failed",
     };
 
+    const diagnosedStage = error?.svgStage ?? stage;
+    const additional = Array.isArray(error?.svgDetails)
+      ? error.svgDetails
+      : [];
     this.diagnostics.level = "error";
-    this.diagnostics.message = `${labels[stage] ?? `SVG ${stage} failed`}: ${conciseError(error)}`;
-    this.diagnostics.details.push("Rejected before preview/export.");
+    this.diagnostics.message = error?.svgStage
+      ? conciseError(error)
+      : `${labels[stage] ?? "SVG processing failed"}: ${conciseError(error)}`;
+    this.diagnostics.details.push(
+      ...additional,
+      `Stage: ${diagnosedStage}`,
+      "Rejected before preview/export.",
+    );
     this.diagnostics.rejected = true;
   }
 }
