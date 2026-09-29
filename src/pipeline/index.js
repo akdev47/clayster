@@ -121,9 +121,11 @@ export class Pipeline extends EventTarget {
     this.dispatchEvent(new Event("running"));
 
     try {
-      const { artwork, issues, sourceStats } = await this.artwork();
+      const { artwork, issues: initialIssues, sourceStats } =
+        await this.artwork();
       if (token !== this.token) return;
 
+      let issues = initialIssues;
       this.recordSVGValidation(sourceStats, issues);
 
       if (artwork.length === 0) {
@@ -141,7 +143,18 @@ export class Pipeline extends EventTarget {
       await initializeSolids(wasmUrl);
       if (token !== this.token) return;
       this.setSVGStage("stamp generation");
-      const built = buildStamp(artwork, this.stamp, handle);
+      const { thinIssues, ...built } = buildStamp(
+        artwork,
+        this.stamp,
+        handle,
+      );
+      if (thinIssues.length > 0) {
+        issues = [
+          ...issues.filter(({ level }) => level !== "ok"),
+          ...thinIssues,
+        ];
+      }
+      this.recordSVGValidation(sourceStats, issues);
       if (this.diagnostics !== null) {
         this.diagnostics.geometryProduced = Boolean(
           built.stamp?.getAttribute("position")?.count,

@@ -1,4 +1,4 @@
-// Cleans 2D outlines before extrusion and reports repairs or estimated thin features.
+// Cleans 2D outlines before extrusion and reports repairs.
 // Finished 3D surface checks live separately in exportValidation.js.
 import { union } from "polyclip-ts";
 import {
@@ -21,14 +21,14 @@ const SIMPLIFY_MM = 0.05;
 /**
  * Checks the artwork and repairs what can be repaired, returning the cleaned
  * canonical geometry alongside a list of `{ level, message }` where level is
- * 'fixed', 'warning' or 'error'.
+ * 'ok', 'fixed' or 'error'. Thin-feature warnings run after final face fitting.
  *
  * An 'error' means nothing downstream can run; 'fixed' is reported so the user
  * can see what was silently changed on their behalf.
  */
 export function validate(
   artwork,
-  { minFeature = 0.8, tolerance = SIMPLIFY_MM } = {},
+  { tolerance = SIMPLIFY_MM } = {},
 ) {
   const issues = [];
 
@@ -75,8 +75,6 @@ export function validate(
     });
     return { artwork: [], issues };
   }
-
-  checkThinFeatures(repaired, minFeature, issues);
 
   if (issues.length === 0) {
     issues.push({
@@ -146,10 +144,11 @@ function dropDegenerate(artwork) {
   return { cleaned, droppedRings };
 }
 
-// `2 × area / perimeter` is the average half-width of a shape, which for a long
-// thin one is very close to its actual width. It is an estimate, not a
-// measurement, and the message says so.
-function checkThinFeatures(artwork, minFeature, issues) {
+// Run after fitToFace(): `2 × area / perimeter` is the average half-width of a
+// shape, which for a long thin one is very close to its actual width. It is an
+// estimate, not a measurement, and the message says so.
+export function thinFeatureIssues(artwork, { minFeature = 0.8 } = {}) {
+  const issues = [];
   const thin = artwork.filter((polygon) => {
     const perimeter = polygon.reduce(
       (total, ring) => total + ringPerimeter(ring),
@@ -159,12 +158,13 @@ function checkThinFeatures(artwork, minFeature, issues) {
     return (2 * polygonArea(polygon)) / perimeter < minFeature / 2;
   });
 
-  if (thin.length === 0) return;
+  if (thin.length === 0) return issues;
 
   issues.push({
     level: "warning",
     message: `${thin.length} shape${thin.length === 1 ? " looks" : "s look"} thinner than about ${minFeature} mm and may not survive printing or show up in clay. This is an estimate.`,
   });
+  return issues;
 }
 
 // polyclip closes every ring by repeating its first point; the canonical form

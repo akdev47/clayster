@@ -4,6 +4,7 @@ import { toShapes, bounds, transform } from "./canonical.js";
 import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
+import { thinFeatureIssues } from "./validate.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "round", // 'round' | 'square' | 'outline'
@@ -47,6 +48,7 @@ export function buildStamp(artwork, params, handleGeometry = null) {
     : artwork;
 
   const { art, faceSize } = fitToFace(mirrored, settings, notes);
+  const thinIssues = thinFeatureIssues(art);
 
   if (offTheMug(bounds(art))) {
     notes.push(
@@ -84,12 +86,18 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   restOnPlate(clay);
   clay.translate(-(faceSize / 2 + GAP) - clay.boundingBox.max.x, 0, 0);
 
-  return { stamp, clay, info: describe(stamp, faceSize, settings), notes };
+  return {
+    stamp,
+    clay,
+    info: describe(stamp, faceSize, settings),
+    notes,
+    thinIssues,
+  };
 }
 
 // Auto sizing is what removes most of the clicking: the face grows to fit the
 // artwork. With a fixed face, artwork that would overhang is scaled down.
-function fitToFace(artwork, settings, notes) {
+export function fitToFace(artwork, settings, notes) {
   const box = bounds(artwork);
   // A circle must contain the artwork's corners, not just its widest side.
   const artSize =
