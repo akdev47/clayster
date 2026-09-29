@@ -4,11 +4,11 @@ import { union } from "polyclip-ts";
 import {
   isEmpty,
   ringArea,
-  ringPerimeter,
   polygonArea,
   normalizeWinding,
   simplify,
 } from "./canonical.js";
+import { hasThinCrossSection } from "../solidGeometry.js";
 
 // Slivers below this area in mm² carry no printable detail and only upset the
 // boolean stage.
@@ -144,19 +144,13 @@ function dropDegenerate(artwork) {
   return { cleaned, droppedRings };
 }
 
-// Run after fitToFace(): `2 × area / perimeter` is the average half-width of a
-// shape, which for a long thin one is very close to its actual width. It is an
-// estimate, not a measurement, and the message says so.
+// Run after fitToFace(): a morphological opening removes regions narrower than
+// the requested physical width, including local necks, arms and walls.
 export function thinFeatureIssues(artwork, { minFeature = 0.8 } = {}) {
   const issues = [];
-  const thin = artwork.filter((polygon) => {
-    const perimeter = polygon.reduce(
-      (total, ring) => total + ringPerimeter(ring),
-      0,
-    );
-    if (perimeter === 0) return false;
-    return (2 * polygonArea(polygon)) / perimeter < minFeature / 2;
-  });
+  const thin = artwork.filter((polygon) =>
+    hasThinCrossSection(polygon, minFeature),
+  );
 
   if (thin.length === 0) return issues;
 
