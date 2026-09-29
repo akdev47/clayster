@@ -1,0 +1,18 @@
+<h1>Orders</h1>
+<table>
+  <tr><th>Order</th><th>Customer</th><th>Placed</th><th>Items</th></tr>
+  {% for order in orders %}
+    <tr>
+      <td>#{{ order.pk }}</td>
+      <td>{{ order.customer }}</td>
+      <td>{{ order.placed_at|date:"d-m-Y H:i" }}</td>
+      <td>
+        {% for item in order.items.all %}
+          {{ item.quantity }}× {{ item.product }}<br>
+        {% endfor %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4">No orders yet.</td></tr>
+  {% endfor %}
+</table>
