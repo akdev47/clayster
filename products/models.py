@@ -12,7 +12,7 @@ class Product(models.Model):
     product_type = models.CharField(
         max_length=2,
         choices=ProductType.choices,
-        default= ProductType.CUSTOM_STAMP,
+        default= ProductType.STANDARD,
     )
 
     def __str__(self):
