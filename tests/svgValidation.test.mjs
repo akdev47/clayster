@@ -35,13 +35,10 @@ const documentWith = (...selectors) => ({
 });
 
 test("SVG text reports path-conversion guidance", () => {
-  assert.deepEqual(
-    getUnsupportedSVGFeatures(documentWith("text", "mask")),
-    [
-      "Unsupported SVG text element. Convert text to paths before uploading.",
-      "Unsupported SVG mask. Apply the mask to the paths before uploading.",
-    ],
-  );
+  assert.deepEqual(getUnsupportedSVGFeatures(documentWith("text", "mask")), [
+    "Unsupported SVG text element. Convert text to paths before uploading.",
+    "Unsupported SVG mask. Apply the mask to the paths before uploading.",
+  ]);
 });
 
 test("stroke-only artwork reports filled-outline guidance", () => {

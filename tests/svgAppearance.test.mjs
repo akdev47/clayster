@@ -5,10 +5,7 @@ import {
   getFilledSVGShapes,
   getSVGViewportTransform,
 } from "../src/svgValidation.js";
-import {
-  applySVGViewport,
-  scaleToSize,
-} from "../src/pipeline/svg.js";
+import { applySVGViewport, scaleToSize } from "../src/pipeline/svg.js";
 
 const root = (attributes) => ({
   getAttribute: (name) => attributes[name] ?? null,

@@ -28,7 +28,8 @@ test("overlapping polygons are still repaired successfully", () => {
   assert.equal(result.artwork.length, 1);
   assert.ok(
     result.issues.some(
-      (issue) => issue.level === "fixed" && /merged overlapping/i.test(issue.message),
+      (issue) =>
+        issue.level === "fixed" && /merged overlapping/i.test(issue.message),
     ),
   );
 });
@@ -39,7 +40,8 @@ test("polygon repair failures return a clear validation error", () => {
   assert.ok(
     result.issues.some(
       (issue) =>
-        issue.level === "error" && /could not be repaired safely/i.test(issue.message),
+        issue.level === "error" &&
+        /could not be repaired safely/i.test(issue.message),
     ),
   );
 });
@@ -49,7 +51,9 @@ test("unrepaired polygons are not returned to the downstream pipeline", () => {
 
   assert.deepEqual(result.artwork, []);
   assert.equal(
-    result.issues.some((issue) => /Meshing will use them as they are/i.test(issue.message)),
+    result.issues.some((issue) =>
+      /Meshing will use them as they are/i.test(issue.message),
+    ),
     false,
   );
 });

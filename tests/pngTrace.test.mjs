@@ -23,12 +23,7 @@ const processMask = (mask, width, height, size = 30) => {
 
 test("PNG tracing creates a closed contour", () => {
   const svg = traceMaskToSVG(
-    new Uint8Array([
-      0, 0, 0, 0,
-      0, 1, 1, 0,
-      0, 1, 1, 0,
-      0, 0, 0, 0,
-    ]),
+    new Uint8Array([0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0]),
     4,
     4,
   );
@@ -38,15 +33,7 @@ test("PNG tracing creates a closed contour", () => {
 });
 
 test("PNG tracing preserves holes as a second contour", () => {
-  const svg = traceMaskToSVG(
-    new Uint8Array([
-      1, 1, 1,
-      1, 0, 1,
-      1, 1, 1,
-    ]),
-    3,
-    3,
-  );
+  const svg = traceMaskToSVG(new Uint8Array([1, 1, 1, 1, 0, 1, 1, 1, 1]), 3, 3);
 
   assert.equal((svg.match(/M/g) ?? []).length, 2);
   assert.match(svg, /fill-rule="evenodd"/);
