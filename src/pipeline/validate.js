@@ -26,10 +26,7 @@ const SIMPLIFY_MM = 0.05;
  * An 'error' means nothing downstream can run; 'fixed' is reported so the user
  * can see what was silently changed on their behalf.
  */
-export function validate(
-  artwork,
-  { tolerance = SIMPLIFY_MM } = {},
-) {
+export function validate(artwork, { tolerance = SIMPLIFY_MM } = {}) {
   const issues = [];
 
   if (isEmpty(artwork)) {

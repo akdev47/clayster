@@ -1,10 +1,7 @@
 // Coordinates input → 2D artwork → validation → 3D stamp and mug preview.
 // The UI listens for running/result/failed events rather than building geometry itself.
 import { loadFont, layoutText, wrapText } from "./text.js";
-import {
-  loadSVGArtworkDetails,
-  SVG_SIMPLIFY_TOLERANCE_MM,
-} from "./svg.js";
+import { loadSVGArtworkDetails, SVG_SIMPLIFY_TOLERANCE_MM } from "./svg.js";
 import { loadPNGArtwork } from "./png.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
@@ -121,8 +118,11 @@ export class Pipeline extends EventTarget {
     this.dispatchEvent(new Event("running"));
 
     try {
-      const { artwork, issues: initialIssues, sourceStats } =
-        await this.artwork();
+      const {
+        artwork,
+        issues: initialIssues,
+        sourceStats,
+      } = await this.artwork();
       if (token !== this.token) return;
 
       let issues = initialIssues;
@@ -143,11 +143,7 @@ export class Pipeline extends EventTarget {
       await initializeSolids(wasmUrl);
       if (token !== this.token) return;
       this.setSVGStage("stamp generation");
-      const { thinIssues, ...built } = buildStamp(
-        artwork,
-        this.stamp,
-        handle,
-      );
+      const { thinIssues, ...built } = buildStamp(artwork, this.stamp, handle);
       if (thinIssues.length > 0) {
         issues = [
           ...issues.filter(({ level }) => level !== "ok"),
@@ -407,9 +403,7 @@ export class Pipeline extends EventTarget {
     };
 
     const diagnosedStage = error?.svgStage ?? stage;
-    const additional = Array.isArray(error?.svgDetails)
-      ? error.svgDetails
-      : [];
+    const additional = Array.isArray(error?.svgDetails) ? error.svgDetails : [];
     this.diagnostics.level = "error";
     this.diagnostics.message = error?.svgStage
       ? conciseError(error)

@@ -46,8 +46,7 @@ export function canonicalizeSVGShapes(shapes, viewport, size) {
     Math.abs(viewport.scaleY ?? 1),
   );
   const sourceTolerance =
-    SVG_SIMPLIFY_TOLERANCE_MM /
-    (millimetresPerViewportUnit * viewportScale);
+    SVG_SIMPLIFY_TOLERANCE_MM / (millimetresPerViewportUnit * viewportScale);
   const sampled = applySVGViewport(
     fromShapes(shapes, { flipY: true, curveTolerance: sourceTolerance }),
     viewport,
@@ -62,10 +61,7 @@ export function applySVGViewport(
 ) {
   return multiPolygon.map((polygon) =>
     polygon.map((ring) =>
-      ring.map(([x, y]) => [
-        x * scaleX + translateX,
-        y * scaleY - translateY,
-      ]),
+      ring.map(([x, y]) => [x * scaleX + translateX, y * scaleY - translateY]),
     ),
   );
 }

@@ -13,11 +13,7 @@ export function validateSVGDocument(text) {
 
   const unsupported = getUnsupportedSVGFeatures(document);
   if (unsupported.length > 0) {
-    throw svgError(
-      unsupported[0],
-      "SVG parsing",
-      unsupported.slice(1),
-    );
+    throw svgError(unsupported[0], "SVG parsing", unsupported.slice(1));
   }
 }
 
@@ -61,7 +57,9 @@ export function getFilledSVGShapes(data) {
   const shapes = [];
   for (const path of data.paths) {
     const style = path.userData.style;
-    const visibility = String(style.visibility ?? "").trim().toLowerCase();
+    const visibility = String(style.visibility ?? "")
+      .trim()
+      .toLowerCase();
     // Invisible paths should not become raised parts of the stamp.
     if (
       Number(style.opacity) === 0 ||
@@ -169,8 +167,12 @@ function hasDisplayNone(node) {
     const attribute = current.getAttribute?.("display");
     const inline = current.style?.display;
     if (
-      String(attribute ?? "").trim().toLowerCase() === "none" ||
-      String(inline ?? "").trim().toLowerCase() === "none"
+      String(attribute ?? "")
+        .trim()
+        .toLowerCase() === "none" ||
+      String(inline ?? "")
+        .trim()
+        .toLowerCase() === "none"
     ) {
       return true;
     }
@@ -182,7 +184,9 @@ function svgLength(value) {
   if (value === null || /%\s*$/.test(value)) return null;
   const match = String(value)
     .trim()
-    .match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\s*(px|in|cm|mm|q|pt|pc)?$/i);
+    .match(
+      /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\s*(px|in|cm|mm|q|pt|pc)?$/i,
+    );
   if (match === null) return null;
 
   const units = {

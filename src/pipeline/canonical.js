@@ -25,11 +25,7 @@ export const GEOMETRY_TOLERANCE_MM = 0.02;
 // holes. Flipping happens once, here, rather than in each source.
 export function fromShapes(
   shapes,
-  {
-    flipY = true,
-    curveSegments = CURVE_SEGMENTS,
-    curveTolerance = null,
-  } = {},
+  { flipY = true, curveSegments = CURVE_SEGMENTS, curveTolerance = null } = {},
 ) {
   const polygons = [];
 
@@ -38,9 +34,7 @@ export function fromShapes(
       curveTolerance > 0
         ? {
             shape: flattenPath(shape, curveTolerance),
-            holes: shape.holes.map((hole) =>
-              flattenPath(hole, curveTolerance),
-            ),
+            holes: shape.holes.map((hole) => flattenPath(hole, curveTolerance)),
           }
         : shape.extractPoints(curveSegments);
 
@@ -113,16 +107,7 @@ function flattenCurve(
     depth + 1,
     points,
   );
-  flattenCurve(
-    curve,
-    middleT,
-    middle,
-    endT,
-    end,
-    tolerance,
-    depth + 1,
-    points,
-  );
+  flattenCurve(curve, middleT, middle, endT, end, tolerance, depth + 1, points);
 }
 
 function pointSegmentDistance(point, start, end) {
@@ -136,8 +121,7 @@ function pointSegmentDistance(point, start, end) {
     0,
     Math.min(
       1,
-      ((point.x - start.x) * dx + (point.y - start.y) * dy) /
-        lengthSquared,
+      ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared,
     ),
   );
   return Math.hypot(

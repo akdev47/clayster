@@ -22,7 +22,9 @@ export async function tracePNGToSVG(file) {
     const { width, height } = bitmap;
     if (width === 0 || height === 0) throw new Error("The PNG image is empty.");
     if (width * height > MAX_PIXELS) {
-      throw new Error("The PNG is too large to trace. Use an image under 4 megapixels.");
+      throw new Error(
+        "The PNG is too large to trace. Use an image under 4 megapixels.",
+      );
     }
 
     const canvas = document.createElement("canvas");
@@ -90,7 +92,8 @@ function luminance(pixels, offset) {
 }
 
 export function traceMaskToSVG(mask, width, height) {
-  if (mask.length !== width * height) throw new Error("Invalid PNG trace mask.");
+  if (mask.length !== width * height)
+    throw new Error("Invalid PNG trace mask.");
 
   const edges = [];
   const starts = new Map();
@@ -99,7 +102,9 @@ export function traceMaskToSVG(mask, width, height) {
 
   const add = (sx, sy, ex, ey, direction) => {
     if (edges.length >= MAX_EDGES) {
-      throw new Error("The PNG is too detailed to trace. Simplify or reduce the image first.");
+      throw new Error(
+        "The PNG is too detailed to trace. Simplify or reduce the image first.",
+      );
     }
     const edge = { sx, sy, ex, ey, direction, used: false };
     edges.push(edge);
@@ -122,7 +127,9 @@ export function traceMaskToSVG(mask, width, height) {
   }
 
   if (edges.length === 0) {
-    throw new Error("The PNG has no high-contrast artwork to turn into a stamp.");
+    throw new Error(
+      "The PNG has no high-contrast artwork to turn into a stamp.",
+    );
   }
 
   const paths = [];

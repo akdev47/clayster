@@ -30,35 +30,39 @@ test("strip just above the minimum feature width is accepted", () => {
 });
 
 test("thin neck between thick regions is warned", () => {
-  const dumbbell = [[
-    [-5, -2],
-    [-1, -2],
-    [-1, -0.3],
-    [1, -0.3],
-    [1, -2],
-    [5, -2],
-    [5, 2],
-    [1, 2],
-    [1, 0.3],
-    [-1, 0.3],
-    [-1, 2],
-    [-5, 2],
-  ]];
+  const dumbbell = [
+    [
+      [-5, -2],
+      [-1, -2],
+      [-1, -0.3],
+      [1, -0.3],
+      [1, -2],
+      [5, -2],
+      [5, 2],
+      [1, 2],
+      [1, 0.3],
+      [-1, 0.3],
+      [-1, 2],
+      [-5, 2],
+    ],
+  ];
 
   assert.equal(hasWarning([dumbbell]), true);
 });
 
 test("narrow protruding arm is warned", () => {
-  const armed = [[
-    [-3, -3],
-    [3, -3],
-    [3, -0.3],
-    [6, -0.3],
-    [6, 0.3],
-    [3, 0.3],
-    [3, 3],
-    [-3, 3],
-  ]];
+  const armed = [
+    [
+      [-3, -3],
+      [3, -3],
+      [3, -0.3],
+      [6, -0.3],
+      [6, 0.3],
+      [3, 0.3],
+      [3, 3],
+      [-3, 3],
+    ],
+  ];
 
   assert.equal(hasWarning([armed]), true);
 });
@@ -88,7 +92,11 @@ test("only the thin polygon in multiple artwork polygons is counted", () => {
 });
 
 test("sharp valid corners are accepted with mitered offsets", () => {
-  const triangle = [[0, 0], [10, 0], [0, 10]];
+  const triangle = [
+    [0, 0],
+    [10, 0],
+    [0, 10],
+  ];
 
   assert.equal(hasWarning([[triangle]]), false);
 });
@@ -113,12 +121,16 @@ test("reversed winding and redundant points do not change the result", () => {
   assert.equal(hasWarning([[redundant]]), false);
 });
 
-const artwork = [[[
-  [-10, -0.5],
-  [10, -0.5],
-  [10, 0.5],
-  [-10, 0.5],
-]]];
+const artwork = [
+  [
+    [
+      [-10, -0.5],
+      [10, -0.5],
+      [10, 0.5],
+      [-10, 0.5],
+    ],
+  ],
+];
 
 const fit = (faceSize) =>
   fitToFace(

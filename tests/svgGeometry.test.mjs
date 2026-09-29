@@ -67,25 +67,33 @@ test("larger curved artwork receives more samples than smaller artwork", () => {
 });
 
 test("near-duplicate consecutive points are removed after mm scaling", () => {
-  const artwork = [[[
-    [0, 0],
-    [0.0000001, 0],
-    [10, 0],
-    [10, 10],
-    [0, 10],
-  ]]];
+  const artwork = [
+    [
+      [
+        [0, 0],
+        [0.0000001, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ],
+    ],
+  ];
 
   assert.equal(removeShortEdges(scaleToSize(artwork, 10))[0][0].length, 4);
 });
 
 test("extremely short edges are removed safely", () => {
-  const artwork = [[[
-    [0, 0],
-    [10, 0],
-    [10, 0.0005],
-    [10, 10],
-    [0, 10],
-  ]]];
+  const artwork = [
+    [
+      [
+        [0, 0],
+        [10, 0],
+        [10, 0.0005],
+        [10, 10],
+        [0, 10],
+      ],
+    ],
+  ];
 
   const cleaned = removeShortEdges(scaleToSize(artwork, 10));
   assert.deepEqual(cleaned[0][0], [
@@ -112,20 +120,22 @@ test("straight polygon coordinates and intended holes remain unchanged", () => {
   hole.closePath();
   shape.holes.push(hole);
 
-  assert.deepEqual(canonicalizeSVGShapes([shape], IDENTITY, 20), [[
+  assert.deepEqual(canonicalizeSVGShapes([shape], IDENTITY, 20), [
     [
-      [-10, 10],
-      [10, 10],
-      [10, -10],
-      [-10, -10],
+      [
+        [-10, 10],
+        [10, 10],
+        [10, -10],
+        [-10, -10],
+      ],
+      [
+        [-4, 4],
+        [-4, -4],
+        [4, -4],
+        [4, 4],
+      ],
     ],
-    [
-      [-4, 4],
-      [-4, -4],
-      [4, -4],
-      [4, 4],
-    ],
-  ]]);
+  ]);
 });
 
 test("the irregular curve SVG fixture remains valid at higher fidelity", async () => {
@@ -143,7 +153,10 @@ test("the irregular curve SVG fixture remains valid at higher fidelity", async (
 
   assert.ok(shapes.length > 0);
   assert.ok(artwork.flat(2).length > 200);
-  assert.equal(checked.issues.some(({ level }) => level === "error"), false);
+  assert.equal(
+    checked.issues.some(({ level }) => level === "error"),
+    false,
+  );
 });
 
 function shapesFromPathData(data) {
