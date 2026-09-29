@@ -5,7 +5,7 @@ import {
   loadSVGArtworkDetails,
   SVG_SIMPLIFY_TOLERANCE_MM,
 } from "./svg.js";
-import { loadPNGArtwork } from "./png.js";
+import { loadPNGArtwork, DEFAULT_PNG_SMOOTHING } from "./png.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
@@ -30,6 +30,7 @@ export const DEFAULT_SOURCE = {
   svgSize: 30,
   pngFile: null,
   pngSize: 30,
+  pngSmoothing: DEFAULT_PNG_SMOOTHING,
 };
 
 /**
@@ -255,6 +256,7 @@ export class Pipeline extends EventTarget {
 
       const canonical = await loadPNGArtwork(source.pngFile, {
         size: source.pngSize,
+        smoothing: source.pngSmoothing,
       });
       return { canonical, issues: [] };
     }
@@ -317,7 +319,7 @@ export class Pipeline extends EventTarget {
     if (source.kind === "png") {
       const file = source.pngFile;
       if (file === null) return "png:none";
-      return `png:${file.name}:${file.size}:${file.lastModified}:${source.pngSize}`;
+      return `png:${file.name}:${file.size}:${file.lastModified}:${source.pngSize}:${source.pngSmoothing}`;
     }
 
     return [

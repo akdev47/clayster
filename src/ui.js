@@ -135,6 +135,12 @@ export function createUI(viewer, pipeline) {
   number(dom.pngSize, (pngSize) => pipeline.setSource({ pngSize }), {
     min: 0.5,
   });
+  dom.pngSmoothing.addEventListener("input", () => {
+    const pngSmoothing = Number(dom.pngSmoothing.value);
+    dom.pngSmoothingReadout.textContent =
+      pngSmoothing === 0 ? "Off" : `${pngSmoothing}×`;
+    pipeline.setSource({ pngSmoothing });
+  });
 
   for (const [event, over] of [
     ["dragover", true],
@@ -411,6 +417,8 @@ function collectDOM() {
     pngFile: $("png-file"),
     pngNote: $("png-note"),
     pngSize: $("png-size"),
+    pngSmoothing: $("png-smoothing"),
+    pngSmoothingReadout: $("png-smoothing-readout"),
     issueList: $("issue-list"),
     diagnostics: $("diagnostics"),
     diagnosticMessage: $("diagnostic-message"),
