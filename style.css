@@ -91,6 +91,23 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .clay-size-box { padding: .85rem; background: #f8f5ef; border: 1px solid var(--border); border-radius: var(--radius); }
 .clay-size-box p { margin: .65rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
 
+/* Shared-pipeline controls shown with the 3D preview */
+.sidebar-mode[hidden], .pipeline-source-panel[hidden] { display: none !important; }
+.pipeline-section-note { margin: .25rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
+.pipeline-tabs { display: flex; width: 100%; }
+.pipeline-tabs .segment { min-width: 0; flex: 1; padding-inline: .45rem; }
+.pipeline-source-panel { margin-top: 1rem; }
+.pipeline-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.pipeline-input-unit { display: flex; align-items: center; margin-top: .35rem; overflow: hidden; color: var(--muted); background: #f4f1ea; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: .7rem; }
+.pipeline-input-unit .clay-input { min-width: 0; min-height: 38px; border: 0; border-radius: 0; box-shadow: none; }
+.pipeline-input-unit > span { padding: 0 .55rem; }
+.pipeline-dropzone { display: flex; width: 100%; min-height: 92px; align-items: center; justify-content: center; flex-direction: column; padding: .8rem; color: var(--muted); background: #f8f5ef; border: 1px dashed #bda98e; border-radius: var(--radius); font-size: .72rem; text-align: center; }
+.pipeline-dropzone strong { margin-bottom: .2rem; color: var(--ink); font-size: .78rem; }
+.pipeline-dropzone:hover, .pipeline-dropzone.over { color: var(--aqua-dark); background: rgb(139 223 221 / 16%); border-color: var(--aqua-dark); }
+.pipeline-note { margin: .55rem 0; color: var(--muted); font-size: .68rem; line-height: 1.45; }
+.pipeline-control-status { margin: 1rem 0 0; padding: .65rem; color: var(--coral-dark); background: rgb(244 143 104 / 13%); border: 1px solid rgb(201 87 56 / 20%); border-radius: var(--radius-sm); font-size: .7rem; line-height: 1.45; }
+.pipeline-control-status.ok { color: var(--success); background: rgb(61 139 103 / 11%); border-color: rgb(61 139 103 / 20%); }
+
 /* Design canvas */
 .canvas-column { padding: 1.4rem; background: var(--surface); }
 .canvas-toolbar { gap: 1rem; margin-bottom: 1rem; }

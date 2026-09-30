@@ -3,6 +3,7 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "./style.css";
 import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
+import { createPipelineControls } from "./src/pipelineControls.js";
 
 const state = {
   width: 60,
@@ -44,9 +45,13 @@ const $$ = (selector) => document.querySelectorAll(selector);
 const artboard = $("#stamp-artboard");
 const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
+const editorControls2D = $("#editor-controls-2d");
+const editorControls3D = $("#editor-controls-3d");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline();
 let hasFramedPreview = false;
+
+createPipelineControls(viewer, pipeline);
 
 pipeline.addEventListener("running", () => {
   previewStatus.hidden = false;
@@ -512,15 +517,36 @@ $("#font-weight").addEventListener("input", (event) => {
   updateSelectedText("weight", Number(event.target.value));
 });
 
-$$("[data-align]").forEach((button) => {
+$$("#editor-controls-2d [data-align]").forEach((button) => {
   button.addEventListener("click", () => {
     updateSelectedText("align", button.dataset.align);
   });
 });
 
-$$("[data-mode]").forEach((button) => {
+$("#stamp-width").addEventListener("input", (event) => {
+  state.width = Number(event.target.value);
+  updateDimensions();
+});
+
+$("#base-thickness").addEventListener("input", (event) => {
+  state.thickness = Number(event.target.value);
+  updateDimensions();
+});
+
+$("#mirror-design").addEventListener("change", (event) => {
+  state.mirror = event.target.checked;
+  artboard.style.transform = state.mirror ? "scaleX(-1)" : "scaleX(1)";
+});
+
+$("#handle-select").addEventListener("change", (event) => {
+  state.handle = event.target.value;
+});
+
+$$("#preview-surface-toggle [data-mode]").forEach((button) => {
   button.addEventListener("click", () => {
-    $$("[data-mode]").forEach((modeButton) => modeButton.classList.remove("active"));
+    $$("#preview-surface-toggle [data-mode]").forEach((modeButton) =>
+      modeButton.classList.remove("active"),
+    );
     button.classList.add("active");
 
     if ($("[data-view='3d']").classList.contains("active")) {
@@ -540,6 +566,8 @@ $$("[data-view]").forEach((button) => {
     const show2D = button.dataset.view === "2d";
     $("#stamp-canvas").classList.toggle("preview-hidden", !show2D);
     previewContainer.classList.toggle("d-none", show2D);
+    editorControls2D.hidden = !show2D;
+    editorControls3D.hidden = show2D;
 
     if (!show2D) {
       viewer.frame("both");

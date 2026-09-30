@@ -60,6 +60,7 @@
         <div class="row g-0">
           <!-- Left sidebar -->
           <aside class="col-12 col-xl-3 order-2 order-xl-1 editor-sidebar">
+            <div id="editor-controls-2d" class="sidebar-mode">
             <section class="sidebar-section">
               <div class="section-heading">
                 <div>
@@ -307,12 +308,318 @@
                 <option>Large Handle</option>
               </select>
             </section>
+            </div>
+
+            <div id="editor-controls-3d" class="sidebar-mode" hidden>
+              <section class="sidebar-section">
+                <div class="section-heading">
+                  <div>
+                    <h2>3D Artwork</h2>
+                    <p class="pipeline-section-note">Choose one source for the printable stamp.</p>
+                  </div>
+                </div>
+
+                <div id="pipeline-source-tabs" class="segmented-control pipeline-tabs">
+                  <button class="segment active" type="button" data-kind="text">Text</button>
+                  <button class="segment" type="button" data-kind="svg">SVG</button>
+                  <button class="segment" type="button" data-kind="png">PNG</button>
+                </div>
+
+                <div id="pipeline-text-source" class="pipeline-source-panel">
+                  <label class="control-label" for="pipeline-text-input">Text</label>
+                  <textarea
+                    id="pipeline-text-input"
+                    class="form-control clay-input"
+                    rows="3"
+                    spellcheck="false"
+                  ></textarea>
+
+                  <label class="control-label mt-3" for="pipeline-font-select">Font</label>
+                  <select id="pipeline-font-select" class="form-select clay-input"></select>
+                  <button
+                    id="pipeline-font-upload-button"
+                    class="btn subtle-button w-100 mt-2"
+                    type="button"
+                  >
+                    Upload custom font
+                  </button>
+                  <input
+                    id="pipeline-font-file"
+                    type="file"
+                    accept=".ttf,.otf,font/ttf,font/otf"
+                    hidden
+                  />
+                  <p id="pipeline-font-note" class="pipeline-note" hidden></p>
+
+                  <div class="pipeline-field-grid mt-3">
+                    <label class="control-label" for="pipeline-text-size">
+                      Text size
+                      <span class="pipeline-input-unit">
+                        <input
+                          id="pipeline-text-size"
+                          class="form-control clay-input"
+                          type="number"
+                          min="0.5"
+                          step="0.5"
+                        />
+                        <span>mm</span>
+                      </span>
+                    </label>
+                    <label class="control-label" for="pipeline-letter-spacing">
+                      Letter spacing
+                      <span class="pipeline-input-unit">
+                        <input
+                          id="pipeline-letter-spacing"
+                          class="form-control clay-input"
+                          type="number"
+                          step="0.1"
+                        />
+                        <span>mm</span>
+                      </span>
+                    </label>
+                    <label class="control-label" for="pipeline-line-spacing">
+                      Line spacing
+                      <span class="pipeline-input-unit">
+                        <input
+                          id="pipeline-line-spacing"
+                          class="form-control clay-input"
+                          type="number"
+                          min="0.1"
+                          step="0.05"
+                        />
+                        <span>×</span>
+                      </span>
+                    </label>
+                  </div>
+
+                  <label class="control-label mt-3">Alignment</label>
+                  <div id="pipeline-align-buttons" class="segmented-control pipeline-tabs">
+                    <button class="segment" type="button" data-align="left">Left</button>
+                    <button class="segment active" type="button" data-align="center">Center</button>
+                    <button class="segment" type="button" data-align="right">Right</button>
+                  </div>
+                </div>
+
+                <div id="pipeline-svg-source" class="pipeline-source-panel" hidden>
+                  <button id="pipeline-svg-drop" class="pipeline-dropzone" type="button">
+                    <strong>Drop an SVG here</strong>
+                    <span>or click to choose a file</span>
+                  </button>
+                  <input
+                    id="pipeline-svg-file"
+                    type="file"
+                    accept=".svg,image/svg+xml"
+                    hidden
+                  />
+                  <p id="pipeline-svg-note" class="pipeline-note">
+                    Closed filled outlines are converted into printable geometry.
+                  </p>
+                  <button id="pipeline-svg-sample" class="btn subtle-button w-100" type="button">
+                    Use sample pear
+                  </button>
+                  <label class="control-label mt-3" for="pipeline-svg-size">
+                    Artwork size
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-svg-size"
+                        class="form-control clay-input"
+                        type="number"
+                        min="0.5"
+                        step="1"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                </div>
+
+                <div id="pipeline-png-source" class="pipeline-source-panel" hidden>
+                  <button id="pipeline-png-drop" class="pipeline-dropzone" type="button">
+                    <strong>Drop a PNG here</strong>
+                    <span>or click to choose a file</span>
+                  </button>
+                  <input
+                    id="pipeline-png-file"
+                    type="file"
+                    accept=".png,image/png"
+                    hidden
+                  />
+                  <p id="pipeline-png-note" class="pipeline-note">
+                    Best for simple, high-contrast artwork.
+                  </p>
+                  <label class="control-label" for="pipeline-png-size">
+                    Artwork size
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-png-size"
+                        class="form-control clay-input"
+                        type="number"
+                        min="0.5"
+                        step="1"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <div class="range-control">
+                    <div class="range-heading">
+                      <label for="pipeline-png-smoothing">Smoothing</label>
+                      <output id="pipeline-png-smoothing-readout">2×</output>
+                    </div>
+                    <input
+                      id="pipeline-png-smoothing"
+                      class="form-range clay-range"
+                      type="range"
+                      min="0"
+                      max="4"
+                      step="0.25"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section class="sidebar-section border-bottom-0">
+                <div class="section-heading">
+                  <div>
+                    <h2>3D Stamp Settings</h2>
+                    <p class="pipeline-section-note">Physical dimensions are in millimetres.</p>
+                  </div>
+                </div>
+
+                <label class="control-label">Face shape</label>
+                <div id="pipeline-face-shape" class="segmented-control pipeline-tabs">
+                  <button class="segment active" type="button" data-shape="round">Round</button>
+                  <button class="segment" type="button" data-shape="square">Square</button>
+                  <button class="segment" type="button" data-shape="outline">Artwork</button>
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <span class="setting-label">Automatic face size</span>
+                    <small>Fit the backing to the artwork</small>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input
+                      id="pipeline-auto-face"
+                      class="form-check-input clay-switch"
+                      type="checkbox"
+                      role="switch"
+                    />
+                  </div>
+                </div>
+
+                <div class="pipeline-field-grid mt-3">
+                  <label class="control-label" for="pipeline-face-size">
+                    Face size
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-face-size"
+                        class="form-control clay-input"
+                        type="number"
+                        min="1"
+                        step="1"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="pipeline-face-thickness">
+                    Base thickness
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-face-thickness"
+                        class="form-control clay-input"
+                        type="number"
+                        min="0.2"
+                        step="0.5"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="pipeline-margin">
+                    Margin
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-margin"
+                        class="form-control clay-input"
+                        type="number"
+                        min="0"
+                        step="0.5"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                </div>
+
+                <label class="control-label mt-3">Relief</label>
+                <div id="pipeline-relief-mode" class="segmented-control pipeline-tabs">
+                  <button class="segment active" type="button" data-mode="emboss">Raised</button>
+                  <button class="segment" type="button" data-mode="deboss">Recessed</button>
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="pipeline-relief-depth">Relief depth</label>
+                    <output id="pipeline-relief-readout">2 mm</output>
+                  </div>
+                  <input
+                    id="pipeline-relief-depth"
+                    class="form-range clay-range"
+                    type="range"
+                    min="0.4"
+                    max="8"
+                    step="0.2"
+                  />
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <span class="setting-label">Mirror design</span>
+                    <small>Make the clay impression readable</small>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input
+                      id="pipeline-mirror"
+                      class="form-check-input clay-switch"
+                      type="checkbox"
+                      role="switch"
+                    />
+                  </div>
+                </div>
+
+                <label class="control-label mt-3" for="pipeline-handle-select">Handle</label>
+                <select id="pipeline-handle-select" class="form-select clay-input">
+                  <option value="none">No handle — face only</option>
+                  <option value="sample">Sample handle</option>
+                </select>
+
+                <div class="row g-2 mt-2">
+                  <div class="col-6">
+                    <button
+                      id="pipeline-export-stl"
+                      class="btn subtle-button w-100"
+                      type="button"
+                    >
+                      Export STL
+                    </button>
+                  </div>
+                  <div class="col-6">
+                    <button
+                      id="pipeline-export-3mf"
+                      class="btn subtle-button w-100"
+                      type="button"
+                    >
+                      Export 3MF
+                    </button>
+                  </div>
+                </div>
+
+                <p id="pipeline-control-status" class="pipeline-control-status" hidden></p>
+              </section>
+            </div>
           </aside>
 
           <!-- Main editor -->
           <section class="col-12 col-xl-6 order-1 order-xl-2 canvas-column">
             <div class="canvas-toolbar">
-              <div class="segmented-control" aria-label="Preview surface">
+              <div id="preview-surface-toggle" class="segmented-control" aria-label="Preview surface">
                 <button class="segment active" data-mode="stamp">Stamp</button>
                 <button class="segment" data-mode="clay">On Clay</button>
               </div>
