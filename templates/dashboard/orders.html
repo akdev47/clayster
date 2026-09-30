@@ -1,11 +1,15 @@
 <h1>Orders</h1>
+<form method="post" action="{% url 'create_dummy_order' %}">
+  {% csrf_token %}
+  <button type="submit">Add dummy order</button>
+</form>
 <table>
   <tr><th>Order</th><th>Customer</th><th>Placed</th><th>Items</th></tr>
   {% for order in orders %}
     <tr>
       <td>#{{ order.pk }}</td>
       <td>{{ order.customer }}</td>
-      <td>{{ order.placed_at|date:"d-m-Y H:i" }}</td>
+      <td>{{ order.created_at|date:"d-m-Y H:i" }}</td>
       <td>
         {% for item in order.items.all %}
           {{ item.quantity }}× {{ item.product }}<br>
