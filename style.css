@@ -120,6 +120,8 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .canvas-grid { position: absolute; inset: 0; opacity: .32; background-image: linear-gradient(rgb(78 71 62 / 7%) 1px, transparent 1px), linear-gradient(90deg, rgb(78 71 62 / 7%) 1px, transparent 1px); background-size: 24px 24px; }
 .stamp-artboard { position: relative; width: min(72%, 510px); aspect-ratio: 4 / 3; overflow: hidden; background: #f2dfbf; border: 1px solid #a78665; border-radius: var(--radius-sm); box-shadow: 0 6px 16px rgb(83 62 38 / 10%); touch-action: none; }
 .stamp-artboard::before { position: absolute; inset: 12px; content: ""; pointer-events: none; border: 1px dashed rgb(97 70 43 / 28%); border-radius: 4px; }
+.canonical-artwork { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; overflow: visible; fill: #3f352b; pointer-events: none; }
+.canonical-rendering-enabled .design-element > span:first-child, .canonical-rendering-enabled .design-element > img { visibility: hidden; }
 .artboard-corner { position: absolute; z-index: 1; width: 20px; height: 20px; opacity: .5; }
 .top-left { top: 14px; left: 14px; border-top: 2px solid; border-left: 2px solid; }
 .top-right { top: 14px; right: 14px; border-top: 2px solid; border-right: 2px solid; }

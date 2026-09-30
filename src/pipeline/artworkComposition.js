@@ -62,6 +62,7 @@ export class ArtworkComposer {
       ),
     );
     const canonical = [];
+    const renderElements = [];
     const elementIssues = [];
     const elementStats = [];
     let validationTolerance;
@@ -71,6 +72,12 @@ export class ArtworkComposer {
       const conversion = converted[index];
 
       canonical.push(...transform(conversion.canonical, element.transform));
+      renderElements.push({
+        id: element.id,
+        kind: element.kind,
+        canonical: conversion.canonical,
+        transform: element.transform,
+      });
       elementIssues.push(
         ...conversion.issues.map((issue) => ({
           ...issue,
@@ -107,6 +114,7 @@ export class ArtworkComposer {
       issues: [...elementIssues, ...designIssues],
       sourceStats: null,
       elementStats,
+      renderElements,
     };
 
     this.compositionCache = { key: compositionKey, result };

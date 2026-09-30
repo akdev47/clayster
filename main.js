@@ -5,6 +5,7 @@ import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
+import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
 
 const state = {
   width: 60,
@@ -44,6 +45,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 
 const artboard = $("#stamp-artboard");
+const canonicalArtwork = $("#canonical-artwork");
 const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
 const editorControls2D = $("#editor-controls-2d");
@@ -52,7 +54,10 @@ const printControls2D = $("#print-controls-2d");
 const printControls3D = $("#print-controls-3d");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline();
+const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
 let hasFramedPreview = false;
+
+artboard.classList.add("canonical-rendering-enabled");
 
 createPipelineControls(viewer, pipeline);
 createPipelineDiagnostics(pipeline);
@@ -64,6 +69,22 @@ pipeline.addEventListener("running", () => {
 
 pipeline.addEventListener("result", () => {
   const result = pipeline.result;
+  const renderElements =
+    result.renderElements ??
+    (result.artwork.length === 0
+      ? []
+      : [
+          {
+            id: "legacy-source",
+            kind: pipeline.source.kind,
+            canonical: result.artwork,
+          },
+        ]);
+
+  canonicalRenderer.render(renderElements, {
+    widthMm: state.width,
+    heightMm: state.height,
+  });
   viewer.show({ stamp: result.stamp, clay: result.clay });
   previewStatus.hidden = Boolean(result.stamp);
   previewStatus.textContent = result.stamp
@@ -77,6 +98,7 @@ pipeline.addEventListener("result", () => {
 });
 
 pipeline.addEventListener("failed", () => {
+  canonicalRenderer.clear();
   viewer.show({ stamp: null, clay: null });
   previewStatus.hidden = false;
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
@@ -265,6 +287,11 @@ function weightLabel(weight) {
 
 function updateDimensions() {
   state.height = Math.round(state.width * 0.75);
+
+  canonicalRenderer.setDimensions({
+    widthMm: state.width,
+    heightMm: state.height,
+  });
 
   $("#width-value").textContent = `${state.width} mm`;
   $("#thickness-value").textContent = `${state.thickness} mm`;
@@ -540,6 +567,7 @@ $("#base-thickness").addEventListener("input", (event) => {
 $("#mirror-design").addEventListener("change", (event) => {
   state.mirror = event.target.checked;
   artboard.style.transform = state.mirror ? "scaleX(-1)" : "scaleX(1)";
+  canonicalArtwork.style.transform = state.mirror ? "scaleX(-1)" : "";
 });
 
 $("#handle-select").addEventListener("change", (event) => {

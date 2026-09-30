@@ -144,6 +144,7 @@ export class Pipeline extends EventTarget {
         issues: initialIssues,
         sourceStats,
         elementStats = null,
+        renderElements = null,
       } = await this.artwork();
       if (token !== this.token) return;
 
@@ -152,7 +153,15 @@ export class Pipeline extends EventTarget {
 
       if (artwork.length === 0) {
         this.publish(
-          { artwork, issues, stamp: null, clay: null, info: null, notes: [] },
+          {
+            artwork,
+            issues,
+            renderElements,
+            stamp: null,
+            clay: null,
+            info: null,
+            notes: [],
+          },
           token,
         );
         return;
@@ -195,7 +204,7 @@ export class Pipeline extends EventTarget {
         throw error;
       }
       this.completeSVGDiagnostics();
-      this.publish({ artwork, issues, ...built }, token);
+      this.publish({ artwork, issues, renderElements, ...built }, token);
     } catch (error) {
       if (token !== this.token) return;
 
