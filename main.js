@@ -4,6 +4,7 @@ import "./style.css";
 import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
+import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
 
 const state = {
   width: 60,
@@ -47,11 +48,14 @@ const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
 const editorControls2D = $("#editor-controls-2d");
 const editorControls3D = $("#editor-controls-3d");
+const printControls2D = $("#print-controls-2d");
+const printControls3D = $("#print-controls-3d");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline();
 let hasFramedPreview = false;
 
 createPipelineControls(viewer, pipeline);
+createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
   previewStatus.hidden = false;
@@ -568,6 +572,8 @@ $$("[data-view]").forEach((button) => {
     previewContainer.classList.toggle("d-none", show2D);
     editorControls2D.hidden = !show2D;
     editorControls3D.hidden = show2D;
+    printControls2D.hidden = !show2D;
+    printControls3D.hidden = show2D;
 
     if (!show2D) {
       viewer.frame("both");

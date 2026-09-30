@@ -92,7 +92,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .clay-size-box p { margin: .65rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
 
 /* Shared-pipeline controls shown with the 3D preview */
-.sidebar-mode[hidden], .pipeline-source-panel[hidden] { display: none !important; }
+.sidebar-mode[hidden], .pipeline-source-panel[hidden], .print-panel-content[hidden] { display: none !important; }
 .pipeline-section-note { margin: .25rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
 .pipeline-tabs { display: flex; width: 100%; }
 .pipeline-tabs .segment { min-width: 0; flex: 1; padding-inline: .45rem; }
@@ -162,11 +162,15 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .overall-status { margin: .8rem 0 0; font-size: .78rem; font-weight: 700; }
 .warning-status, .blocking-message { color: var(--coral-dark); }
 .pass-status { color: var(--success); }
+.pipeline-overall-ok { color: var(--success); }
+.pipeline-overall-warning, .pipeline-overall-working { color: var(--warning); }
+.pipeline-overall-error { color: var(--coral-dark); }
 .validation-list { min-height: 0; flex: 1; padding: .5rem .9rem; overflow-y: auto; }
 .validation-row { display: flex; gap: .55rem; align-items: flex-start; padding: .8rem .5rem; border-bottom: 1px solid rgb(232 220 202 / 75%); }
 .status-icon { width: 23px; height: 23px; border-radius: 50%; font-size: .67rem; font-weight: 700; }
 .pass-icon, .pass-badge { color: var(--success); background: rgb(61 139 103 / 11%); }
 .warning-icon, .warning-badge { color: var(--warning); background: rgb(255 227 148 / 58%); }
+.error-icon, .error-badge { color: var(--coral-dark); background: rgb(244 143 104 / 16%); }
 .validation-content { min-width: 0; flex: 1; }
 .validation-content > span { display: block; font-size: .73rem; font-weight: 600; }
 .validation-content small { display: block; margin-top: .3rem; font-size: .65rem; line-height: 1.4; }
@@ -175,6 +179,12 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .print-actions { flex: 0 0 auto; padding: 1rem 1.4rem 1.4rem; background: var(--white); border-top: 1px solid var(--border); }
 .blocking-message { min-height: 34px; margin: 0 0 .6rem; font-size: .7rem; font-weight: 600; }
 .save-message { min-height: 17px; margin-bottom: .3rem; color: var(--success); font-size: .7rem; text-align: center; }
+.pipeline-summary-section { padding-block: 1rem; }
+.pipeline-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin: 0; }
+.pipeline-summary div { padding: .55rem; background: #f8f5ef; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.pipeline-summary dt { color: var(--muted); font-size: .62rem; font-weight: 600; }
+.pipeline-summary dd { margin: .15rem 0 0; color: var(--ink); font-size: .75rem; font-weight: 700; }
+.pipeline-export-readiness { padding: 0; border: 0; }
 
 @media (min-width: 1200px) {
   .canvas-column, .print-sidebar { transition: width .38s ease, opacity .24s ease, border-color .24s ease; }

@@ -665,7 +665,7 @@
 
           <!-- Right sidebar -->
           <aside id="printability-panel" class="col-12 col-xl-3 order-3 print-sidebar">
-            <div class="print-panel-content">
+            <div id="print-controls-2d" class="print-panel-content">
             <section class="sidebar-section">
               <div class="print-heading-icon">✓</div>
               <h2 class="print-title">Printability Check</h2>
@@ -750,6 +750,70 @@
                 <span>→</span>
               </button>
             </div>
+            </div>
+
+            <div id="print-controls-3d" class="print-panel-content" hidden>
+              <section class="sidebar-section">
+                <div id="pipeline-overall-icon" class="print-heading-icon warning-icon">…</div>
+                <h2 class="print-title">3D Printability Check</h2>
+                <p class="print-subtitle">
+                  Results come from the current conversion and geometry pipeline.
+                </p>
+                <p
+                  id="pipeline-overall-status"
+                  class="overall-status pipeline-overall-working"
+                >
+                  Waiting for build…
+                </p>
+              </section>
+
+              <section
+                id="pipeline-diagnostic-list"
+                class="validation-list"
+                aria-live="polite"
+                aria-label="3D validation results"
+              ></section>
+
+              <section class="sidebar-section pipeline-summary-section">
+                <div class="section-heading">
+                  <h2>Generated stamp</h2>
+                </div>
+                <dl class="pipeline-summary">
+                  <div>
+                    <dt>Width</dt>
+                    <dd id="pipeline-total-x">—</dd>
+                  </div>
+                  <div>
+                    <dt>Depth</dt>
+                    <dd id="pipeline-total-y">—</dd>
+                  </div>
+                  <div>
+                    <dt>Height</dt>
+                    <dd id="pipeline-total-z">—</dd>
+                  </div>
+                  <div>
+                    <dt>Face size</dt>
+                    <dd id="pipeline-summary-face-size">—</dd>
+                  </div>
+                  <div>
+                    <dt>Triangles</dt>
+                    <dd id="pipeline-triangle-count">—</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <div class="print-actions">
+                <div class="validation-row pipeline-export-readiness">
+                  <span id="pipeline-export-icon" class="status-icon warning-icon">…</span>
+                  <div class="validation-content">
+                    <span>STL / 3MF export</span>
+                    <small>Export controls are available in the 3D sidebar.</small>
+                  </div>
+                  <span id="pipeline-export-status" class="status-badge warning-badge">
+                    Building
+                  </span>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
