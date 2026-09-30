@@ -14,6 +14,10 @@ class Product(models.Model):
         choices=ProductType.choices,
         default= ProductType.STANDARD,
     )
+    # file = models.FileField(
+    #     upload_to="stl-files/",
+    #     blank=True,
+    # )
 
     def __str__(self):
         return self.name
