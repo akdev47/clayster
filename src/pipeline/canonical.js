@@ -320,21 +320,49 @@ export function bounds(multiPolygon) {
   return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
-// Mirroring flips the ring direction, so every ring is reversed to keep outers
-// and holes wound the way they were.
-export function transform(
-  multiPolygon,
-  { scale = 1, offsetX = 0, offsetY = 0, mirrorX = false } = {},
-) {
-  const sx = mirrorX ? -scale : scale;
+/**
+ * Applies an element transform in physical space.
+ *
+ * Points are moved to the pivot, mirrored on their local axes, uniformly
+ * scaled, rotated counter-clockwise, moved back from the pivot, and finally
+ * translated. `offsetX`/`offsetY` remain as aliases for the existing stamp
+ * callers; shared design elements use `xMm`/`yMm`.
+ *
+ * A reflection changes the transform determinant's sign. Reversing every ring
+ * in that case preserves the established outer/hole winding convention.
+ */
+export function transform(multiPolygon, options = {}) {
+  const {
+    scale = 1,
+    rotationDeg = 0,
+    mirrorX = false,
+    mirrorY = false,
+    pivotX = 0,
+    pivotY = 0,
+    offsetX = 0,
+    offsetY = 0,
+  } = options;
+  const translationX = options.xMm ?? offsetX;
+  const translationY = options.yMm ?? offsetY;
+  const radians = (rotationDeg * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  const scaleX = mirrorX ? -scale : scale;
+  const scaleY = mirrorY ? -scale : scale;
+  const reversesWinding = scaleX * scaleY < 0;
 
   return multiPolygon.map((polygon) =>
     polygon.map((ring) => {
-      const moved = ring.map(([x, y]) => [
-        x * sx + offsetX,
-        y * scale + offsetY,
-      ]);
-      return mirrorX ? moved.reverse() : moved;
+      const moved = ring.map(([x, y]) => {
+        const localX = (x - pivotX) * scaleX;
+        const localY = (y - pivotY) * scaleY;
+
+        return [
+          localX * cosine - localY * sine + pivotX + translationX,
+          localX * sine + localY * cosine + pivotY + translationY,
+        ];
+      });
+      return reversesWinding ? moved.reverse() : moved;
     }),
   );
 }
