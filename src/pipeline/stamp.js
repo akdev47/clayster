@@ -1,10 +1,13 @@
 // Builds the printable backing, artwork, and optional handle, plus a separate mug preview.
 import * as THREE from "three";
-import { toShapes, bounds, transform } from "./canonical.js";
+import { toShapes, bounds } from "./canonical.js";
 import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { thinFeatureIssues } from "./validate.js";
+import { createStampLayout } from "./stampLayout.js";
+
+export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "round", // 'round' | 'square' | 'outline'
@@ -41,13 +44,10 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   }
   const notes = [];
 
-  // Mirroring on X is what makes the impression read the right way round; it
-  // pairs with the half-turn about Y that presses the stamp into the clay.
-  const mirrored = settings.mirror
-    ? transform(artwork, { mirrorX: true })
-    : artwork;
-
-  const { art, faceSize } = fitToFace(mirrored, settings, notes);
+  // The shared layout is also rendered in 2D, so fitting and mirroring cannot
+  // become a private transform applied only while generating this mesh.
+  const layout = createStampLayout(artwork, settings, notes);
+  const { artwork: art, faceSize } = layout;
   const thinIssues = thinFeatureIssues(art);
 
   if (offTheMug(bounds(art))) {
@@ -56,7 +56,7 @@ export function buildStamp(artwork, params, handleGeometry = null) {
     );
   }
 
-  const base = buildBase(art, faceSize, settings);
+  const base = buildBase(layout.face, faceSize, settings);
   const relief = buildRelief(art, settings);
 
   // The face is everything that touches clay: the plate plus its artwork.
@@ -75,7 +75,10 @@ export function buildStamp(artwork, params, handleGeometry = null) {
     settings.mode === "emboss" ? relief : face,
     settings,
   );
-  const stamp = attachHandle(face, handleGeometry);
+  const stamp = attachHandle(face, handleGeometry, {
+    x: layout.minX + layout.widthMm / 2,
+    y: layout.minY + layout.heightMm / 2,
+  });
 
   relief.dispose();
 
@@ -90,63 +93,13 @@ export function buildStamp(artwork, params, handleGeometry = null) {
     stamp,
     clay,
     info: describe(stamp, faceSize, settings),
+    layout,
     notes,
     thinIssues,
   };
 }
 
-// Auto sizing is what removes most of the clicking: the face grows to fit the
-// artwork. With a fixed face, artwork that would overhang is scaled down.
-export function fitToFace(artwork, settings, notes) {
-  const box = bounds(artwork);
-  // A circle must contain the artwork's corners, not just its widest side.
-  const artSize =
-    settings.faceShape === "round"
-      ? Math.hypot(box.width, box.height)
-      : Math.max(box.width, box.height);
-
-  if (settings.autoFaceSize) {
-    return {
-      art: centre(artwork, box),
-      faceSize: artSize + settings.margin * 2,
-    };
-  }
-
-  const faceSize = settings.faceSize;
-  const available = faceSize - settings.margin * 2;
-
-  if (artSize <= available || artSize === 0) {
-    return { art: centre(artwork, box), faceSize };
-  }
-
-  notes.push(
-    `Artwork was scaled to ${Math.round((available / artSize) * 100)}% to fit the ${faceSize} mm face.`,
-  );
-
-  const scale = available / artSize;
-  const centreX = (box.minX + box.maxX) / 2;
-  const centreY = (box.minY + box.maxY) / 2;
-
-  return {
-    art: artwork.map((polygon) =>
-      polygon.map((ring) =>
-        ring.map(([x, y]) => [(x - centreX) * scale, (y - centreY) * scale]),
-      ),
-    ),
-    faceSize,
-  };
-}
-
-function centre(artwork, box) {
-  const centreX = (box.minX + box.maxX) / 2;
-  const centreY = (box.minY + box.maxY) / 2;
-
-  return artwork.map((polygon) =>
-    polygon.map((ring) => ring.map(([x, y]) => [x - centreX, y - centreY])),
-  );
-}
-
-function buildBase(artwork, faceSize, settings) {
+function buildBase(faceArtwork, faceSize, settings) {
   const thickness = settings.faceThickness;
   let geometry;
 
@@ -161,7 +114,7 @@ function buildBase(artwork, faceSize, settings) {
   } else if (settings.faceShape === "square") {
     geometry = new THREE.BoxGeometry(faceSize, faceSize, thickness);
   } else {
-    geometry = extrudeOutline(artwork, settings.margin, thickness);
+    geometry = extrudeOutline(faceArtwork, thickness);
   }
 
   geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
@@ -169,12 +122,8 @@ function buildBase(artwork, faceSize, settings) {
   return geometry;
 }
 
-// "Follow artwork" wraps the design in its convex hull, pushed outward by the
-// margin. The push is per-point rather than a true polygon offset, which is
-// close enough for a hull and needs no extra dependency.
-function extrudeOutline(artwork, margin, thickness) {
-  const points = artwork.flatMap((polygon) => polygon[0]);
-  const hull = expand(convexHull(points), margin);
+function extrudeOutline(faceArtwork, thickness) {
+  const hull = faceArtwork[0]?.[0] ?? [];
 
   if (hull.length < 3) {
     return new THREE.BoxGeometry(10, 10, thickness);
@@ -187,46 +136,6 @@ function extrudeOutline(artwork, margin, thickness) {
     depth: thickness,
     bevelEnabled: false,
   }).translate(0, 0, -thickness / 2);
-}
-
-// Find the outer envelope, like stretching a rubber band around all artwork points.
-function convexHull(points) {
-  if (points.length < 3) return points;
-
-  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const half = (input) => {
-    const stack = [];
-    for (const point of input) {
-      while (
-        stack.length >= 2 &&
-        cross(stack[stack.length - 2], stack[stack.length - 1], point) <= 0
-      ) {
-        stack.pop();
-      }
-      stack.push(point);
-    }
-    stack.pop();
-    return stack;
-  };
-
-  return [...half(sorted), ...half([...sorted].reverse())];
-}
-
-function cross(o, a, b) {
-  return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-}
-
-function expand(hull, margin) {
-  const centreX = hull.reduce((total, [x]) => total + x, 0) / hull.length;
-  const centreY = hull.reduce((total, [, y]) => total + y, 0) / hull.length;
-
-  return hull.map(([x, y]) => {
-    const dx = x - centreX;
-    const dy = y - centreY;
-    const length = Math.hypot(dx, dy) || 1;
-
-    return [x + (dx / length) * margin, y + (dy / length) * margin];
-  });
 }
 
 // Raised artwork stands on top of the plate; recessed artwork is the volume
@@ -261,7 +170,7 @@ function buildRelief(artwork, settings) {
 
 // The handle hangs below the plate, so the finished stamp stands on it the way
 // it would on a table, with the artwork facing up where you can see it.
-function attachHandle(face, handleGeometry) {
+function attachHandle(face, handleGeometry, faceCentre) {
   if (handleGeometry === null) return face.clone();
 
   const handle = handleGeometry.clone();
@@ -269,7 +178,11 @@ function attachHandle(face, handleGeometry) {
 
   const box = handle.boundingBox;
   const centre = box.getCenter(new THREE.Vector3());
-  handle.translate(-centre.x, -centre.y, -box.max.z + OVERLAP); // Overlap, not butt.
+  handle.translate(
+    faceCentre.x - centre.x,
+    faceCentre.y - centre.y,
+    -box.max.z + OVERLAP,
+  ); // Overlap, not butt.
 
   const stamp = booleanGeometry(face, handle, UNION);
   handle.dispose();

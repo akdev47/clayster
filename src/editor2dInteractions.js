@@ -19,12 +19,12 @@ export function screenDeltaToMillimetres(
 export function canonicalOverlayBox(
   canonical,
   elementTransform,
-  { widthMm, heightMm },
+  { widthMm, heightMm, minX = -widthMm / 2, minY = -heightMm / 2 },
 ) {
   const box = bounds(transform(canonical, elementTransform));
   return {
-    leftPercent: ((box.minX + widthMm / 2) / widthMm) * 100,
-    topPercent: ((heightMm / 2 - box.maxY) / heightMm) * 100,
+    leftPercent: ((box.minX - minX) / widthMm) * 100,
+    topPercent: ((minY + heightMm - box.maxY) / heightMm) * 100,
     widthPercent: (box.width / widthMm) * 100,
     heightPercent: (box.height / heightMm) * 100,
   };
@@ -77,12 +77,28 @@ export class DesignEditorController {
     this.view = view;
   }
 
-  moveFromScreenDelta(id, startTransform, delta, artboardRect, dimensions) {
-    const movement = screenDeltaToMillimetres(
+  moveFromScreenDelta(
+    id,
+    startTransform,
+    delta,
+    artboardRect,
+    dimensions,
+    displayTransform = {},
+  ) {
+    const displayedMovement = screenDeltaToMillimetres(
       delta,
       artboardRect,
       dimensions,
     );
+    const displayScale = displayTransform.scale ?? 1;
+    const movement = {
+      xMm:
+        displayedMovement.xMm /
+        (displayScale * (displayTransform.mirrorX ? -1 : 1)),
+      yMm:
+        displayedMovement.yMm /
+        (displayScale * (displayTransform.mirrorY ? -1 : 1)),
+    };
     return this.model.updateElement(id, {
       transform: {
         xMm: startTransform.xMm + movement.xMm,

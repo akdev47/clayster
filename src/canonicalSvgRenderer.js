@@ -6,9 +6,17 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
  * Builds the display description for canonical millimetre geometry. Canonical
  * Y-up coordinates become SVG Y-down coordinates only at this display edge.
  */
-export function canonicalSvgScene(elements, { widthMm, heightMm }) {
+export function canonicalSvgScene(
+  elements,
+  { widthMm, heightMm, minX, minY },
+  { face = [] } = {},
+) {
   return {
-    viewBox: canonicalViewBox(widthMm, heightMm),
+    viewBox: canonicalViewBox(widthMm, heightMm, { minX, minY }),
+    facePaths: face.map((polygon) => ({
+      d: canonicalPolygonPath(polygon),
+      fillRule: "evenodd",
+    })),
     groups: elements.map((element) => {
       const artwork = transform(element.canonical, element.transform);
       return {
@@ -23,13 +31,15 @@ export function canonicalSvgScene(elements, { widthMm, heightMm }) {
   };
 }
 
-export function canonicalViewBox(widthMm, heightMm) {
+export function canonicalViewBox(widthMm, heightMm, options = {}) {
   if (!(widthMm > 0) || !(heightMm > 0)) {
     throw new RangeError("Canonical SVG dimensions must be greater than zero.");
   }
+  const minX = options.minX ?? -widthMm / 2;
+  const minY = options.minY ?? -heightMm / 2;
   return [
-    formatNumber(-widthMm / 2),
-    formatNumber(-heightMm / 2),
+    formatNumber(minX),
+    formatNumber(-(minY + heightMm)),
     formatNumber(widthMm),
     formatNumber(heightMm),
   ].join(" ");
@@ -46,11 +56,12 @@ export function createCanonicalSvgRenderer(svg) {
   }
 
   return {
-    render(elements, dimensions) {
-      const scene = canonicalSvgScene(elements, dimensions);
+    render(elements, dimensions, options = {}) {
+      const scene = canonicalSvgScene(elements, dimensions, options);
       svg.setAttribute("viewBox", scene.viewBox);
       svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
       svg.replaceChildren(
+        faceNode(scene.facePaths),
         ...scene.groups.map((description) => groupNode(description)),
       );
     },
@@ -58,7 +69,7 @@ export function createCanonicalSvgRenderer(svg) {
     setDimensions(dimensions) {
       svg.setAttribute(
         "viewBox",
-        canonicalViewBox(dimensions.widthMm, dimensions.heightMm),
+        canonicalViewBox(dimensions.widthMm, dimensions.heightMm, dimensions),
       );
     },
 
@@ -68,21 +79,28 @@ export function createCanonicalSvgRenderer(svg) {
   };
 }
 
+function faceNode(paths) {
+  const group = document.createElementNS(SVG_NAMESPACE, "g");
+  group.setAttribute("class", "canonical-face");
+  group.replaceChildren(...paths.map(pathNode));
+  return group;
+}
+
 function groupNode({ id, kind, paths }) {
   const group = document.createElementNS(SVG_NAMESPACE, "g");
   group.dataset.elementId = id;
   group.dataset.elementKind = kind;
 
-  group.replaceChildren(
-    ...paths.map(({ d, fillRule }) => {
-      const path = document.createElementNS(SVG_NAMESPACE, "path");
-      path.setAttribute("d", d);
-      path.setAttribute("fill-rule", fillRule);
-      path.setAttribute("clip-rule", fillRule);
-      return path;
-    }),
-  );
+  group.replaceChildren(...paths.map(pathNode));
   return group;
+}
+
+function pathNode({ d, fillRule }) {
+  const path = document.createElementNS(SVG_NAMESPACE, "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill-rule", fillRule);
+  path.setAttribute("clip-rule", fillRule);
+  return path;
 }
 
 function canonicalRingPath(ring) {

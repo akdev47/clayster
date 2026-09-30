@@ -13,10 +13,17 @@ import {
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
+import {
+  createStampLayout,
+  layoutRenderElements,
+} from "./src/pipeline/stampLayout.js";
+import { transform } from "./src/pipeline/canonical.js";
 
 const state = {
   width: 60,
   height: 45,
+  minX: -30,
+  minY: -22.5,
 };
 
 const designModel = new DesignModel({
@@ -53,6 +60,9 @@ const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
 let hasFramedPreview = false;
 let interactionActive = false;
 let renderGeometry = new Map();
+let displayGeometry = new Map();
+let publishedLayout = null;
+let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
 
@@ -62,6 +72,9 @@ createPipelineControls(viewer, pipeline, { designControls });
 createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
+  publishedLayout = null;
+  renderCanonicalArtwork();
+  if (!interactionActive) renderArtboard();
   previewStatus.hidden = false;
   previewStatus.textContent = "Building 3D preview…";
 });
@@ -71,6 +84,7 @@ pipeline.addEventListener("result", () => {
   renderGeometry = new Map(
     (result.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
   );
+  publishedLayout = result.layout ?? null;
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: result.stamp, clay: result.clay });
@@ -87,7 +101,9 @@ pipeline.addEventListener("result", () => {
 
 pipeline.addEventListener("failed", () => {
   renderGeometry = new Map();
-  canonicalRenderer.clear();
+  displayGeometry = new Map();
+  publishedLayout = null;
+  renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
   previewStatus.hidden = false;
@@ -166,7 +182,7 @@ function renderArtboard() {
 }
 
 function renderCanonicalArtwork() {
-  const elements = designModel.elements.flatMap((element) => {
+  const sourceElements = designModel.elements.flatMap((element) => {
     const canonical = renderGeometry.get(element.id);
     return element.visible && canonical !== undefined
       ? [
@@ -180,14 +196,42 @@ function renderCanonicalArtwork() {
       : [];
   });
 
-  canonicalRenderer.render(elements, {
-    widthMm: state.width,
-    heightMm: state.height,
-  });
+  const combined = sourceElements.flatMap((element) =>
+    transform(element.canonical, element.transform),
+  );
+  const layout =
+    publishedLayout ?? createStampLayout(combined, pipeline.stamp, []);
+  const displayedElements = layoutRenderElements(
+    sourceElements,
+    layout.artworkTransform,
+  );
+  artworkLayoutTransform = layout.artworkTransform;
+  displayGeometry = new Map(
+    displayedElements.map(({ id, canonical }) => [id, canonical]),
+  );
+  state.width = layout.widthMm;
+  state.height = layout.heightMm;
+  state.minX = layout.minX;
+  state.minY = layout.minY;
+  artboard.dataset.faceShape = layout.faceShape;
+
+  canonicalRenderer.render(
+    layout.artwork.length === 0
+      ? []
+      : [{ id: "combined-artwork", kind: "design", canonical: layout.artwork }],
+    {
+      widthMm: state.width,
+      heightMm: state.height,
+      minX: state.minX,
+      minY: state.minY,
+    },
+    { face: layout.face },
+  );
+  updateDimensions();
 }
 
 function applyOverlayBounds(item, element) {
-  const canonical = renderGeometry.get(element.id);
+  const canonical = displayGeometry.get(element.id);
   if (canonical === undefined) {
     item.style.left = "45%";
     item.style.top = "45%";
@@ -197,9 +241,11 @@ function applyOverlayBounds(item, element) {
     return;
   }
 
-  const box = canonicalOverlayBox(canonical, element.transform, {
+  const box = canonicalOverlayBox(canonical, {}, {
     widthMm: state.width,
     heightMm: state.height,
+    minX: state.minX,
+    minY: state.minY,
   });
   item.style.left = `${box.leftPercent}%`;
   item.style.top = `${box.topPercent}%`;
@@ -209,7 +255,6 @@ function applyOverlayBounds(item, element) {
 }
 
 function render() {
-  updateDimensions();
   renderCanonicalArtwork();
   renderArtboard();
   updateControls();
@@ -365,14 +410,8 @@ function weightLabel(weight) {
 }
 
 function updateDimensions() {
-  state.height = Math.round(state.width * 0.75);
-
-  canonicalRenderer.setDimensions({
-    widthMm: state.width,
-    heightMm: state.height,
-  });
-
-  $("#dimension-text").textContent = `${state.width} × ${state.height} mm`;
+  artboard.style.aspectRatio = `${state.width} / ${state.height}`;
+  $("#dimension-text").textContent = `${round2(state.width)} × ${round2(state.height)} mm`;
 }
 
 function updateSelectedText(sourcePatch) {
@@ -409,6 +448,7 @@ function startDrag(event) {
   const startX = event.clientX;
   const startY = event.clientY;
   const startTransform = element.transform;
+  const startLayoutTransform = artworkLayoutTransform;
 
   const move = (moveEvent) => {
     const changed = editor.moveFromScreenDelta(
@@ -420,6 +460,7 @@ function startDrag(event) {
       },
       artboard.getBoundingClientRect(),
       { widthMm: state.width, heightMm: state.height },
+      startLayoutTransform,
     );
     renderCanonicalArtwork();
     applyOverlayBounds(item, changed);

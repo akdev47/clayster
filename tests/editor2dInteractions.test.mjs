@@ -53,6 +53,23 @@ test("screen movement converts downward pixels to negative canonical Y", () => {
   );
 });
 
+test("dragging follows the pointer through fitted and mirrored display space", () => {
+  const model = new DesignModel({ elements: [textElement()] });
+  const editor = new DesignEditorController(model);
+
+  editor.moveFromScreenDelta(
+    "text-1",
+    model.getElement("text-1").transform,
+    { deltaX: 40, deltaY: 20 },
+    { width: 200, height: 100 },
+    { widthMm: 40, heightMm: 20 },
+    { scale: 2, mirrorX: true },
+  );
+
+  assert.equal(model.getElement("text-1").transform.xMm, -4);
+  assert.equal(model.getElement("text-1").transform.yMm, -2);
+});
+
 test("resizing updates one uniform scale and preserves selection centre", () => {
   const model = new DesignModel({ elements: [textElement({ xMm: 7, yMm: -2 })] });
   const editor = new DesignEditorController(model);

@@ -107,6 +107,13 @@ test("uses physical stamp dimensions as the centred SVG viewBox", () => {
   assert.equal(canonicalViewBox(80, 30), "-40 -15 80 30");
 });
 
+test("uses physical face bounds for an off-centre outline viewBox", () => {
+  assert.equal(
+    canonicalViewBox(20, 10, { minX: 5, minY: -3 }),
+    "5 -7 20 10",
+  );
+});
+
 test("renders uniform element scale in physical coordinates", () => {
   const path = sceneFor([
     element("scaled", [square], { scale: 2 }),
