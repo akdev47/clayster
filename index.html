@@ -3,257 +3,459 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clayster</title>
-    <link rel="stylesheet" href="/style.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>Clayster — Design Your Stamp</title>
   </head>
+
   <body>
-    <div id="app">
-      <div id="viewport">
-        <div class="view-toggle" id="view-toggle">
-          <button data-view="both" class="on">Both</button>
-          <button data-view="stamp">Stamp</button>
-          <button data-view="clay">Impression</button>
-        </div>
-        <p class="working" id="working" hidden>Building…</p>
-        <p class="drag-hint" id="drag-hint">Drag the stamp to resize it</p>
-      </div>
+    <nav class="navbar navbar-expand-md clayster-navbar">
+      <div class="container-fluid px-3 px-lg-5">
+        <a class="navbar-brand clayster-logo" href="#">
+          <span class="logo-text">Logo Here</span>
+          <span>Clayster</span>
+        </a>
 
-      <aside id="panel">
-        <header>
-          <h1>Clayster</h1>
-          <p class="sub">Type or upload artwork, get a printable clay stamp.</p>
-        </header>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#main-navigation"
+          aria-controls="main-navigation"
+          aria-expanded="false"
+          aria-label="Open navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
 
-        <section>
-          <h2><span class="step">1</span> Artwork</h2>
-
-          <div class="row segmented" id="source-tabs">
-            <button data-kind="text" class="on">Text</button>
-            <button data-kind="svg">SVG</button>
-            <button data-kind="png">PNG</button>
+        <div id="main-navigation" class="collapse navbar-collapse">
+          <div class="navbar-nav ms-auto gap-md-2">
+            <a class="nav-link active" href="#">Design</a>
+            <a class="nav-link" href="#">Account</a>
           </div>
+        </div>
+      </div>
+    </nav>
 
-          <div id="text-source">
-            <label class="field"
-              >Text
-              <textarea id="text-input" rows="2" spellcheck="false">
-CLAY</textarea>
-            </label>
-            <label class="field"
-              >Font
-              <select id="font-select"></select>
-            </label>
-            <div class="row">
-              <button class="ghost" id="font-upload-button">
-                Use my own font…
+    <main class="container-fluid page-container px-3 px-lg-5">
+      <div class="workspace-shell">
+        <button
+          id="print-panel-toggle"
+          class="print-panel-toggle"
+          type="button"
+          aria-controls="printability-panel"
+          aria-expanded="true"
+          title="Hide printability check"
+        >
+          <span class="panel-toggle-icon" aria-hidden="true">›</span>
+          <span class="visually-hidden">Hide printability check</span>
+        </button>
+
+        <div class="row g-0">
+          <!-- Left sidebar -->
+          <aside class="col-12 col-xl-3 order-2 order-xl-1 editor-sidebar">
+            <section class="sidebar-section">
+              <div class="section-heading">
+                <div>
+                  <h2>Design Elements</h2>
+                </div>
+              </div>
+
+              <div class="row g-2">
+                <div class="col-6">
+                  <button id="add-text" class="btn clay-outline-button w-100">
+                    <span class="button-icon">T</span>
+                    Add Text
+                  </button>
+                </div>
+
+                <div class="col-6">
+                  <button id="add-image" class="btn clay-outline-button w-100">
+                    <span class="button-icon">▧</span>
+                    Add Image
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="section-heading">
+                <div>
+                  <h2>Selected Element</h2>
+                </div>
+              </div>
+
+              <div id="text-controls">
+                <label class="control-label" for="text-input">Text</label>
+                <textarea
+                  id="text-input"
+                  class="form-control clay-input"
+                  rows="3"
+                  maxlength="80"
+                ></textarea>
+
+                <label id="font-label" class="control-label mt-3">Font</label>
+                <div class="dropdown font-picker">
+                  <button
+                    id="font-picker-button"
+                    class="btn dropdown-toggle font-picker-button w-100"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    aria-labelledby="font-label"
+                  >
+                    <span id="font-current-name" class="font-current-name">DM Sans</span>
+                    <span
+                      id="font-current-preview"
+                      class="font-current-preview"
+                      style="font-family: 'DM Sans'"
+                    >Clayster Studio</span>
+                  </button>
+
+                  <div id="font-options" class="dropdown-menu font-options w-100">
+                    <button class="dropdown-item font-option active" type="button" data-font="DM Sans">
+                      <span class="font-option-name">DM Sans</span>
+                      <span class="font-option-preview" style="font-family: 'DM Sans'">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font="Arial">
+                      <span class="font-option-name">Arial</span>
+                      <span class="font-option-preview" style="font-family: Arial">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font="Georgia">
+                      <span class="font-option-name">Georgia</span>
+                      <span class="font-option-preview" style="font-family: Georgia">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font="Verdana">
+                      <span class="font-option-name">Verdana</span>
+                      <span class="font-option-preview" style="font-family: Verdana">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font="Courier New">
+                      <span class="font-option-name">Courier New</span>
+                      <span class="font-option-preview" style="font-family: 'Courier New'">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button id="upload-font" class="btn subtle-button w-100 mt-2">
+                  Upload custom font
+                </button>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="font-size">Text size</label>
+                    <output id="font-size-value">20 px</output>
+                  </div>
+                  <input
+                    id="font-size"
+                    class="form-range clay-range"
+                    type="range"
+                    min="12"
+                    max="64"
+                  />
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="letter-spacing">Letter spacing</label>
+                    <output id="letter-spacing-value">0 px</output>
+                  </div>
+                  <input
+                    id="letter-spacing"
+                    class="form-range clay-range"
+                    type="range"
+                    min="-2"
+                    max="12"
+                  />
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="font-weight">Letter thickness</label>
+                    <output id="font-weight-value">Regular</output>
+                  </div>
+                  <input
+                    id="font-weight"
+                    class="form-range clay-range"
+                    type="range"
+                    min="400"
+                    max="900"
+                    step="100"
+                  />
+                </div>
+
+                <label class="control-label mt-3">Alignment</label>
+
+                <div class="alignment-control">
+                  <button class="alignment-button" data-align="left" title="Align left">
+                    ≡
+                  </button>
+                  <button
+                    class="alignment-button active"
+                    data-align="center"
+                    title="Align center"
+                  >
+                    ≡
+                  </button>
+                  <button class="alignment-button align-right" data-align="right" title="Align right">
+                    ≡
+                  </button>
+                </div>
+              </div>
+
+              <p id="image-message" class="image-message d-none">
+                Select “Replace image” to upload a different design.
+              </p>
+
+              <button id="replace-image" class="btn subtle-button w-100 mt-3 d-none">
+                Replace image
+              </button>
+
+              <button id="delete-element" class="btn delete-button w-100 mt-3">
+                Delete Element
+              </button>
+            </section>
+
+            <section class="sidebar-section border-bottom-0">
+              <div class="section-heading">
+                <div>
+                  <h2>Stamp Settings</h2>
+                </div>
+              </div>
+
+              <div class="clay-size-box">
+                <div class="row g-2">
+                  <div class="col-6">
+                    <label class="control-label" for="clay-width">Available clay width</label>
+                    <div class="input-group input-group-sm mt-1">
+                      <input id="clay-width" class="form-control clay-input" type="number" min="1" />
+                      <span class="input-group-text">mm</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <label class="control-label" for="clay-height">Available clay height</label>
+                    <div class="input-group input-group-sm mt-1">
+                      <input id="clay-height" class="form-control clay-input" type="number" min="1" />
+                      <span class="input-group-text">mm</span>
+                    </div>
+                  </div>
+                </div>
+                <p>Optional — we’ll check whether the stamp fits your clay surface.</p>
+              </div>
+
+              <div class="range-control">
+                <div class="range-heading">
+                  <label for="stamp-width">Stamp width</label>
+                  <output id="width-value">60 mm</output>
+                </div>
+                <input
+                  id="stamp-width"
+                  class="form-range clay-range"
+                  type="range"
+                  min="30"
+                  max="120"
+                  value="60"
+                />
+              </div>
+
+              <div class="range-control">
+                <div class="range-heading">
+                  <label for="base-thickness">Base thickness</label>
+                  <output id="thickness-value">4 mm</output>
+                </div>
+                <input
+                  id="base-thickness"
+                  class="form-range clay-range"
+                  type="range"
+                  min="2"
+                  max="10"
+                  value="4"
+                />
+              </div>
+
+              <div class="setting-row">
+                <div>
+                  <span class="setting-label">Mirror design</span>
+                  <small>Prepare the stamp for printing</small>
+                </div>
+
+                <div class="form-check form-switch mb-0">
+                  <input
+                    id="mirror-design"
+                    class="form-check-input clay-switch"
+                    type="checkbox"
+                    role="switch"
+                  />
+                </div>
+              </div>
+
+              <label class="control-label mt-3" for="handle-select">Handle</label>
+              <select id="handle-select" class="form-select clay-input">
+                <option>No Handle</option>
+                <option>Small Handle</option>
+                <option selected>Standard Handle</option>
+                <option>Large Handle</option>
+              </select>
+            </section>
+          </aside>
+
+          <!-- Main editor -->
+          <section class="col-12 col-xl-6 order-1 order-xl-2 canvas-column">
+            <div class="canvas-toolbar">
+              <div class="segmented-control" aria-label="Preview surface">
+                <button class="segment active" data-mode="stamp">Stamp</button>
+                <button class="segment" data-mode="clay">On Clay</button>
+              </div>
+
+              <div class="segmented-control" aria-label="Preview dimension">
+                <button class="segment active" data-view="2d">2D</button>
+                <button class="segment" data-view="3d">3D</button>
+              </div>
+            </div>
+
+            <div class="canvas-area">
+              <div id="stamp-canvas" class="stamp-canvas">
+                <div class="canvas-grid"></div>
+
+                <div id="stamp-artboard" class="stamp-artboard">
+                  <span class="artboard-corner top-left"></span>
+                  <span class="artboard-corner top-right"></span>
+                  <span class="artboard-corner bottom-left"></span>
+                  <span class="artboard-corner bottom-right"></span>
+                </div>
+              </div>
+
+              <div id="three-preview" class="three-preview d-none">
+                <p id="three-preview-status" class="three-preview-status" hidden></p>
+                <p id="three-preview-note" class="three-preview-note">
+                  3D text uses bundled Noto fonts. Uploaded images are not yet included.
+                </p>
+              </div>
+            </div>
+
+            <div class="canvas-footer">
+              <p class="drag-instruction mb-0">
+                <span>✥</span>
+                Drag elements to reposition
+              </p>
+
+              <div class="dimension-pill">
+                <span>Current Stamp Dimensions</span>
+                <strong id="dimension-text">60 × 45 mm</strong>
+              </div>
+            </div>
+          </section>
+
+          <!-- Right sidebar -->
+          <aside id="printability-panel" class="col-12 col-xl-3 order-3 print-sidebar">
+            <div class="print-panel-content">
+            <section class="sidebar-section">
+              <div class="print-heading-icon">✓</div>
+              <h2 class="print-title">Printability Check</h2>
+              <p class="print-subtitle">
+                We’ll make sure your stamp can be printed correctly.
+              </p>
+              <p id="overall-status" class="overall-status warning-status">Design needs changes</p>
+            </section>
+
+            <section class="validation-list">
+              <div class="validation-row">
+                <span class="status-icon pass-icon">✓</span>
+                <div class="validation-content">
+                  <span>Overall size</span>
+                </div>
+                <span id="size-status" class="status-badge pass-badge">Pass</span>
+              </div>
+
+              <div class="validation-row">
+                <span class="status-icon pass-icon">✓</span>
+                <div class="validation-content">
+                  <span>Minimum wall/base thickness</span>
+                </div>
+                <span id="base-status" class="status-badge pass-badge">Pass</span>
+              </div>
+
+              <div class="validation-row warning-row">
+                <span class="status-icon warning-icon">!</span>
+                <div class="validation-content">
+                  <span>Letter thickness/depth</span>
+                  <small>Some letters may be too thin for reliable printing.</small>
+                  <button id="fix-thickness" class="suggestion-button">
+                    Fix automatically
+                  </button>
+                </div>
+                <span id="letter-status" class="status-badge warning-badge">Warning</span>
+              </div>
+
+              <div class="validation-row">
+                <span class="status-icon pass-icon">✓</span>
+                <div class="validation-content">
+                  <span>Letter spacing</span>
+                </div>
+                <span id="spacing-status" class="status-badge pass-badge">Pass</span>
+              </div>
+
+              <div class="validation-row">
+                <span class="status-icon pass-icon">✓</span>
+                <div class="validation-content">
+                  <span>Text fits stamp area</span>
+                  <small>Keep the complete text inside the printable boundary.</small>
+                </div>
+                <span id="text-bounds-status" class="status-badge pass-badge">Pass</span>
+              </div>
+
+              <div class="validation-row">
+                <span class="status-icon pass-icon">✓</span>
+                <div class="validation-content">
+                  <span>Custom font geometry</span>
+                </div>
+                <span class="status-badge pass-badge">Pass</span>
+              </div>
+
+              <div class="validation-row">
+                <span class="status-icon pass-icon">✓</span>
+                <div class="validation-content"><span>Fits available clay area</span></div>
+                <span id="clay-status" class="status-badge pass-badge">Pass</span>
+              </div>
+            </section>
+
+            <div class="print-actions">
+              <p id="blocking-message" class="blocking-message">Please fix the issue above before continuing.</p>
+
+              <p id="save-message" class="save-message"></p>
+
+              <button id="save-draft" class="btn save-button w-100">
+                Save Draft
+              </button>
+
+              <button id="continue-button" class="btn primary-button w-100" disabled>
+                Continue to Review
+                <span>→</span>
               </button>
             </div>
-            <input
-              type="file"
-              id="font-file"
-              accept=".ttf,.otf,font/ttf,font/otf"
-              hidden
-            />
-            <p class="hint" id="font-note" hidden></p>
-
-            <div class="grid3">
-              <label
-                >Size mm<input
-                  type="number"
-                  id="text-size"
-                  min="2"
-                  step="1"
-                  value="16"
-              /></label>
-              <label
-                >Letter mm<input
-                  type="number"
-                  id="letter-spacing"
-                  step="0.2"
-                  value="0"
-              /></label>
-              <label
-                >Line ×<input
-                  type="number"
-                  id="line-spacing"
-                  min="0.5"
-                  step="0.05"
-                  value="1.25"
-              /></label>
             </div>
+          </aside>
+        </div>
+      </div>
+    </main>
 
-            <h3>Alignment</h3>
-            <div class="row segmented" id="align-buttons">
-              <button data-align="left">Left</button>
-              <button data-align="center" class="on">Centre</button>
-              <button data-align="right">Right</button>
-            </div>
-          </div>
-
-          <div id="svg-source" hidden>
-            <div class="dropzone" id="svg-drop">
-              <strong>Drop an SVG here</strong>
-              <span>or click to choose a file</span>
-            </div>
-            <input
-              type="file"
-              id="svg-file"
-              accept=".svg,image/svg+xml"
-              hidden
-            />
-            <p class="hint" id="svg-note">
-              Closed outlines only — strokes and open paths cannot be extruded.
-            </p>
-            <div class="row">
-              <button class="ghost" id="svg-sample">Use the sample pear</button>
-            </div>
-            <label class="field"
-              >Artwork size
-              <input type="number" id="svg-size" min="2" step="1" value="30" />
-            </label>
-          </div>
-
-          <div id="png-source" hidden>
-            <div class="dropzone" id="png-drop">
-              <strong>Drop a PNG here</strong>
-              <span>or click to choose a file</span>
-            </div>
-            <input type="file" id="png-file" accept=".png,image/png" hidden />
-            <p class="hint" id="png-note">
-              Best for simple, high-contrast artwork with a plain or transparent
-              background.
-            </p>
-            <label class="field"
-              >Artwork size
-              <input type="number" id="png-size" min="2" step="1" value="30" />
-            </label>
-            <label class="slider">
-              <span
-                >Smoothing
-                <output id="png-smoothing-readout">2×</output></span
-              >
-              <input
-                type="range"
-                id="png-smoothing"
-                min="0"
-                max="4"
-                step="0.25"
-                value="2"
-              />
-            </label>
-          </div>
-        </section>
-
-        <section>
-          <h2><span class="step">2</span> Check</h2>
-          <ul class="issues" id="issue-list"></ul>
-        </section>
-
-        <section class="diagnostics" id="diagnostics" hidden>
-          <h2>Status</h2>
-          <p class="diagnostic-message" id="diagnostic-message"></p>
-          <ul id="diagnostic-details"></ul>
-        </section>
-
-        <section>
-          <h2><span class="step">3</span> Stamp</h2>
-
-          <h3>Face</h3>
-          <div class="row segmented" id="face-shape">
-            <button data-shape="round" class="on">Round</button>
-            <button data-shape="square">Square</button>
-            <button data-shape="outline">Follow art</button>
-          </div>
-          <label class="check"
-            ><input type="checkbox" id="auto-face" checked /> Size the face to
-            the artwork</label
-          >
-          <div class="grid3">
-            <label
-              >Face mm<input
-                type="number"
-                id="face-size"
-                min="5"
-                step="1"
-                value="40"
-                disabled
-            /></label>
-            <label
-              >Plate mm<input
-                type="number"
-                id="face-thickness"
-                min="1"
-                step="0.5"
-                value="4"
-            /></label>
-            <label
-              >Margin mm<input
-                type="number"
-                id="margin"
-                min="0"
-                step="0.5"
-                value="3"
-            /></label>
-          </div>
-
-          <h3>Relief</h3>
-          <div class="row segmented" id="relief-mode">
-            <button data-mode="emboss" class="on">Raised</button>
-            <button data-mode="deboss">Recessed</button>
-          </div>
-          <label class="slider">
-            <span>Depth <output id="relief-readout">2 mm</output></span>
-            <input
-              type="range"
-              id="relief-depth"
-              min="0.4"
-              max="8"
-              step="0.2"
-              value="2"
-            />
-          </label>
-          <label class="check"
-            ><input type="checkbox" id="mirror" checked /> Mirror, so the
-            impression reads correctly</label
-          >
-
-          <h3>Handle</h3>
-          <select id="handle-select">
-            <option value="none">No handle — face only</option>
-            <option value="sample">Sample handle</option>
-          </select>
-        </section>
-
-        <section>
-          <h2><span class="step">4</span> Export</h2>
-          <dl class="readout" id="summary">
-            <div>
-              <dt>Width</dt>
-              <dd id="total-x">—</dd>
-            </div>
-            <div>
-              <dt>Depth</dt>
-              <dd id="total-y">—</dd>
-            </div>
-            <div>
-              <dt>Height</dt>
-              <dd id="total-z">—</dd>
-            </div>
-          </dl>
-          <p class="hint" id="triangle-count">—</p>
-          <div class="row">
-            <button id="export-stl">Export STL</button>
-            <button id="export-3mf">Export 3MF</button>
-          </div>
-          <p class="hint">
-            The stamp is exported, not the clay. 3MF records millimetres and
-            colour; STL is a plain mesh.
-          </p>
-        </section>
-
-        <p class="status" id="status" hidden></p>
-      </aside>
-    </div>
+    <input id="image-upload" type="file" accept="image/*,.svg" hidden />
+    <input
+      id="font-upload"
+      type="file"
+      accept=".ttf,.otf,.woff,.woff2"
+      hidden
+    />
 
     <script type="module" src="/main.js"></script>
   </body>
