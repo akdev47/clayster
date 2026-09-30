@@ -18,6 +18,7 @@ import {
   layoutRenderElements,
 } from "./src/pipeline/stampLayout.js";
 import { transform } from "./src/pipeline/canonical.js";
+import { readableStampDisplay } from "./src/stamp2dDisplay.js";
 
 const state = {
   width: 60,
@@ -201,31 +202,32 @@ function renderCanonicalArtwork() {
   );
   const layout =
     publishedLayout ?? createStampLayout(combined, pipeline.stamp, []);
-  const displayedElements = layoutRenderElements(
+  const physicalElements = layoutRenderElements(
     sourceElements,
     layout.artworkTransform,
   );
-  artworkLayoutTransform = layout.artworkTransform;
+  const display = readableStampDisplay(layout, physicalElements);
+  artworkLayoutTransform = display.interactionTransform;
   displayGeometry = new Map(
-    displayedElements.map(({ id, canonical }) => [id, canonical]),
+    display.elements.map(({ id, canonical }) => [id, canonical]),
   );
-  state.width = layout.widthMm;
-  state.height = layout.heightMm;
-  state.minX = layout.minX;
-  state.minY = layout.minY;
+  state.width = display.widthMm;
+  state.height = display.heightMm;
+  state.minX = display.minX;
+  state.minY = display.minY;
   artboard.dataset.faceShape = layout.faceShape;
 
   canonicalRenderer.render(
-    layout.artwork.length === 0
+    display.artwork.length === 0
       ? []
-      : [{ id: "combined-artwork", kind: "design", canonical: layout.artwork }],
+      : [{ id: "combined-artwork", kind: "design", canonical: display.artwork }],
     {
       widthMm: state.width,
       heightMm: state.height,
       minX: state.minX,
       minY: state.minY,
     },
-    { face: layout.face },
+    { face: display.face },
   );
   updateDimensions();
 }

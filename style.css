@@ -111,6 +111,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 /* Design canvas */
 .canvas-column { padding: 1.4rem; background: var(--surface); }
 .canvas-toolbar { gap: 1rem; margin-bottom: 1rem; }
+.canvas-toolbar [aria-label="Preview dimension"] { margin-left: auto; }
 .segmented-control { display: inline-flex; padding: 4px; background: #f1eade; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .segment { min-width: 69px; padding: .45rem .9rem; color: var(--muted); background: transparent; border: 0; border-radius: 4px; font-size: .76rem; font-weight: 700; }
 .segment.active { color: #185e5c; background: var(--aqua); }
