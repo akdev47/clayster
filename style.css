@@ -91,8 +91,8 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .clay-size-box { padding: .85rem; background: #f8f5ef; border: 1px solid var(--border); border-radius: var(--radius); }
 .clay-size-box p { margin: .65rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
 
-/* Shared-pipeline controls shown with the 3D preview */
-.sidebar-mode[hidden], .pipeline-source-panel[hidden], .print-panel-content[hidden] { display: none !important; }
+/* Shared design and pipeline controls */
+.sidebar-mode[hidden], .pipeline-source-panel[hidden], .print-panel-content[hidden], .segmented-control[hidden], .drag-instruction[hidden] { display: none !important; }
 .pipeline-section-note { margin: .25rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
 .pipeline-tabs { display: flex; width: 100%; }
 .pipeline-tabs .segment { min-width: 0; flex: 1; padding-inline: .45rem; }

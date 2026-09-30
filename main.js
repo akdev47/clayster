@@ -11,14 +11,12 @@ import {
   DesignEditorController,
   canonicalOverlayBox,
 } from "./src/editor2dInteractions.js";
+import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
 
 const state = {
   width: 60,
   height: 45,
-  thickness: 4,
-  mirror: false,
-  handle: "Standard Handle",
 };
 
 const designModel = new DesignModel({
@@ -38,6 +36,7 @@ const designModel = new DesignModel({
   ],
 });
 const editor = new DesignEditorController(designModel);
+const designControls = new SharedDesignControls(designModel, editor);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
@@ -46,8 +45,6 @@ const artboard = $("#stamp-artboard");
 const canonicalArtwork = $("#canonical-artwork");
 const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
-const editorControls2D = $("#editor-controls-2d");
-const editorControls3D = $("#editor-controls-3d");
 const printControls2D = $("#print-controls-2d");
 const printControls3D = $("#print-controls-3d");
 const viewer = createViewer(previewContainer);
@@ -57,12 +54,11 @@ let hasFramedPreview = false;
 let interactionActive = false;
 let renderGeometry = new Map();
 const uploadedFonts = new Map();
+let pendingImageUpload = null;
 
 artboard.classList.add("canonical-rendering-enabled");
-state.mirror = pipeline.stamp.mirror;
-$("#mirror-design").checked = state.mirror;
 
-createPipelineControls(viewer, pipeline);
+createPipelineControls(viewer, pipeline, { designControls });
 createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
@@ -303,9 +299,30 @@ function updateControls() {
   const isImage = element?.kind === "svg" || element?.kind === "png";
 
   $("#text-controls").classList.toggle("d-none", !isText);
-  $("#image-message").classList.toggle("d-none", !isImage);
-  $("#replace-image").classList.toggle("d-none", !isImage);
+  $("#image-controls").classList.toggle("d-none", !isImage);
+  $("#png-options").classList.toggle("d-none", element?.kind !== "png");
+  $("#transform-controls").classList.toggle("d-none", !element);
   $("#delete-element").disabled = !element;
+
+  if (element) {
+    $("#element-x").value = round2(element.transform.xMm);
+    $("#element-y").value = round2(element.transform.yMm);
+    $("#element-scale").value = round2(element.transform.scale);
+    $("#element-rotation").value = round2(element.transform.rotationDeg);
+    $("#element-mirror-x").checked = element.transform.mirrorX;
+    $("#element-mirror-y").checked = element.transform.mirrorY;
+  }
+
+  if (isImage) {
+    $("#artwork-base-size").value = element.source.baseSizeMm;
+    $("#image-message").textContent = `${element.kind.toUpperCase()} source: ${sourceName(element.source.reference)}`;
+    if (element.kind === "png") {
+      const smoothing = element.source.tracing.smoothing;
+      $("#png-smoothing").value = smoothing;
+      $("#png-smoothing-value").textContent =
+        smoothing === 0 ? "Off" : `${smoothing}×`;
+    }
+  }
 
   if (!isText) return;
 
@@ -313,10 +330,12 @@ function updateControls() {
   updateFontPicker(element);
   $("#font-size").value = element.source.fontSizeMm;
   $("#letter-spacing").value = element.source.letterSpacingMm;
+  $("#line-spacing").value = element.source.lineSpacing;
   $("#font-weight").value = fontWeight(element.source.font);
 
   $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
   $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
+  $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
   $("#font-weight-value").textContent = weightLabel(
     fontWeight(element.source.font),
   );
@@ -327,6 +346,15 @@ function updateControls() {
       button.dataset.align === element.source.alignment,
     );
   });
+}
+
+function sourceName(reference) {
+  if (typeof reference === "string") return reference.split("/").at(-1);
+  return reference?.name ?? "No source selected";
+}
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
 }
 
 function weightLabel(weight) {
@@ -344,13 +372,11 @@ function updateDimensions() {
     heightMm: state.height,
   });
 
-  $("#width-value").textContent = `${state.width} mm`;
-  $("#thickness-value").textContent = `${state.thickness} mm`;
   $("#dimension-text").textContent = `${state.width} × ${state.height} mm`;
 }
 
 function updateSelectedText(sourcePatch) {
-  if (editor.updateSelectedText(sourcePatch) === null) return;
+  if (designControls.updateSelectedSource("text", sourcePatch) === null) return;
   render();
 }
 
@@ -466,27 +492,33 @@ function startResize(event, element, item) {
 }
 
 $("#add-text").addEventListener("click", () => {
-  const added = designModel.addElement({
-    kind: "text",
-    source: {
-      text: "NEW TEXT",
-      font: { id: "sans-bold", reference: null },
-      fontSizeMm: 16,
-      letterSpacingMm: 1,
-      lineSpacing: 1.25,
-      alignment: "center",
-    },
+  designControls.addElement("text", {
+    text: "NEW TEXT",
+    font: { id: "sans-bold", reference: null },
+    fontSizeMm: 16,
+    letterSpacingMm: 1,
+    lineSpacing: 1.25,
+    alignment: "center",
   });
-  editor.select(added.id);
   render();
 });
 
-$("#add-image").addEventListener("click", () => {
-  $("#image-upload").click();
-});
+function chooseImage(action, kind) {
+  pendingImageUpload = { action, kind };
+  const input = $("#image-upload");
+  input.accept =
+    kind === "svg" ? ".svg,image/svg+xml" : ".png,image/png";
+  input.click();
+}
+
+$("#add-svg").addEventListener("click", () => chooseImage("add", "svg"));
+$("#add-png").addEventListener("click", () => chooseImage("add", "png"));
 
 $("#replace-image").addEventListener("click", () => {
-  $("#image-upload").click();
+  const selected = selectedElement();
+  if (selected?.kind === "svg" || selected?.kind === "png") {
+    chooseImage("replace", selected.kind);
+  }
 });
 
 $("#image-upload").addEventListener("change", (event) => {
@@ -494,35 +526,19 @@ $("#image-upload").addEventListener("change", (event) => {
 
   if (!file) return;
 
-  const currentElement = selectedElement();
   const kind = imageKind(file);
-  if (kind === null) {
-    alert("Choose an SVG or PNG image.");
+  const request = pendingImageUpload;
+  pendingImageUpload = null;
+  if (kind === null || request === null || kind !== request.kind) {
+    alert(`Choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file.`);
     event.target.value = "";
     return;
   }
 
-  if (currentElement?.kind === kind) {
-    designModel.updateElement(currentElement.id, {
-      source: { reference: file },
-    });
-  } else if (
-    currentElement?.kind === "svg" ||
-    currentElement?.kind === "png"
-  ) {
-    designModel.removeElement(currentElement.id);
-    const replacement = designModel.addElement({
-      kind,
-      source: imageSource(kind, file),
-      transform: currentElement.transform,
-    });
-    editor.select(replacement.id);
+  if (request.action === "replace") {
+    designControls.replaceSelectedReference(kind, file);
   } else {
-    const added = designModel.addElement({
-      kind,
-      source: imageSource(kind, file),
-    });
-    editor.select(added.id);
+    designControls.addElement(kind, imageSource(kind, file));
   }
 
   event.target.value = "";
@@ -610,6 +626,10 @@ $("#letter-spacing").addEventListener("input", (event) => {
   updateSelectedText({ letterSpacingMm: Number(event.target.value) });
 });
 
+$("#line-spacing").addEventListener("input", (event) => {
+  updateSelectedText({ lineSpacing: Number(event.target.value) });
+});
+
 $("#font-weight").addEventListener("input", (event) => {
   const selected = selectedElement();
   if (selected?.kind !== "text") return;
@@ -623,29 +643,66 @@ $("#font-weight").addEventListener("input", (event) => {
   });
 });
 
-$$("#editor-controls-2d [data-align]").forEach((button) => {
+$$("#editor-controls-shared [data-align]").forEach((button) => {
   button.addEventListener("click", () => {
     updateSelectedText({ alignment: button.dataset.align });
   });
 });
 
-$("#stamp-width").addEventListener("input", (event) => {
-  state.width = Number(event.target.value);
-  render();
+$("#artwork-base-size").addEventListener("input", (event) => {
+  const selected = selectedElement();
+  const value = Number(event.target.value);
+  if (
+    (selected?.kind === "svg" || selected?.kind === "png") &&
+    Number.isFinite(value) &&
+    value > 0
+  ) {
+    designControls.updateSelectedSource(selected.kind, { baseSizeMm: value });
+  }
 });
 
-$("#base-thickness").addEventListener("input", (event) => {
-  state.thickness = Number(event.target.value);
-  updateDimensions();
+$("#png-smoothing").addEventListener("input", (event) => {
+  const smoothing = Number(event.target.value);
+  const selected = selectedElement();
+  if (selected?.kind !== "png") return;
+  if (designControls.updateSelectedSource("png", {
+    tracing: { ...selected.source.tracing, smoothing },
+  }) !== null) {
+    $("#png-smoothing-value").textContent =
+      smoothing === 0 ? "Off" : `${smoothing}×`;
+  }
 });
 
-$("#mirror-design").addEventListener("change", (event) => {
-  state.mirror = event.target.checked;
-  pipeline.setStamp({ mirror: state.mirror });
+function bindTransformNumber(selector, field, minimum = -Infinity) {
+  $(selector).addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (
+      event.target.value !== "" &&
+      Number.isFinite(value) &&
+      value >= minimum
+    ) {
+      designControls.updateSelectedTransform({ [field]: value });
+      renderCanonicalArtwork();
+      renderArtboard();
+    }
+  });
+}
+
+bindTransformNumber("#element-x", "xMm");
+bindTransformNumber("#element-y", "yMm");
+bindTransformNumber("#element-scale", "scale", 0.05);
+bindTransformNumber("#element-rotation", "rotationDeg");
+
+$("#element-mirror-x").addEventListener("change", (event) => {
+  designControls.updateSelectedTransform({ mirrorX: event.target.checked });
+  renderCanonicalArtwork();
+  renderArtboard();
 });
 
-$("#handle-select").addEventListener("change", (event) => {
-  state.handle = event.target.value;
+$("#element-mirror-y").addEventListener("change", (event) => {
+  designControls.updateSelectedTransform({ mirrorY: event.target.checked });
+  renderCanonicalArtwork();
+  renderArtboard();
 });
 
 $$("#preview-surface-toggle [data-mode]").forEach((button) => {
@@ -673,8 +730,8 @@ $$("[data-view]").forEach((button) => {
     editor.setView(show2D ? "2d" : "3d");
     $("#stamp-canvas").classList.toggle("preview-hidden", !show2D);
     previewContainer.classList.toggle("d-none", show2D);
-    editorControls2D.hidden = !show2D;
-    editorControls3D.hidden = show2D;
+    $("#preview-surface-toggle").hidden = show2D;
+    $(".drag-instruction").hidden = !show2D;
     printControls2D.hidden = !show2D;
     printControls3D.hidden = show2D;
 
