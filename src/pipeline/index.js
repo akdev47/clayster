@@ -12,6 +12,11 @@ import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { loadSTLGeometry } from "../loaders.js";
 import { initializeSolids } from "../solidGeometry.js";
 import { prepareClosedStamp } from "../exportValidation.js";
+import { DesignModel } from "../designModel.js";
+import {
+  ArtworkComposer,
+  elementFromLegacySource,
+} from "./artworkComposition.js";
 import wasmUrl from "manifold-3d/manifold.wasm?url";
 
 const SAMPLE_HANDLE = "./models/StampHandle.stl";
@@ -45,7 +50,7 @@ export const DEFAULT_SOURCE = {
  * parameters changed, so dragging a slider does not re-parse a font.
  */
 export class Pipeline extends EventTarget {
-  constructor() {
+  constructor({ designModel = null } = {}) {
     super();
 
     this.source = { ...DEFAULT_SOURCE };
@@ -53,15 +58,27 @@ export class Pipeline extends EventTarget {
 
     this.result = null;
     this.cache = { key: null, artwork: null, issues: [], sourceStats: null };
+    this.designModel = null;
+    this.artworkComposer = new ArtworkComposer((element) =>
+      this.buildElementArtwork(element),
+    );
+    this.onDesignChange = () => this.schedule();
     this.diagnostics = null;
     this.handles = new Map();
 
     this.timer = null;
     this.token = 0;
+
+    if (designModel !== null) this.attachDesignModel(designModel);
   }
 
   setSource(patch) {
     Object.assign(this.source, patch);
+    this.schedule();
+  }
+
+  setDesignModel(designModel) {
+    this.attachDesignModel(designModel);
     this.schedule();
   }
 
@@ -126,11 +143,12 @@ export class Pipeline extends EventTarget {
         artwork,
         issues: initialIssues,
         sourceStats,
+        elementStats = null,
       } = await this.artwork();
       if (token !== this.token) return;
 
       let issues = initialIssues;
-      this.recordSVGValidation(sourceStats, issues);
+      this.recordValidation(sourceStats, elementStats, issues);
 
       if (artwork.length === 0) {
         this.publish(
@@ -149,12 +167,16 @@ export class Pipeline extends EventTarget {
       this.setSVGStage("stamp generation");
       const { thinIssues, ...built } = buildStamp(artwork, this.stamp, handle);
       if (thinIssues.length > 0) {
+        const scopedThinIssues =
+          this.designModel === null
+            ? thinIssues
+            : thinIssues.map((issue) => ({ ...issue, scope: "design" }));
         issues = [
           ...issues.filter(({ level }) => level !== "ok"),
-          ...thinIssues,
+          ...scopedThinIssues,
         ];
       }
-      this.recordSVGValidation(sourceStats, issues);
+      this.recordValidation(sourceStats, elementStats, issues);
       if (this.diagnostics !== null) {
         this.diagnostics.geometryProduced = Boolean(
           built.stamp?.getAttribute("position")?.count,
@@ -198,6 +220,10 @@ export class Pipeline extends EventTarget {
   // Source → canonical → validated, skipping the work when the inputs that
   // feed it have not changed.
   async artwork() {
+    if (this.designModel !== null) {
+      return this.artworkComposer.compose(this.designModel.elements);
+    }
+
     const key = this.sourceKey();
 
     if (this.cache.key === key) {
@@ -231,13 +257,17 @@ export class Pipeline extends EventTarget {
   }
 
   async buildArtwork() {
-    const source = this.source;
+    return this.buildElementArtwork(elementFromLegacySource(this.source));
+  }
 
-    if (source.kind === "svg") {
-      if (source.svgFile === null) return { canonical: [], issues: [] };
+  async buildElementArtwork(element) {
+    const source = element.source;
 
-      const loaded = await loadSVGArtworkDetails(source.svgFile, {
-        size: source.svgSize,
+    if (element.kind === "svg") {
+      if (source.reference === null) return { canonical: [], issues: [] };
+
+      const loaded = await loadSVGArtworkDetails(source.reference, {
+        size: source.baseSizeMm,
       });
       return {
         canonical: loaded.artwork,
@@ -250,34 +280,36 @@ export class Pipeline extends EventTarget {
       };
     }
 
-    if (source.kind === "png") {
-      if (source.pngFile === null) return { canonical: [], issues: [] };
+    if (element.kind === "png") {
+      if (source.reference === null) return { canonical: [], issues: [] };
 
-      const canonical = await loadPNGArtwork(source.pngFile, {
-        size: source.pngSize,
-        smoothing: source.pngSmoothing,
+      const canonical = await loadPNGArtwork(source.reference, {
+        size: source.baseSizeMm,
+        smoothing: source.tracing.smoothing,
       });
       return { canonical, issues: [] };
     }
 
     if (source.text.trim() === "") return { canonical: [], issues: [] };
 
-    const font = await loadFont(source.fontFile ?? fontURL(source.fontId));
+    const font = await loadFont(
+      source.font.reference ?? fontURL(source.font.id ?? DEFAULT_FONT_ID),
+    );
 
     // Rows are settled before anything is drawn: the wrap decides the
     // breaks and the size, the layout sets what it is handed.
     const wrapped = wrapText(font, {
       text: source.text,
-      size: source.size,
-      letterSpacing: source.letterSpacing,
+      size: source.fontSizeMm,
+      letterSpacing: source.letterSpacingMm,
     });
 
     const canonical = layoutText(font, {
       text: wrapped.text,
       size: wrapped.size,
-      letterSpacing: source.letterSpacing,
+      letterSpacing: source.letterSpacingMm,
       lineSpacing: source.lineSpacing,
-      align: source.align,
+      align: source.alignment,
     });
 
     return { canonical, issues: wrapped.issues };
@@ -336,6 +368,18 @@ export class Pipeline extends EventTarget {
   }
 
   resetDiagnostics() {
+    if (this.designModel !== null) {
+      this.diagnostics = {
+        level: "working",
+        message: "Processing design elements…",
+        details: [],
+        stage: "element conversion",
+        geometryProduced: false,
+        rejected: false,
+      };
+      return;
+    }
+
     this.diagnostics =
       this.source.kind === "svg" && this.source.svgFile !== null
         ? {
@@ -351,6 +395,49 @@ export class Pipeline extends EventTarget {
 
   setSVGStage(stage) {
     if (this.diagnostics !== null) this.diagnostics.stage = stage;
+  }
+
+  recordValidation(sourceStats, elementStats, issues) {
+    if (this.designModel === null) {
+      this.recordSVGValidation(sourceStats, issues);
+      return;
+    }
+    this.recordDesignValidation(elementStats ?? [], issues);
+  }
+
+  recordDesignValidation(elementStats, issues) {
+    if (this.diagnostics === null) return;
+
+    const errors = issues.filter(({ level }) => level === "error");
+    const warnings = issues.filter(({ level }) => level === "warning");
+    this.diagnostics.stage = "geometry validation";
+    this.diagnostics.details = [
+      ...elementStats.map(
+        ({ elementId, elementKind, shapeCount, polygonCount }) =>
+          `Element "${elementId}" (${elementKind}): ${shapeCount} ${plural(
+            shapeCount,
+            "shape",
+          )} produced · ${polygonCount} canonical ${plural(
+            polygonCount,
+            "polygon",
+          )}.`,
+      ),
+      ...warnings.map(({ message, elementId }) =>
+        elementId === undefined
+          ? `Warning: ${message}`
+          : `Element "${elementId}": ${message}`,
+      ),
+    ];
+
+    if (errors.length > 0) {
+      this.diagnostics.level = "error";
+      this.diagnostics.message = errors[0].message;
+      this.diagnostics.details.push(
+        ...errors.slice(1).map(({ message }) => message),
+        "Rejected before preview/export.",
+      );
+      this.diagnostics.rejected = true;
+    }
   }
 
   recordSVGValidation(sourceStats, issues) {
@@ -389,7 +476,10 @@ export class Pipeline extends EventTarget {
     if (this.diagnostics === null) return;
 
     this.diagnostics.level = "ok";
-    this.diagnostics.message = "SVG processed successfully.";
+    this.diagnostics.message =
+      this.designModel === null
+        ? "SVG processed successfully."
+        : "Design processed successfully.";
     this.diagnostics.details.push(
       "Stamp geometry produced and accepted for preview/export.",
     );
@@ -401,6 +491,7 @@ export class Pipeline extends EventTarget {
 
     const stage = this.diagnostics.stage;
     const labels = {
+      "element conversion": "Artwork conversion failed",
       "SVG loading": "SVG loading failed",
       "stamp preparation": "Stamp preparation failed",
       "stamp generation": "Geometry generation failed",
@@ -412,13 +503,29 @@ export class Pipeline extends EventTarget {
     this.diagnostics.level = "error";
     this.diagnostics.message = error?.svgStage
       ? conciseError(error)
-      : `${labels[stage] ?? "SVG processing failed"}: ${conciseError(error)}`;
+      : `${
+          labels[stage] ??
+          (this.designModel === null
+            ? "SVG processing failed"
+            : "Design processing failed")
+        }: ${conciseError(error)}`;
     this.diagnostics.details.push(
       ...additional,
       `Stage: ${diagnosedStage}`,
       "Rejected before preview/export.",
     );
     this.diagnostics.rejected = true;
+  }
+
+  attachDesignModel(designModel) {
+    if (designModel !== null && !(designModel instanceof DesignModel)) {
+      throw new TypeError("Pipeline designModel must be a DesignModel or null.");
+    }
+    if (this.designModel === designModel) return;
+
+    this.designModel?.removeEventListener("change", this.onDesignChange);
+    this.designModel = designModel;
+    this.designModel?.addEventListener("change", this.onDesignChange);
   }
 }
 
