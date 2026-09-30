@@ -6,6 +6,12 @@ import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
+import { DesignModel } from "./src/designModel.js";
+import {
+  DesignEditorController,
+  canonicalOverlayBox,
+} from "./src/editor2dInteractions.js";
+import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
 
 const state = {
   width: 60,
@@ -13,33 +19,25 @@ const state = {
   thickness: 4,
   mirror: false,
   handle: "Standard Handle",
-  selectedId: 1,
+};
+
+const designModel = new DesignModel({
   elements: [
     {
-      id: 1,
-      type: "text",
-      name: "Text 1",
-      text: "CLAYSTER\nSTUDIO",
-      x: 50,
-      y: 32,
-      font: "DM Sans",
-      size: 22,
-      spacing: 1,
-      weight: 400,
-      align: "center",
-      scale: 1,
-    },
-    {
-      id: 2,
-      type: "image",
-      name: "Image",
-      label: "logo.svg",
-      x: 50,
-      y: 67,
-      scale: 1,
+      id: "text-1",
+      kind: "text",
+      source: {
+        text: "CLAYSTER\nSTUDIO",
+        font: { id: "sans-regular", reference: null },
+        fontSizeMm: 16,
+        letterSpacingMm: 1,
+        lineSpacing: 1.25,
+        alignment: "center",
+      },
     },
   ],
-};
+});
+const editor = new DesignEditorController(designModel);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
@@ -53,11 +51,16 @@ const editorControls3D = $("#editor-controls-3d");
 const printControls2D = $("#print-controls-2d");
 const printControls3D = $("#print-controls-3d");
 const viewer = createViewer(previewContainer);
-const pipeline = new Pipeline();
+const pipeline = new Pipeline({ designModel });
 const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
 let hasFramedPreview = false;
+let interactionActive = false;
+let renderGeometry = new Map();
+const uploadedFonts = new Map();
 
 artboard.classList.add("canonical-rendering-enabled");
+state.mirror = pipeline.stamp.mirror;
+$("#mirror-design").checked = state.mirror;
 
 createPipelineControls(viewer, pipeline);
 createPipelineDiagnostics(pipeline);
@@ -69,22 +72,11 @@ pipeline.addEventListener("running", () => {
 
 pipeline.addEventListener("result", () => {
   const result = pipeline.result;
-  const renderElements =
-    result.renderElements ??
-    (result.artwork.length === 0
-      ? []
-      : [
-          {
-            id: "legacy-source",
-            kind: pipeline.source.kind,
-            canonical: result.artwork,
-          },
-        ]);
-
-  canonicalRenderer.render(renderElements, {
-    widthMm: state.width,
-    heightMm: state.height,
-  });
+  renderGeometry = new Map(
+    (result.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  renderCanonicalArtwork();
+  if (!interactionActive) renderArtboard();
   viewer.show({ stamp: result.stamp, clay: result.clay });
   previewStatus.hidden = Boolean(result.stamp);
   previewStatus.textContent = result.stamp
@@ -98,28 +90,39 @@ pipeline.addEventListener("result", () => {
 });
 
 pipeline.addEventListener("failed", () => {
+  renderGeometry = new Map();
   canonicalRenderer.clear();
+  if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
   previewStatus.hidden = false;
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
 });
 
 function selectedElement() {
-  return state.elements.find((element) => element.id === state.selectedId);
+  return editor.selectedElement();
 }
 
-function hasElementType(type) {
-  return state.elements.some((element) => element.type === type);
+function imageKind(file) {
+  const name = file.name.toLowerCase();
+  if (file.type === "image/svg+xml" || name.endsWith(".svg")) return "svg";
+  if (file.type === "image/png" || name.endsWith(".png")) return "png";
+  return null;
 }
 
-function logoPlaceholder() {
+function imageSource(kind, file) {
+  return kind === "png"
+    ? { reference: file, baseSizeMm: 30, tracing: { smoothing: 2 } }
+    : { reference: file, baseSizeMm: 30 };
+}
+
+function logoPlaceholder(kind) {
   return `
-    <span class="design-logo-placeholder" aria-label="Logo placeholder">Logo</span>
+    <span class="design-logo-placeholder" aria-label="${kind.toUpperCase()} artwork">${kind.toUpperCase()}</span>
   `;
 }
 
 function addResizeHandles(element) {
-  if (element.id !== state.selectedId) return "";
+  if (element.id !== editor.selectedId) return "";
 
   return `
     <span class="resize-handle handle-top-left"></span>
@@ -132,40 +135,27 @@ function addResizeHandles(element) {
 function renderArtboard() {
   artboard.querySelectorAll(".design-element").forEach((item) => item.remove());
 
-  state.elements.forEach((element) => {
+  designModel.elements.forEach((element) => {
     const item = document.createElement("div");
 
     item.dataset.elementId = element.id;
     item.tabIndex = 0;
     item.className = `design-element ${
-      element.type === "image" ? "image-element" : ""
-    } ${element.id === state.selectedId ? "selected" : ""}`;
+      element.kind === "text" ? "" : "image-element"
+    } ${element.id === editor.selectedId ? "selected" : ""}`;
 
-    item.style.left = `${element.x}%`;
-    item.style.top = `${element.y}%`;
-    item.style.transform = `translate(-50%, -50%) scale(${element.scale ?? 1})`;
-
-    if (element.type === "text") {
-      item.style.fontFamily = element.font;
-      item.style.fontSize = `${element.size}px`;
-      item.style.letterSpacing = `${element.spacing}px`;
-      item.style.fontWeight = element.weight;
-      item.style.textAlign = element.align;
+    if (element.kind === "text") {
+      item.style.textAlign = element.source.alignment;
 
       item.innerHTML = `
-        <span>${escapeHtml(element.text)}</span>
+        <span>${escapeHtml(element.source.text)}</span>
         ${addResizeHandles(element)}
       `;
     } else {
-      item.innerHTML = element.src
-        ? `
-          <img src="${element.src}" alt="${element.label}" />
-          ${addResizeHandles(element)}
-        `
-        : `
-          ${logoPlaceholder()}
-          ${addResizeHandles(element)}
-        `;
+      item.innerHTML = `
+        ${logoPlaceholder(element.kind)}
+        ${addResizeHandles(element)}
+      `;
     }
 
     item.addEventListener("pointerdown", startDrag);
@@ -175,13 +165,58 @@ function renderArtboard() {
       });
     });
     artboard.append(item);
+    applyOverlayBounds(item, element);
   });
 }
 
+function renderCanonicalArtwork() {
+  const elements = designModel.elements.flatMap((element) => {
+    const canonical = renderGeometry.get(element.id);
+    return element.visible && canonical !== undefined
+      ? [
+          {
+            id: element.id,
+            kind: element.kind,
+            canonical,
+            transform: element.transform,
+          },
+        ]
+      : [];
+  });
+
+  canonicalRenderer.render(elements, {
+    widthMm: state.width,
+    heightMm: state.height,
+  });
+}
+
+function applyOverlayBounds(item, element) {
+  const canonical = renderGeometry.get(element.id);
+  if (canonical === undefined) {
+    item.style.left = "45%";
+    item.style.top = "45%";
+    item.style.width = "10%";
+    item.style.height = "10%";
+    item.style.transform = "none";
+    return;
+  }
+
+  const box = canonicalOverlayBox(canonical, element.transform, {
+    widthMm: state.width,
+    heightMm: state.height,
+  });
+  item.style.left = `${box.leftPercent}%`;
+  item.style.top = `${box.topPercent}%`;
+  item.style.width = `${box.widthPercent}%`;
+  item.style.height = `${box.heightPercent}%`;
+  item.style.transform = "none";
+}
+
 function render() {
+  updateDimensions();
+  renderCanonicalArtwork();
   renderArtboard();
   updateControls();
-  updateDimensions();
 }
 
 function escapeHtml(text) {
@@ -201,25 +236,40 @@ function fontPreviewText(text) {
   return preview.slice(0, 24) || "Your text";
 }
 
-function updateFontPicker(element) {
-  const preview = fontPreviewText(element.text);
+function fontLabel(font) {
+  return (
+    font.label ??
+    BUILT_IN_FONTS.find(({ id }) => id === font.id)?.label ??
+    font.id ??
+    "Choose a font"
+  );
+}
 
-  $("#font-current-name").textContent = element.font;
+function fontWeight(font) {
+  return font.id?.includes("bold") ? 700 : 400;
+}
+
+function updateFontPicker(element) {
+  const preview = fontPreviewText(element.source.text);
+  const selectedFont = element.source.font;
+  const selectedLabel = fontLabel(selectedFont);
+
+  $("#font-current-name").textContent = selectedLabel;
   $("#font-current-preview").textContent = preview;
-  $("#font-current-preview").style.fontFamily = element.font;
+  $("#font-current-preview").style.fontFamily = selectedLabel;
 
   $$(".font-option").forEach((option) => {
-    const isActive = option.dataset.font === element.font;
+    const isActive = option.dataset.fontId === selectedFont.id;
     option.classList.toggle("active", isActive);
     option.setAttribute("aria-pressed", String(isActive));
 
     const optionPreview = option.querySelector(".font-option-preview");
     optionPreview.textContent = preview;
-    optionPreview.style.fontFamily = option.dataset.font;
+    optionPreview.style.fontFamily = option.dataset.fontLabel;
   });
 }
 
-function addFontOption(fontName) {
+function addFontOption(fontName, fontId = fontName) {
   const option = document.createElement("button");
   const name = document.createElement("span");
   const preview = document.createElement("span");
@@ -227,13 +277,16 @@ function addFontOption(fontName) {
 
   option.type = "button";
   option.className = "dropdown-item font-option";
-  option.dataset.font = fontName;
+  option.dataset.fontId = fontId;
+  option.dataset.fontLabel = fontName;
 
   name.className = "font-option-name";
   name.textContent = `${fontName} · Custom`;
 
   preview.className = "font-option-preview";
-  preview.textContent = fontPreviewText(selectedElement()?.text ?? "Your text");
+  preview.textContent = fontPreviewText(
+    selectedElement()?.source.text ?? "Your text",
+  );
   preview.style.fontFamily = fontName;
 
   check.className = "font-option-check";
@@ -246,15 +299,8 @@ function addFontOption(fontName) {
 
 function updateControls() {
   const element = selectedElement();
-  const isText = element?.type === "text";
-  const isImage = element?.type === "image";
-  const hasText = hasElementType("text");
-  const hasImage = hasElementType("image");
-
-  $("#add-text").disabled = hasText;
-  $("#add-image").disabled = hasImage;
-  $("#add-text").title = hasText ? "Only one text element can be added" : "Add text";
-  $("#add-image").title = hasImage ? "Only one image can be added" : "Add image";
+  const isText = element?.kind === "text";
+  const isImage = element?.kind === "svg" || element?.kind === "png";
 
   $("#text-controls").classList.toggle("d-none", !isText);
   $("#image-message").classList.toggle("d-none", !isImage);
@@ -263,18 +309,23 @@ function updateControls() {
 
   if (!isText) return;
 
-  $("#text-input").value = element.text;
+  $("#text-input").value = element.source.text;
   updateFontPicker(element);
-  $("#font-size").value = element.size;
-  $("#letter-spacing").value = element.spacing;
-  $("#font-weight").value = element.weight;
+  $("#font-size").value = element.source.fontSizeMm;
+  $("#letter-spacing").value = element.source.letterSpacingMm;
+  $("#font-weight").value = fontWeight(element.source.font);
 
-  $("#font-size-value").textContent = `${element.size} px`;
-  $("#letter-spacing-value").textContent = `${element.spacing} px`;
-  $("#font-weight-value").textContent = weightLabel(element.weight);
+  $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
+  $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
+  $("#font-weight-value").textContent = weightLabel(
+    fontWeight(element.source.font),
+  );
 
   $$(".alignment-button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.align === element.align);
+    button.classList.toggle(
+      "active",
+      button.dataset.align === element.source.alignment,
+    );
   });
 }
 
@@ -298,23 +349,18 @@ function updateDimensions() {
   $("#dimension-text").textContent = `${state.width} × ${state.height} mm`;
 }
 
-function updateSelectedText(property, value, fontFile = null) {
-  const element = selectedElement();
-
-  if (!element || element.type !== "text") return;
-
-  element[property] = value;
-  if (property === "font") element.fontFile = fontFile;
+function updateSelectedText(sourcePatch) {
+  if (editor.updateSelectedText(sourcePatch) === null) return;
   render();
 }
 
 function selectElement(id) {
-  state.selectedId = id;
+  editor.select(id);
 
   $$(".design-element").forEach((item) => {
     item.classList.toggle(
       "selected",
-      Number(item.dataset.elementId) === state.selectedId,
+      item.dataset.elementId === editor.selectedId,
     );
   });
 
@@ -325,33 +371,36 @@ function startDrag(event) {
   event.preventDefault();
 
   const item = event.currentTarget;
-  const id = Number(item.dataset.elementId);
-  const element = state.elements.find((entry) => entry.id === id);
+  const id = item.dataset.elementId;
+  const element = designModel.getElement(id);
 
   if (!element) return;
 
+  interactionActive = true;
   item.focus({ preventScroll: true });
   selectElement(id);
   item.setPointerCapture(event.pointerId);
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const startTransform = element.transform;
 
   const move = (moveEvent) => {
-    const bounds = artboard.getBoundingClientRect();
-
-    element.x = Math.max(
-      5,
-      Math.min(95, ((moveEvent.clientX - bounds.left) / bounds.width) * 100),
+    const changed = editor.moveFromScreenDelta(
+      id,
+      startTransform,
+      {
+        deltaX: moveEvent.clientX - startX,
+        deltaY: moveEvent.clientY - startY,
+      },
+      artboard.getBoundingClientRect(),
+      { widthMm: state.width, heightMm: state.height },
     );
-
-    element.y = Math.max(
-      5,
-      Math.min(95, ((moveEvent.clientY - bounds.top) / bounds.height) * 100),
-    );
-
-    item.style.left = `${element.x}%`;
-    item.style.top = `${element.y}%`;
+    renderCanonicalArtwork();
+    applyOverlayBounds(item, changed);
   };
 
   const stop = () => {
+    interactionActive = false;
     item.removeEventListener("pointermove", move);
     item.removeEventListener("pointerup", stop);
     item.removeEventListener("pointercancel", stop);
@@ -367,6 +416,10 @@ function startResize(event, element, item) {
   event.preventDefault();
   event.stopPropagation();
 
+  const canonical = renderGeometry.get(element.id);
+  if (canonical === undefined) return;
+
+  interactionActive = true;
   selectElement(element.id);
   item.focus({ preventScroll: true });
   event.currentTarget.setPointerCapture(event.pointerId);
@@ -378,7 +431,8 @@ function startResize(event, element, item) {
     event.clientX - centerX,
     event.clientY - centerY,
   );
-  const startScale = element.scale ?? 1;
+  const startTransform = element.transform;
+  const startScale = startTransform.scale;
   const handle = event.currentTarget;
 
   const resize = (moveEvent) => {
@@ -388,11 +442,18 @@ function startResize(event, element, item) {
     );
     const nextScale = startScale * (distance / Math.max(startDistance, 1));
 
-    element.scale = Math.min(2.5, Math.max(0.45, nextScale));
-    item.style.transform = `translate(-50%, -50%) scale(${element.scale})`;
+    const changed = editor.resize(
+      element.id,
+      canonical,
+      startTransform,
+      Math.min(2.5, Math.max(0.45, nextScale)),
+    );
+    renderCanonicalArtwork();
+    applyOverlayBounds(item, changed);
   };
 
   const stop = () => {
+    interactionActive = false;
     handle.removeEventListener("pointermove", resize);
     handle.removeEventListener("pointerup", stop);
     handle.removeEventListener("pointercancel", stop);
@@ -405,31 +466,22 @@ function startResize(event, element, item) {
 }
 
 $("#add-text").addEventListener("click", () => {
-  if (hasElementType("text")) return;
-
-  const id = Date.now();
-
-  state.elements.push({
-    id,
-    type: "text",
-    name: "Text 1",
-    text: "NEW TEXT",
-    x: 50,
-    y: 50,
-    font: "DM Sans",
-    size: 20,
-    spacing: 1,
-    weight: 600,
-    align: "center",
-    scale: 1,
+  const added = designModel.addElement({
+    kind: "text",
+    source: {
+      text: "NEW TEXT",
+      font: { id: "sans-bold", reference: null },
+      fontSizeMm: 16,
+      letterSpacingMm: 1,
+      lineSpacing: 1.25,
+      alignment: "center",
+    },
   });
-
-  state.selectedId = id;
+  editor.select(added.id);
   render();
 });
 
 $("#add-image").addEventListener("click", () => {
-  if (hasElementType("image")) return;
   $("#image-upload").click();
 });
 
@@ -443,25 +495,34 @@ $("#image-upload").addEventListener("change", (event) => {
   if (!file) return;
 
   const currentElement = selectedElement();
+  const kind = imageKind(file);
+  if (kind === null) {
+    alert("Choose an SVG or PNG image.");
+    event.target.value = "";
+    return;
+  }
 
-  if (currentElement?.type === "image") {
-    currentElement.label = file.name;
-    currentElement.src = URL.createObjectURL(file);
-  } else {
-    const id = Date.now();
-
-    state.elements.push({
-      id,
-      type: "image",
-      name: "Image",
-      label: file.name,
-      src: URL.createObjectURL(file),
-      x: 50,
-      y: 50,
-      scale: 1,
+  if (currentElement?.kind === kind) {
+    designModel.updateElement(currentElement.id, {
+      source: { reference: file },
     });
-
-    state.selectedId = id;
+  } else if (
+    currentElement?.kind === "svg" ||
+    currentElement?.kind === "png"
+  ) {
+    designModel.removeElement(currentElement.id);
+    const replacement = designModel.addElement({
+      kind,
+      source: imageSource(kind, file),
+      transform: currentElement.transform,
+    });
+    editor.select(replacement.id);
+  } else {
+    const added = designModel.addElement({
+      kind,
+      source: imageSource(kind, file),
+    });
+    editor.select(added.id);
   }
 
   event.target.value = "";
@@ -485,25 +546,24 @@ $("#font-upload").addEventListener("change", async (event) => {
     await uploadedFont.load();
     document.fonts.add(uploadedFont);
 
+    const fontReference = /\.(ttf|otf)$/i.test(file.name) ? file : null;
+    if (fontReference === null) {
+      throw new Error("The 3D text pipeline requires a TTF or OTF font.");
+    }
+    uploadedFonts.set(fontName, fontReference);
     addFontOption(fontName);
-    updateSelectedText("font", fontName, /\.(ttf|otf)$/i.test(file.name) ? file : null);
+    updateSelectedText({
+      font: { id: fontName, label: fontName, reference: fontReference },
+    });
   } catch {
-    alert("That font could not be loaded. Try a TTF, OTF, WOFF, or WOFF2 file.");
+    alert("That font could not be loaded. Try a TTF or OTF file.");
   }
 
   event.target.value = "";
 });
 
 function deleteSelectedElement() {
-  const element = selectedElement();
-
-  if (!element) return;
-
-  state.elements = state.elements.filter(
-    (element) => element.id !== state.selectedId,
-  );
-
-  state.selectedId = state.elements[0]?.id ?? null;
+  if (editor.deleteSelected() === null) return;
   render();
 }
 
@@ -526,37 +586,52 @@ document.addEventListener("keydown", (event) => {
 });
 
 $("#text-input").addEventListener("input", (event) => {
-  updateSelectedText("text", event.target.value);
+  updateSelectedText({ text: event.target.value });
 });
 
 $("#font-options").addEventListener("click", (event) => {
   const option = event.target.closest(".font-option");
 
   if (!option) return;
-  updateSelectedText("font", option.dataset.font);
+  updateSelectedText({
+    font: {
+      id: option.dataset.fontId,
+      label: option.dataset.fontLabel,
+      reference: uploadedFonts.get(option.dataset.fontId) ?? null,
+    },
+  });
 });
 
 $("#font-size").addEventListener("input", (event) => {
-  updateSelectedText("size", Number(event.target.value));
+  updateSelectedText({ fontSizeMm: Number(event.target.value) });
 });
 
 $("#letter-spacing").addEventListener("input", (event) => {
-  updateSelectedText("spacing", Number(event.target.value));
+  updateSelectedText({ letterSpacingMm: Number(event.target.value) });
 });
 
 $("#font-weight").addEventListener("input", (event) => {
-  updateSelectedText("weight", Number(event.target.value));
+  const selected = selectedElement();
+  if (selected?.kind !== "text") return;
+  const family = selected.source.font.id?.includes("serif") ? "serif" : "sans";
+  const weight = Number(event.target.value) >= 700 ? "bold" : "regular";
+  updateSelectedText({
+    font: {
+      id: `${family}-${weight}`,
+      reference: null,
+    },
+  });
 });
 
 $$("#editor-controls-2d [data-align]").forEach((button) => {
   button.addEventListener("click", () => {
-    updateSelectedText("align", button.dataset.align);
+    updateSelectedText({ alignment: button.dataset.align });
   });
 });
 
 $("#stamp-width").addEventListener("input", (event) => {
   state.width = Number(event.target.value);
-  updateDimensions();
+  render();
 });
 
 $("#base-thickness").addEventListener("input", (event) => {
@@ -566,8 +641,7 @@ $("#base-thickness").addEventListener("input", (event) => {
 
 $("#mirror-design").addEventListener("change", (event) => {
   state.mirror = event.target.checked;
-  artboard.style.transform = state.mirror ? "scaleX(-1)" : "scaleX(1)";
-  canonicalArtwork.style.transform = state.mirror ? "scaleX(-1)" : "";
+  pipeline.setStamp({ mirror: state.mirror });
 });
 
 $("#handle-select").addEventListener("change", (event) => {
@@ -596,6 +670,7 @@ $$("[data-view]").forEach((button) => {
     button.classList.add("active");
 
     const show2D = button.dataset.view === "2d";
+    editor.setView(show2D ? "2d" : "3d");
     $("#stamp-canvas").classList.toggle("preview-hidden", !show2D);
     previewContainer.classList.toggle("d-none", show2D);
     editorControls2D.hidden = !show2D;

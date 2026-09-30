@@ -111,38 +111,33 @@
                     aria-expanded="false"
                     aria-labelledby="font-label"
                   >
-                    <span id="font-current-name" class="font-current-name">DM Sans</span>
+                    <span id="font-current-name" class="font-current-name">Noto Sans</span>
                     <span
                       id="font-current-preview"
                       class="font-current-preview"
-                      style="font-family: 'DM Sans'"
+                      style="font-family: sans-serif"
                     >Clayster Studio</span>
                   </button>
 
                   <div id="font-options" class="dropdown-menu font-options w-100">
-                    <button class="dropdown-item font-option active" type="button" data-font="DM Sans">
-                      <span class="font-option-name">DM Sans</span>
-                      <span class="font-option-preview" style="font-family: 'DM Sans'">Clayster Studio</span>
+                    <button class="dropdown-item font-option active" type="button" data-font-id="sans-regular" data-font-label="Noto Sans">
+                      <span class="font-option-name">Noto Sans</span>
+                      <span class="font-option-preview" style="font-family: sans-serif">Clayster Studio</span>
                       <span class="font-option-check" aria-hidden="true">✓</span>
                     </button>
-                    <button class="dropdown-item font-option" type="button" data-font="Arial">
-                      <span class="font-option-name">Arial</span>
-                      <span class="font-option-preview" style="font-family: Arial">Clayster Studio</span>
+                    <button class="dropdown-item font-option" type="button" data-font-id="sans-bold" data-font-label="Noto Sans Bold">
+                      <span class="font-option-name">Noto Sans Bold</span>
+                      <span class="font-option-preview" style="font-family: sans-serif; font-weight: 700">Clayster Studio</span>
                       <span class="font-option-check" aria-hidden="true">✓</span>
                     </button>
-                    <button class="dropdown-item font-option" type="button" data-font="Georgia">
-                      <span class="font-option-name">Georgia</span>
-                      <span class="font-option-preview" style="font-family: Georgia">Clayster Studio</span>
+                    <button class="dropdown-item font-option" type="button" data-font-id="serif-regular" data-font-label="Noto Serif">
+                      <span class="font-option-name">Noto Serif</span>
+                      <span class="font-option-preview" style="font-family: serif">Clayster Studio</span>
                       <span class="font-option-check" aria-hidden="true">✓</span>
                     </button>
-                    <button class="dropdown-item font-option" type="button" data-font="Verdana">
-                      <span class="font-option-name">Verdana</span>
-                      <span class="font-option-preview" style="font-family: Verdana">Clayster Studio</span>
-                      <span class="font-option-check" aria-hidden="true">✓</span>
-                    </button>
-                    <button class="dropdown-item font-option" type="button" data-font="Courier New">
-                      <span class="font-option-name">Courier New</span>
-                      <span class="font-option-preview" style="font-family: 'Courier New'">Clayster Studio</span>
+                    <button class="dropdown-item font-option" type="button" data-font-id="serif-bold" data-font-label="Noto Serif Bold">
+                      <span class="font-option-name">Noto Serif Bold</span>
+                      <span class="font-option-preview" style="font-family: serif; font-weight: 700">Clayster Studio</span>
                       <span class="font-option-check" aria-hidden="true">✓</span>
                     </button>
                   </div>
@@ -155,7 +150,7 @@
                 <div class="range-control">
                   <div class="range-heading">
                     <label for="font-size">Text size</label>
-                    <output id="font-size-value">20 px</output>
+                    <output id="font-size-value">16 mm</output>
                   </div>
                   <input
                     id="font-size"
@@ -169,7 +164,7 @@
                 <div class="range-control">
                   <div class="range-heading">
                     <label for="letter-spacing">Letter spacing</label>
-                    <output id="letter-spacing-value">0 px</output>
+                    <output id="letter-spacing-value">1 mm</output>
                   </div>
                   <input
                     id="letter-spacing"
@@ -825,11 +820,11 @@
       </div>
     </main>
 
-    <input id="image-upload" type="file" accept="image/*,.svg" hidden />
+    <input id="image-upload" type="file" accept=".png,.svg,image/png,image/svg+xml" hidden />
     <input
       id="font-upload"
       type="file"
-      accept=".ttf,.otf,.woff,.woff2"
+      accept=".ttf,.otf"
       hidden
     />
 
