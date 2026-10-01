@@ -8,5 +8,5 @@ class CheckoutForm(forms.ModelForm):
         fields = ["email", "first_name", "last_name", "phone"]
 
     def __init__(self, *args, **kwargs):
-        super.__init__(self, *args, **kwargs)
+        super.__init__(*args, **kwargs)
         self.fields["phone"].required = True
