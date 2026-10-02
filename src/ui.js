@@ -15,6 +15,7 @@ const DRAG_HINT = "Drag the stamp to resize it";
 const SIZE_FIELDS = {
   size: "textSize",
   svgSize: "svgSize",
+  pngSize: "pngSize",
   faceSize: "faceSize",
 };
 
@@ -37,6 +38,7 @@ export function createUI(viewer, pipeline) {
   segmented(dom.sourceTabs, "kind", (kind) => {
     dom.textSource.hidden = kind !== "text";
     dom.svgSource.hidden = kind !== "svg";
+    dom.pngSource.hidden = kind !== "png";
     pipeline.setSource({ kind });
   });
 
@@ -116,6 +118,41 @@ export function createUI(viewer, pipeline) {
 
       const file = dropEvent.dataTransfer?.files?.[0];
       if (event === "drop" && file !== undefined) useSVG(file);
+    });
+  }
+
+  const usePNG = (file) => {
+    dom.pngNote.textContent = `Using ${file.name}.`;
+    pipeline.setSource({ kind: "png", pngFile: file });
+  };
+
+  dom.pngDrop.addEventListener("click", () => dom.pngFile.click());
+  dom.pngFile.addEventListener("change", () => {
+    const file = dom.pngFile.files[0];
+    if (file !== undefined) usePNG(file);
+    dom.pngFile.value = "";
+  });
+  number(dom.pngSize, (pngSize) => pipeline.setSource({ pngSize }), {
+    min: 0.5,
+  });
+  dom.pngSmoothing.addEventListener("input", () => {
+    const pngSmoothing = Number(dom.pngSmoothing.value);
+    dom.pngSmoothingReadout.textContent =
+      pngSmoothing === 0 ? "Off" : `${pngSmoothing}×`;
+    pipeline.setSource({ pngSmoothing });
+  });
+
+  for (const [event, over] of [
+    ["dragover", true],
+    ["dragleave", false],
+    ["drop", false],
+  ]) {
+    dom.pngDrop.addEventListener(event, (dropEvent) => {
+      dropEvent.preventDefault();
+      dom.pngDrop.classList.toggle("over", over);
+
+      const file = dropEvent.dataTransfer?.files?.[0];
+      if (event === "drop" && file !== undefined) usePNG(file);
     });
   }
 
@@ -213,6 +250,8 @@ export function createUI(viewer, pipeline) {
     dom.working.hidden = false;
     dom.exportSTL.disabled = dom.export3MF.disabled = true;
     showIssues([]); // Do not show the previous stamp's passing checks.
+    showDiagnostics();
+    if (pipeline.diagnostics !== null) status(null);
   });
 
   pipeline.addEventListener("result", () => {
@@ -223,6 +262,7 @@ export function createUI(viewer, pipeline) {
     viewer.show({ stamp: result.stamp, clay: result.clay });
 
     showIssues(result.issues, result.notes);
+    showDiagnostics();
     showSummary(result.info);
 
     if (result.stamp !== null) status(null);
@@ -233,10 +273,15 @@ export function createUI(viewer, pipeline) {
     dom.working.hidden = true;
     viewer.show({ stamp: null, clay: null });
     showSummary(null);
-    status(
-      `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
-      false,
-    );
+    showDiagnostics();
+    if (pipeline.diagnostics === null) {
+      status(
+        `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
+        false,
+      );
+    } else {
+      status(null);
+    }
   });
 
   function showIssues(issues, notes = []) {
@@ -258,6 +303,22 @@ export function createUI(viewer, pipeline) {
         text.textContent = issue.message;
 
         row.append(mark, text);
+        return row;
+      }),
+    );
+  }
+
+  function showDiagnostics() {
+    const diagnostics = pipeline.diagnostics;
+    dom.diagnostics.hidden = diagnostics === null;
+    if (diagnostics === null) return;
+
+    dom.diagnosticMessage.className = `diagnostic-message ${diagnostics.level}`;
+    dom.diagnosticMessage.textContent = diagnostics.message;
+    dom.diagnosticDetails.replaceChildren(
+      ...diagnostics.details.map((message) => {
+        const row = document.createElement("li");
+        row.textContent = message;
         return row;
       }),
     );
@@ -337,6 +398,7 @@ function collectDOM() {
     sourceTabs: $("source-tabs"),
     textSource: $("text-source"),
     svgSource: $("svg-source"),
+    pngSource: $("png-source"),
     textInput: $("text-input"),
     fontSelect: $("font-select"),
     fontUploadButton: $("font-upload-button"),
@@ -351,7 +413,16 @@ function collectDOM() {
     svgNote: $("svg-note"),
     svgSample: $("svg-sample"),
     svgSize: $("svg-size"),
+    pngDrop: $("png-drop"),
+    pngFile: $("png-file"),
+    pngNote: $("png-note"),
+    pngSize: $("png-size"),
+    pngSmoothing: $("png-smoothing"),
+    pngSmoothingReadout: $("png-smoothing-readout"),
     issueList: $("issue-list"),
+    diagnostics: $("diagnostics"),
+    diagnosticMessage: $("diagnostic-message"),
+    diagnosticDetails: $("diagnostic-details"),
     faceShape: $("face-shape"),
     autoFace: $("auto-face"),
     faceSize: $("face-size"),

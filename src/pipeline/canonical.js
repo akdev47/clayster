@@ -13,26 +13,33 @@ import * as THREE from "three";
  * boundary, which is what makes validation tractable and meshing trivial.
  */
 
-// Divisions per curve when flattening. A resolution rather than a budget:
-// `simplify` below drops whatever this produces that the artwork does not need
-// at the size it ends up, so 8 is fine for a large letter and thinned back down
-// for a small one.
 const CURVE_SEGMENTS = 8;
+const MAX_CURVE_DEPTH = 14;
+
+// Maximum intended deviation in finished millimetres. SVG sampling converts
+// this to source units and the SVG pipeline uses it when thinning points.
+export const GEOMETRY_TOLERANCE_MM = 0.02;
 
 // Both SVG and opentype hand us Y-down coordinates, and both arrive as
 // THREE.Shape because ShapePath.toShapes() already works out which contours are
 // holes. Flipping happens once, here, rather than in each source.
 export function fromShapes(
   shapes,
-  { flipY = true, curveSegments = CURVE_SEGMENTS } = {},
+  { flipY = true, curveSegments = CURVE_SEGMENTS, curveTolerance = null } = {},
 ) {
   const polygons = [];
 
   for (const shape of shapes) {
-    const { shape: outline, holes } = shape.extractPoints(curveSegments);
+    const sampled =
+      curveTolerance > 0
+        ? {
+            shape: flattenPath(shape, curveTolerance),
+            holes: shape.holes.map((hole) => flattenPath(hole, curveTolerance)),
+          }
+        : shape.extractPoints(curveSegments);
 
-    const polygon = [ringFrom(outline, flipY)];
-    for (const hole of holes) {
+    const polygon = [ringFrom(sampled.shape, flipY)];
+    for (const hole of sampled.holes) {
       polygon.push(ringFrom(hole, flipY));
     }
 
@@ -43,6 +50,84 @@ export function fromShapes(
   }
 
   return polygons;
+}
+
+function flattenPath(path, tolerance) {
+  const points = [];
+
+  for (const curve of path.curves) {
+    const start = curve.getPoint(0);
+    const end = curve.getPoint(1);
+    if (points.length === 0) points.push(start);
+
+    // Lines already describe their geometry exactly and must not gain points.
+    if (curve.isLineCurve) {
+      points.push(end);
+    } else {
+      flattenCurve(curve, 0, start, 1, end, tolerance, 0, points);
+    }
+  }
+
+  return points;
+}
+
+function flattenCurve(
+  curve,
+  startT,
+  start,
+  endT,
+  end,
+  tolerance,
+  depth,
+  points,
+) {
+  const span = endT - startT;
+  const quarter = curve.getPoint(startT + span * 0.25);
+  const middleT = startT + span * 0.5;
+  const middle = curve.getPoint(middleT);
+  const threeQuarter = curve.getPoint(startT + span * 0.75);
+  const error = Math.max(
+    pointSegmentDistance(quarter, start, end),
+    pointSegmentDistance(middle, start, end),
+    pointSegmentDistance(threeQuarter, start, end),
+  );
+
+  if (error <= tolerance || depth >= MAX_CURVE_DEPTH) {
+    points.push(end);
+    return;
+  }
+
+  flattenCurve(
+    curve,
+    startT,
+    start,
+    middleT,
+    middle,
+    tolerance,
+    depth + 1,
+    points,
+  );
+  flattenCurve(curve, middleT, middle, endT, end, tolerance, depth + 1, points);
+}
+
+function pointSegmentDistance(point, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+
+  if (lengthSquared === 0) return point.distanceTo(start);
+
+  const projected = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared,
+    ),
+  );
+  return Math.hypot(
+    point.x - (start.x + projected * dx),
+    point.y - (start.y + projected * dy),
+  );
 }
 
 function ringFrom(points, flipY) {
@@ -88,6 +173,38 @@ export function simplify(multiPolygon, tolerance) {
 
   return multiPolygon.map((polygon) =>
     polygon.map((ring) => simplifyRing(ring, tolerance)),
+  );
+}
+
+// Remove numerical duplicates and edges far below printable resolution after
+// coordinates have reached their final millimetre scale. Ring order and hole
+// membership are left untouched for validation and repair.
+export function removeShortEdges(multiPolygon, minLength = 0.001) {
+  if (!(minLength > 0)) return multiPolygon;
+  const minimumSquared = minLength * minLength;
+
+  return multiPolygon.map((polygon) =>
+    polygon.map((ring) => {
+      const cleaned = [];
+      for (const point of ring) {
+        const previous = cleaned[cleaned.length - 1];
+        if (
+          previous === undefined ||
+          squaredDistance(previous, point) > minimumSquared
+        ) {
+          cleaned.push(point);
+        }
+      }
+
+      while (
+        cleaned.length > 1 &&
+        squaredDistance(cleaned[0], cleaned[cleaned.length - 1]) <=
+          minimumSquared
+      ) {
+        cleaned.pop();
+      }
+      return cleaned;
+    }),
   );
 }
 
@@ -203,21 +320,49 @@ export function bounds(multiPolygon) {
   return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
-// Mirroring flips the ring direction, so every ring is reversed to keep outers
-// and holes wound the way they were.
-export function transform(
-  multiPolygon,
-  { scale = 1, offsetX = 0, offsetY = 0, mirrorX = false } = {},
-) {
-  const sx = mirrorX ? -scale : scale;
+/**
+ * Applies an element transform in physical space.
+ *
+ * Points are moved to the pivot, mirrored on their local axes, uniformly
+ * scaled, rotated counter-clockwise, moved back from the pivot, and finally
+ * translated. `offsetX`/`offsetY` remain as aliases for the existing stamp
+ * callers; shared design elements use `xMm`/`yMm`.
+ *
+ * A reflection changes the transform determinant's sign. Reversing every ring
+ * in that case preserves the established outer/hole winding convention.
+ */
+export function transform(multiPolygon, options = {}) {
+  const {
+    scale = 1,
+    rotationDeg = 0,
+    mirrorX = false,
+    mirrorY = false,
+    pivotX = 0,
+    pivotY = 0,
+    offsetX = 0,
+    offsetY = 0,
+  } = options;
+  const translationX = options.xMm ?? offsetX;
+  const translationY = options.yMm ?? offsetY;
+  const radians = (rotationDeg * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  const scaleX = mirrorX ? -scale : scale;
+  const scaleY = mirrorY ? -scale : scale;
+  const reversesWinding = scaleX * scaleY < 0;
 
   return multiPolygon.map((polygon) =>
     polygon.map((ring) => {
-      const moved = ring.map(([x, y]) => [
-        x * sx + offsetX,
-        y * scale + offsetY,
-      ]);
-      return mirrorX ? moved.reverse() : moved;
+      const moved = ring.map(([x, y]) => {
+        const localX = (x - pivotX) * scaleX;
+        const localY = (y - pivotY) * scaleY;
+
+        return [
+          localX * cosine - localY * sine + pivotX + translationX,
+          localX * sine + localY * cosine + pivotY + translationY,
+        ];
+      });
+      return reversesWinding ? moved.reverse() : moved;
     }),
   );
 }

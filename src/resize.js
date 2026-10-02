@@ -12,9 +12,9 @@ const DIRECTION_EPSILON = 4; // Pixels of travel needed to settle a direction.
  *
  * @param {object} viewer
  * @param {object} pipeline
- * @param {(millimetres: number, done: boolean) => void} [onSize]
- *        Called continuously while dragging with the size being previewed, and
- *        once more on release with the value actually committed.
+ * @param {(value: number, done: boolean) => void} [onSize]
+ *        Called continuously in the active size driver's units, and once more
+ *        on release with the value actually committed.
  */
 export function enableDragResize(viewer, pipeline, { onSize } = {}) {
   const canvas = viewer.renderer.domElement;
@@ -115,6 +115,6 @@ export function enableDragResize(viewer, pipeline, { onSize } = {}) {
   canvas.addEventListener("pointercancel", finish);
 }
 
-function round(millimetres) {
-  return Math.round(millimetres * 10) / 10;
+function round(value) {
+  return Math.round(value * 10) / 10;
 }

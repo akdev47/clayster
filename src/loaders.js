@@ -2,7 +2,11 @@
 import * as THREE from "three";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
-import { validateSVGDocument, getFilledSVGShapes } from "./svgValidation.js";
+import {
+  validateSVGDocument,
+  getFilledSVGShapes,
+  getSVGViewportTransform,
+} from "./svgValidation.js";
 
 const stlLoader = new STLLoader();
 const svgLoader = new SVGLoader();
@@ -23,18 +27,55 @@ export async function loadSTLGeometry(source) {
 }
 
 export async function loadSVGShapes(source) {
+  return (await loadSVGData(source)).shapes;
+}
+
+export async function loadSVGData(source) {
   let text;
-  if (source instanceof File) {
-    text = await source.text();
-  } else {
-    const response = await fetch(source);
-    if (!response.ok) throw new Error("Could not load the SVG file.");
-    text = await response.text();
+  try {
+    if (source instanceof File) {
+      text = await source.text();
+    } else {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error("Could not load the SVG file.");
+      text = await response.text();
+    }
+  } catch (error) {
+    throw withSVGStage(error, "SVG loading");
   }
 
-  // Apply the same checks to uploaded files and bundled samples.
+  try {
+    return parseSVGData(text);
+  } catch (error) {
+    throw withSVGStage(error, "SVG parsing");
+  }
+}
+
+// Traced raster artwork stays internal: it enters at the same validated SVG
+// boundary as uploaded vector artwork, without creating a user-facing file.
+export function parseSVGShapes(text) {
+  return parseSVGData(text).shapes;
+}
+
+function parseSVGData(text) {
   validateSVGDocument(text);
-  return getFilledSVGShapes(svgLoader.parse(text));
+  const data = svgLoader.parse(text);
+  return {
+    shapes: getFilledSVGShapes(data),
+    viewport: getSVGViewportTransform(data.xml),
+  };
+}
+
+function withSVGStage(error, stage) {
+  if (error?.svgStage) return error;
+
+  const message =
+    stage === "SVG loading"
+      ? "Could not load the SVG file."
+      : "The SVG could not be parsed.";
+  const diagnosed = new Error(message, { cause: error });
+  diagnosed.svgStage = stage;
+  return diagnosed;
 }
 
 // Give flat outlines thickness by adding front, back, and side faces.

@@ -25,6 +25,17 @@ const font = opentype.parse(buffer("../fonts/NotoSans-Bold.ttf"));
 const handle = new STLLoader().parse(buffer("../models/StampHandle.stl"));
 const artwork = (text) =>
   validate(layoutText(font, { text, size: 16 })).artwork;
+const reverseTriangles = (geometry) => {
+  const position = geometry.getAttribute("position");
+  for (let i = 0; i < position.count; i += 3) {
+    for (let j = 0; j < 3; j++) {
+      const first = position.array[i * 3 + j];
+      position.array[i * 3 + j] = position.array[(i + 2) * 3 + j];
+      position.array[(i + 2) * 3 + j] = first;
+    }
+  }
+  return geometry;
+};
 
 for (const text of ["CLAY", "BOA8", "i j !"]) {
   for (const faceShape of ["round", "square", "outline"]) {
@@ -98,6 +109,47 @@ test("open, duplicate, collapsed, reversed, disconnected, and invalid surfaces b
   [box, open, duplicate, collapsed, reversed, separate, invalid].forEach((g) =>
     g.dispose(),
   );
+});
+
+test("closed solids touching only at one vertex are non-manifold", () => {
+  const first = new THREE.BoxGeometry(2, 2, 2).toNonIndexed();
+  const second = first.clone().translate(2, 2, 2);
+  const touching = mergeGeometries([first, second]);
+
+  assert.throws(() => prepareClosedStamp(touching), /touch only at a vertex/i);
+  [first, second, touching].forEach((geometry) => geometry.dispose());
+});
+
+test("separate outward-facing solids remain unsupported", () => {
+  const first = new THREE.BoxGeometry(2, 2, 2).toNonIndexed();
+  const second = first.clone().translate(10, 0, 0);
+  const separate = mergeGeometries([first, second]);
+
+  assert.throws(() => prepareClosedStamp(separate), /disconnected pieces/i);
+  [first, second, separate].forEach((geometry) => geometry.dispose());
+});
+
+test("an enclosed inward-facing shell is accepted as a cavity", () => {
+  const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  const cavity = reverseTriangles(
+    new THREE.BoxGeometry(4, 4, 4).toNonIndexed(),
+  );
+  const hollow = mergeGeometries([outer, cavity]);
+  const checked = prepareClosedStamp(hollow);
+
+  assert.ok(checked.index.count > 0);
+  [outer, cavity, hollow, checked].forEach((geometry) => geometry.dispose());
+});
+
+test("an external inward-facing shell is not treated as a cavity", () => {
+  const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  const outside = reverseTriangles(
+    new THREE.BoxGeometry(2, 2, 2).toNonIndexed().translate(20, 0, 0),
+  );
+  const invalid = mergeGeometries([outer, outside]);
+
+  assert.throws(() => prepareClosedStamp(invalid), /not a contained cavity/i);
+  [outer, outside, invalid].forEach((geometry) => geometry.dispose());
 });
 
 test("solid union joins overlapping volumes without unmatched edges", () => {

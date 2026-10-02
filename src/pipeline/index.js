@@ -1,20 +1,29 @@
 // Coordinates input → 2D artwork → validation → 3D stamp and mug preview.
 // The UI listens for running/result/failed events rather than building geometry itself.
 import { loadFont, layoutText, wrapText } from "./text.js";
-import { loadSVGArtwork } from "./svg.js";
+import {
+  loadSVGArtworkDetails,
+  SVG_SIMPLIFY_TOLERANCE_MM,
+} from "./svg.js";
+import { loadPNGArtwork, DEFAULT_PNG_SMOOTHING } from "./png.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { loadSTLGeometry } from "../loaders.js";
 import { initializeSolids } from "../solidGeometry.js";
 import { prepareClosedStamp } from "../exportValidation.js";
+import { DesignModel } from "../designModel.js";
+import {
+  ArtworkComposer,
+  elementFromLegacySource,
+} from "./artworkComposition.js";
 import wasmUrl from "manifold-3d/manifold.wasm?url";
 
 const SAMPLE_HANDLE = "./models/StampHandle.stl";
 const DEBOUNCE_MS = 300;
 
 export const DEFAULT_SOURCE = {
-  kind: "text", // 'text' | 'svg'
+  kind: "text", // 'text' | 'svg' | 'png'
   text: "CLAY",
   fontId: DEFAULT_FONT_ID,
   fontFile: null,
@@ -24,6 +33,9 @@ export const DEFAULT_SOURCE = {
   align: "center",
   svgFile: null,
   svgSize: 30,
+  pngFile: null,
+  pngSize: 30,
+  pngSmoothing: DEFAULT_PNG_SMOOTHING,
 };
 
 /**
@@ -31,28 +43,42 @@ export const DEFAULT_SOURCE = {
  *
  *     text + font + layout ─┐
  *                           ├─→ canonical 2D → validate/repair → stamp → mesh
- *     SVG upload ───────────┘
+ *     SVG upload ───────────┤
+ *     PNG upload → trace ───┘
  *
  * Edits are debounced, and the canonical artwork is reused when only stamp
  * parameters changed, so dragging a slider does not re-parse a font.
  */
 export class Pipeline extends EventTarget {
-  constructor() {
+  constructor({ designModel = null } = {}) {
     super();
 
     this.source = { ...DEFAULT_SOURCE };
     this.stamp = { ...DEFAULT_STAMP };
 
     this.result = null;
-    this.cache = { key: null, artwork: null, issues: [] };
+    this.cache = { key: null, artwork: null, issues: [], sourceStats: null };
+    this.designModel = null;
+    this.artworkComposer = new ArtworkComposer((element) =>
+      this.buildElementArtwork(element),
+    );
+    this.onDesignChange = () => this.schedule();
+    this.diagnostics = null;
     this.handles = new Map();
 
     this.timer = null;
     this.token = 0;
+
+    if (designModel !== null) this.attachDesignModel(designModel);
   }
 
   setSource(patch) {
     Object.assign(this.source, patch);
+    this.schedule();
+  }
+
+  setDesignModel(designModel) {
+    this.attachDesignModel(designModel);
     this.schedule();
   }
 
@@ -73,9 +99,13 @@ export class Pipeline extends EventTarget {
       return { field: "faceSize", value: this.stamp.faceSize };
     }
 
-    return this.source.kind === "svg"
-      ? { field: "svgSize", value: this.source.svgSize }
-      : { field: "size", value: this.source.size };
+    if (this.source.kind === "svg") {
+      return { field: "svgSize", value: this.source.svgSize };
+    }
+    if (this.source.kind === "png") {
+      return { field: "pngSize", value: this.source.pngSize };
+    }
+    return { field: "size", value: this.source.size };
   }
 
   applySize(millimetres) {
@@ -93,6 +123,7 @@ export class Pipeline extends EventTarget {
     clearTimeout(this.timer);
     ++this.token;
     this.busy = true;
+    this.resetDiagnostics();
     this.dispatchEvent(new Event("running"));
     this.timer = setTimeout(() => this.run(), DEBOUNCE_MS);
   }
@@ -104,28 +135,65 @@ export class Pipeline extends EventTarget {
     // still awaiting a font would otherwise overwrite it.
     const token = ++this.token;
     this.busy = true;
+    this.resetDiagnostics();
     this.dispatchEvent(new Event("running"));
 
     try {
-      const { artwork, issues } = await this.artwork();
+      const {
+        artwork,
+        issues: initialIssues,
+        sourceStats,
+        elementStats = null,
+        renderElements = null,
+      } = await this.artwork();
       if (token !== this.token) return;
+
+      let issues = initialIssues;
+      this.recordValidation(sourceStats, elementStats, issues);
 
       if (artwork.length === 0) {
         this.publish(
-          { artwork, issues, stamp: null, clay: null, info: null, notes: [] },
+          {
+            artwork,
+            issues,
+            renderElements,
+            stamp: null,
+            clay: null,
+            info: null,
+            notes: [],
+          },
           token,
         );
         return;
       }
 
+      this.setSVGStage("stamp preparation");
       const handle = await this.handleGeometry();
       if (token !== this.token) return;
 
       await initializeSolids(wasmUrl);
       if (token !== this.token) return;
-      const built = buildStamp(artwork, this.stamp, handle);
+      this.setSVGStage("stamp generation");
+      const { thinIssues, ...built } = buildStamp(artwork, this.stamp, handle);
+      if (thinIssues.length > 0) {
+        const scopedThinIssues =
+          this.designModel === null
+            ? thinIssues
+            : thinIssues.map((issue) => ({ ...issue, scope: "design" }));
+        issues = [
+          ...issues.filter(({ level }) => level !== "ok"),
+          ...scopedThinIssues,
+        ];
+      }
+      this.recordValidation(sourceStats, elementStats, issues);
+      if (this.diagnostics !== null) {
+        this.diagnostics.geometryProduced = Boolean(
+          built.stamp?.getAttribute("position")?.count,
+        );
+      }
       try {
         // Check the stamp before publishing it; STL export checks the file again.
+        this.setSVGStage("final mesh validation");
         prepareClosedStamp(built.stamp).dispose();
         built.notes.push(
           "Stamp surface checks passed: closed, consistently oriented edges. Review in your slicer before printing.",
@@ -135,11 +203,13 @@ export class Pipeline extends EventTarget {
         built.clay.dispose();
         throw error;
       }
-      this.publish({ artwork, issues, ...built }, token);
+      this.completeSVGDiagnostics();
+      this.publish({ artwork, issues, renderElements, ...built }, token);
     } catch (error) {
       if (token !== this.token) return;
 
       console.error(error);
+      this.failSVGDiagnostics(error);
       this.result = null;
       this.busy = false;
       this.error = error;
@@ -159,54 +229,96 @@ export class Pipeline extends EventTarget {
   // Source → canonical → validated, skipping the work when the inputs that
   // feed it have not changed.
   async artwork() {
+    if (this.designModel !== null) {
+      return this.artworkComposer.compose(this.designModel.elements);
+    }
+
     const key = this.sourceKey();
 
     if (this.cache.key === key) {
-      return { artwork: this.cache.artwork, issues: this.cache.issues };
+      return {
+        artwork: this.cache.artwork,
+        issues: this.cache.issues,
+        sourceStats: this.cache.sourceStats,
+      };
     }
 
-    const { canonical, issues } = await this.buildArtwork();
-    const checked = validate(canonical);
+    const {
+      canonical,
+      issues,
+      sourceStats = null,
+      validationTolerance,
+    } = await this.buildArtwork();
+    const checked = validate(canonical, { tolerance: validationTolerance });
 
     // What the wrap did to the text comes first: it explains the artwork
     // the check is reporting on.
     const combined = [...issues, ...checked.issues];
 
-    this.cache = { key, artwork: checked.artwork, issues: combined };
+    this.cache = {
+      key,
+      artwork: checked.artwork,
+      issues: combined,
+      sourceStats,
+    };
 
-    return { artwork: checked.artwork, issues: combined };
+    return { artwork: checked.artwork, issues: combined, sourceStats };
   }
 
   async buildArtwork() {
-    const source = this.source;
+    return this.buildElementArtwork(elementFromLegacySource(this.source));
+  }
 
-    if (source.kind === "svg") {
-      if (source.svgFile === null) return { canonical: [], issues: [] };
+  async buildElementArtwork(element) {
+    const source = element.source;
 
-      const canonical = await loadSVGArtwork(source.svgFile, {
-        size: source.svgSize,
+    if (element.kind === "svg") {
+      if (source.reference === null) return { canonical: [], issues: [] };
+
+      const loaded = await loadSVGArtworkDetails(source.reference, {
+        size: source.baseSizeMm,
+      });
+      return {
+        canonical: loaded.artwork,
+        issues: [],
+        sourceStats: {
+          shapeCount: loaded.shapeCount,
+          polygonCount: loaded.polygonCount,
+        },
+        validationTolerance: SVG_SIMPLIFY_TOLERANCE_MM,
+      };
+    }
+
+    if (element.kind === "png") {
+      if (source.reference === null) return { canonical: [], issues: [] };
+
+      const canonical = await loadPNGArtwork(source.reference, {
+        size: source.baseSizeMm,
+        smoothing: source.tracing.smoothing,
       });
       return { canonical, issues: [] };
     }
 
     if (source.text.trim() === "") return { canonical: [], issues: [] };
 
-    const font = await loadFont(source.fontFile ?? fontURL(source.fontId));
+    const font = await loadFont(
+      source.font.reference ?? fontURL(source.font.id ?? DEFAULT_FONT_ID),
+    );
 
     // Rows are settled before anything is drawn: the wrap decides the
     // breaks and the size, the layout sets what it is handed.
     const wrapped = wrapText(font, {
       text: source.text,
-      size: source.size,
-      letterSpacing: source.letterSpacing,
+      size: source.fontSizeMm,
+      letterSpacing: source.letterSpacingMm,
     });
 
     const canonical = layoutText(font, {
       text: wrapped.text,
       size: wrapped.size,
-      letterSpacing: source.letterSpacing,
+      letterSpacing: source.letterSpacingMm,
       lineSpacing: source.lineSpacing,
-      align: source.align,
+      align: source.alignment,
     });
 
     return { canonical, issues: wrapped.issues };
@@ -244,6 +356,12 @@ export class Pipeline extends EventTarget {
       return `svg:${id}:${source.svgSize}`;
     }
 
+    if (source.kind === "png") {
+      const file = source.pngFile;
+      if (file === null) return "png:none";
+      return `png:${file.name}:${file.size}:${file.lastModified}:${source.pngSize}:${source.pngSmoothing}`;
+    }
+
     return [
       "text",
       source.text,
@@ -257,6 +375,167 @@ export class Pipeline extends EventTarget {
       source.align,
     ].join("|");
   }
+
+  resetDiagnostics() {
+    if (this.designModel !== null) {
+      this.diagnostics = {
+        level: "working",
+        message: "Processing design elements…",
+        details: [],
+        stage: "element conversion",
+        geometryProduced: false,
+        rejected: false,
+      };
+      return;
+    }
+
+    this.diagnostics =
+      this.source.kind === "svg" && this.source.svgFile !== null
+        ? {
+            level: "working",
+            message: "Processing SVG…",
+            details: [],
+            stage: "SVG loading",
+            geometryProduced: false,
+            rejected: false,
+          }
+        : null;
+  }
+
+  setSVGStage(stage) {
+    if (this.diagnostics !== null) this.diagnostics.stage = stage;
+  }
+
+  recordValidation(sourceStats, elementStats, issues) {
+    if (this.designModel === null) {
+      this.recordSVGValidation(sourceStats, issues);
+      return;
+    }
+    this.recordDesignValidation(elementStats ?? [], issues);
+  }
+
+  recordDesignValidation(elementStats, issues) {
+    if (this.diagnostics === null) return;
+
+    const errors = issues.filter(({ level }) => level === "error");
+    const warnings = issues.filter(({ level }) => level === "warning");
+    this.diagnostics.stage = "geometry validation";
+    this.diagnostics.details = [
+      ...elementStats.map(
+        ({ elementId, elementKind, shapeCount, polygonCount }) =>
+          `Element "${elementId}" (${elementKind}): ${shapeCount} ${plural(
+            shapeCount,
+            "shape",
+          )} produced · ${polygonCount} canonical ${plural(
+            polygonCount,
+            "polygon",
+          )}.`,
+      ),
+      ...warnings.map(({ message, elementId }) =>
+        elementId === undefined
+          ? `Warning: ${message}`
+          : `Element "${elementId}": ${message}`,
+      ),
+    ];
+
+    if (errors.length > 0) {
+      this.diagnostics.level = "error";
+      this.diagnostics.message = errors[0].message;
+      this.diagnostics.details.push(
+        ...errors.slice(1).map(({ message }) => message),
+        "Rejected before preview/export.",
+      );
+      this.diagnostics.rejected = true;
+    }
+  }
+
+  recordSVGValidation(sourceStats, issues) {
+    if (this.diagnostics === null || sourceStats === null) return;
+
+    this.diagnostics.shapeCount = sourceStats.shapeCount;
+    this.diagnostics.polygonCount = sourceStats.polygonCount;
+    this.diagnostics.stage = "geometry validation";
+
+    const errors = issues.filter(({ level }) => level === "error");
+    const warnings = issues.filter(({ level }) => level === "warning");
+    this.diagnostics.details = [
+      `${sourceStats.shapeCount} ${plural(sourceStats.shapeCount, "shape")} produced · ${sourceStats.polygonCount} canonical ${plural(sourceStats.polygonCount, "polygon")}.`,
+      ...warnings.map(({ message }) => `Warning: ${message}`),
+    ];
+
+    if (sourceStats.shapeCount === 0) {
+      this.diagnostics.level = "error";
+      this.diagnostics.message = "SVG contains no usable filled outlines.";
+      this.diagnostics.details.push("Stage: SVG shape conversion");
+      this.diagnostics.details.push("Rejected before preview/export.");
+      this.diagnostics.rejected = true;
+    } else if (errors.length > 0) {
+      this.diagnostics.level = "error";
+      this.diagnostics.message = errors[0].message;
+      this.diagnostics.details.push(
+        ...errors.slice(1).map(({ message }) => message),
+        "Stage: geometry validation",
+      );
+      this.diagnostics.details.push("Rejected before preview/export.");
+      this.diagnostics.rejected = true;
+    }
+  }
+
+  completeSVGDiagnostics() {
+    if (this.diagnostics === null) return;
+
+    this.diagnostics.level = "ok";
+    this.diagnostics.message =
+      this.designModel === null
+        ? "SVG processed successfully."
+        : "Design processed successfully.";
+    this.diagnostics.details.push(
+      "Stamp geometry produced and accepted for preview/export.",
+    );
+    this.diagnostics.stage = "complete";
+  }
+
+  failSVGDiagnostics(error) {
+    if (this.diagnostics === null) return;
+
+    const stage = this.diagnostics.stage;
+    const labels = {
+      "element conversion": "Artwork conversion failed",
+      "SVG loading": "SVG loading failed",
+      "stamp preparation": "Stamp preparation failed",
+      "stamp generation": "Geometry generation failed",
+      "final mesh validation": "Stamp mesh validation failed",
+    };
+
+    const diagnosedStage = error?.svgStage ?? stage;
+    const additional = Array.isArray(error?.svgDetails) ? error.svgDetails : [];
+    this.diagnostics.level = "error";
+    this.diagnostics.message = error?.svgStage
+      ? conciseError(error)
+      : `${
+          labels[stage] ??
+          (this.designModel === null
+            ? "SVG processing failed"
+            : "Design processing failed")
+        }: ${conciseError(error)}`;
+    this.diagnostics.details.push(
+      ...additional,
+      `Stage: ${diagnosedStage}`,
+      "Rejected before preview/export.",
+    );
+    this.diagnostics.rejected = true;
+  }
+
+  attachDesignModel(designModel) {
+    if (designModel !== null && !(designModel instanceof DesignModel)) {
+      throw new TypeError("Pipeline designModel must be a DesignModel or null.");
+    }
+    if (this.designModel === designModel) return;
+
+    this.designModel?.removeEventListener("change", this.onDesignChange);
+    this.designModel = designModel;
+    this.designModel?.addEventListener("change", this.onDesignChange);
+  }
 }
 
 function fontURL(id) {
@@ -264,4 +543,13 @@ function fontURL(id) {
     BUILT_IN_FONTS.find((candidate) => candidate.id === id) ??
     BUILT_IN_FONTS[0];
   return font.url;
+}
+
+function plural(count, word) {
+  return count === 1 ? word : `${word}s`;
+}
+
+function conciseError(error) {
+  const message = String(error?.message ?? "Unknown error").split("\n", 1)[0];
+  return message.length > 180 ? `${message.slice(0, 177)}…` : message;
 }
