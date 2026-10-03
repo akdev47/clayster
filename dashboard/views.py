@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 
 from customers.models import Customer
 from orders.models import Order, OrderItem
-from products.models import Product
+from products.utils import create_dummy_product
 
 # if we only want users that are superuser:
 # @user_passes_test(lambda u: u.is_superuser) 
@@ -54,16 +54,3 @@ def create_dummy_order(request):
     )
 
     return redirect("index")
-
-
-def create_dummy_product():
-    dummy_product, _ = Product.objects.get_or_create(
-        name="Stamp_Dummy",
-        defaults= {
-            "description": "This is a test dummy product stamp",
-            "price": 10,
-            "product_type": Product.ProductType.STANDARD,
-        },
-    )
-
-    return dummy_product
