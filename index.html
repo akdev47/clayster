@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>Clayster — Design Your Stamp</title>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-expand-md clayster-navbar">
+      <div class="container-fluid px-3 px-lg-5">
+        <a class="navbar-brand clayster-logo" href="#">
+          <span class="logo-text">Logo Here</span>
+          <span>Clayster</span>
+        </a>
+
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#main-navigation"
+          aria-controls="main-navigation"
+          aria-expanded="false"
+          aria-label="Open navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div id="main-navigation" class="collapse navbar-collapse">
+          <div class="navbar-nav ms-auto gap-md-2">
+            <a id="nav-design" class="nav-link active" href="#">Design</a>
+            <a id="nav-order" class="nav-link" href="#order">Order details</a>
+            <a class="nav-link" href="#">Account</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main id="design-page" class="container-fluid page-container px-3 px-lg-5">
+      <div class="workspace-shell">
+        <button
+          id="print-panel-toggle"
+          class="print-panel-toggle"
+          type="button"
+          aria-controls="printability-panel"
+          aria-expanded="true"
+          title="Hide printability check"
+        >
+          <span class="panel-toggle-icon" aria-hidden="true">›</span>
+          <span class="visually-hidden">Hide printability check</span>
+        </button>
+
+        <div class="row g-0">
+          <!-- Left sidebar -->
+          <aside class="col-12 col-xl-3 order-2 order-xl-1 editor-sidebar">
+            <div id="editor-controls-shared" class="sidebar-mode">
+            <section class="sidebar-section">
+              <div class="section-heading">
+                <div>
+                  <h2>Design Elements</h2>
+                </div>
+              </div>
+
+              <div class="row g-2">
+                <div class="col-4">
+                  <button id="add-text" class="btn clay-outline-button w-100">
+                    <span class="button-icon">T</span>
+                    Add Text
+                  </button>
+                </div>
+
+                <div class="col-4">
+                  <button id="add-svg" class="btn clay-outline-button w-100">
+                    <span class="button-icon">▧</span>
+                    Add SVG
+                  </button>
+                </div>
+
+                <div class="col-4">
+                  <button id="add-png" class="btn clay-outline-button w-100">
+                    <span class="button-icon">▧</span>
+                    Add PNG
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="section-heading">
+                <div>
+                  <h2>Selected Element</h2>
+                </div>
+              </div>
+
+              <div id="text-controls">
+                <label class="control-label" for="text-input">Text</label>
+                <textarea
+                  id="text-input"
+                  class="form-control clay-input"
+                  rows="3"
+                  maxlength="80"
+                ></textarea>
+
+                <label id="font-label" class="control-label mt-3">Font</label>
+                <div class="dropdown font-picker">
+                  <button
+                    id="font-picker-button"
+                    class="btn dropdown-toggle font-picker-button w-100"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    aria-labelledby="font-label"
+                  >
+                    <span id="font-current-name" class="font-current-name">Noto Sans</span>
+                    <span
+                      id="font-current-preview"
+                      class="font-current-preview"
+                      style="font-family: sans-serif"
+                    >Clayster Studio</span>
+                  </button>
+
+                  <div id="font-options" class="dropdown-menu font-options w-100">
+                    <button class="dropdown-item font-option active" type="button" data-font-id="sans-regular" data-font-label="Noto Sans">
+                      <span class="font-option-name">Noto Sans</span>
+                      <span class="font-option-preview" style="font-family: sans-serif">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font-id="sans-bold" data-font-label="Noto Sans Bold">
+                      <span class="font-option-name">Noto Sans Bold</span>
+                      <span class="font-option-preview" style="font-family: sans-serif; font-weight: 700">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font-id="serif-regular" data-font-label="Noto Serif">
+                      <span class="font-option-name">Noto Serif</span>
+                      <span class="font-option-preview" style="font-family: serif">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                    <button class="dropdown-item font-option" type="button" data-font-id="serif-bold" data-font-label="Noto Serif Bold">
+                      <span class="font-option-name">Noto Serif Bold</span>
+                      <span class="font-option-preview" style="font-family: serif; font-weight: 700">Clayster Studio</span>
+                      <span class="font-option-check" aria-hidden="true">✓</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button id="upload-font" class="btn subtle-button w-100 mt-2">
+                  Upload custom font
+                </button>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="font-size">Text size</label>
+                    <output id="font-size-value">7.5 mm</output>
+                  </div>
+                  <input
+                    id="font-size"
+                    class="form-range clay-range"
+                    type="range"
+                    min="0.5"
+                    max="200"
+                    step="0.5"
+                  />
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="letter-spacing">Letter spacing</label>
+                    <output id="letter-spacing-value">1 mm</output>
+                  </div>
+                  <input
+                    id="letter-spacing"
+                    class="form-range clay-range"
+                    type="range"
+                    min="-2"
+                    max="12"
+                    step="0.1"
+                  />
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="line-spacing">Line spacing</label>
+                    <output id="line-spacing-value">1.25×</output>
+                  </div>
+                  <input
+                    id="line-spacing"
+                    class="form-range clay-range"
+                    type="range"
+                    min="0.5"
+                    max="3"
+                    step="0.05"
+                  />
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="font-weight">Letter thickness</label>
+                    <output id="font-weight-value">Normal</output>
+                  </div>
+                  <input
+                    id="font-weight"
+                    class="form-range clay-range"
+                    type="range"
+                    min="-0.6"
+                    max="1.5"
+                    step="0.1"
+                  />
+                </div>
+
+                <label class="control-label mt-3">Alignment</label>
+
+                <div class="alignment-control">
+                  <button class="alignment-button" data-align="left" title="Align left">
+                    ≡
+                  </button>
+                  <button
+                    class="alignment-button active"
+                    data-align="center"
+                    title="Align center"
+                  >
+                    ≡
+                  </button>
+                  <button class="alignment-button align-right" data-align="right" title="Align right">
+                    ≡
+                  </button>
+                </div>
+              </div>
+
+              <div id="image-controls" class="d-none">
+                <p id="image-message" class="image-message">
+                  Replace the selected source without changing its position or scale.
+                </p>
+
+                <button id="replace-image" class="btn subtle-button w-100 mt-2">
+                  Replace source
+                </button>
+
+                <label class="control-label mt-3" for="artwork-base-size">
+                  Source size
+                  <span class="pipeline-input-unit">
+                    <input
+                      id="artwork-base-size"
+                      class="form-control clay-input"
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                    />
+                    <span>mm</span>
+                  </span>
+                </label>
+
+                <div id="png-options" class="range-control d-none">
+                  <div class="range-heading">
+                    <label for="png-smoothing">PNG smoothing</label>
+                    <output id="png-smoothing-value">2×</output>
+                  </div>
+                  <input
+                    id="png-smoothing"
+                    class="form-range clay-range"
+                    type="range"
+                    min="0"
+                    max="4"
+                    step="0.25"
+                  />
+                </div>
+              </div>
+
+              <div id="transform-controls" class="mt-3">
+                <label class="control-label">Position and transform</label>
+                <div class="pipeline-field-grid mt-1">
+                  <label class="control-label" for="element-x">
+                    X position
+                    <span class="pipeline-input-unit">
+                      <input id="element-x" class="form-control clay-input" type="number" step="0.5" />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="element-y">
+                    Y position
+                    <span class="pipeline-input-unit">
+                      <input id="element-y" class="form-control clay-input" type="number" step="0.5" />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="element-scale">
+                    Scale
+                    <span class="pipeline-input-unit">
+                      <input id="element-scale" class="form-control clay-input" type="number" min="0.05" step="0.05" />
+                      <span>×</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="element-rotation">
+                    Rotation
+                    <span class="pipeline-input-unit">
+                      <input id="element-rotation" class="form-control clay-input" type="number" step="1" />
+                      <span>°</span>
+                    </span>
+                  </label>
+                </div>
+
+                <div class="setting-row">
+                  <span class="setting-label">Mirror element horizontally</span>
+                  <div class="form-check form-switch mb-0">
+                    <input id="element-mirror-x" class="form-check-input clay-switch" type="checkbox" role="switch" />
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">Mirror element vertically</span>
+                  <div class="form-check form-switch mb-0">
+                    <input id="element-mirror-y" class="form-check-input clay-switch" type="checkbox" role="switch" />
+                  </div>
+                </div>
+              </div>
+
+              <button id="delete-element" class="btn delete-button w-100 mt-3">
+                Delete Element
+              </button>
+            </section>
+
+            </div>
+
+            <div id="stamp-controls-shared" class="sidebar-mode">
+              <section class="sidebar-section border-bottom-0">
+                <div class="section-heading">
+                  <div>
+                    <h2>Stamp Settings</h2>
+                    <p class="pipeline-section-note">Physical dimensions are in millimetres.</p>
+                  </div>
+                </div>
+
+                <label class="control-label">Face shape</label>
+                <div id="pipeline-face-shape" class="segmented-control pipeline-tabs">
+                  <button class="segment active" type="button" data-shape="round">Round</button>
+                  <button class="segment" type="button" data-shape="square">Square</button>
+                  <button class="segment" type="button" data-shape="outline">Artwork</button>
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <span class="setting-label">Automatic face size</span>
+                    <small>Fit the backing to the artwork</small>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input
+                      id="pipeline-auto-face"
+                      class="form-check-input clay-switch"
+                      type="checkbox"
+                      role="switch"
+                    />
+                  </div>
+                </div>
+
+                <label class="control-label mt-3" for="pipeline-face-size-range">
+                  Stamp size
+                  <input
+                    id="pipeline-face-size-range"
+                    class="form-range"
+                    type="range"
+                    min="10"
+                    max="120"
+                    step="1"
+                  />
+                </label>
+
+                <div class="pipeline-field-grid mt-3">
+                  <label class="control-label" for="pipeline-face-size">
+                    Face size
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-face-size"
+                        class="form-control clay-input"
+                        type="number"
+                        min="1"
+                        step="1"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="pipeline-face-thickness">
+                    Base thickness
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-face-thickness"
+                        class="form-control clay-input"
+                        type="number"
+                        min="0.2"
+                        step="0.5"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label class="control-label" for="pipeline-margin">
+                    Margin
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-margin"
+                        class="form-control clay-input"
+                        type="number"
+                        min="0"
+                        step="0.5"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                </div>
+
+                <label class="control-label mt-3">Relief</label>
+                <div id="pipeline-relief-mode" class="segmented-control pipeline-tabs">
+                  <button class="segment active" type="button" data-mode="emboss">Raised</button>
+                  <button class="segment" type="button" data-mode="deboss">Recessed</button>
+                </div>
+
+                <div class="range-control">
+                  <div class="range-heading">
+                    <label for="pipeline-relief-depth">Relief depth</label>
+                    <output id="pipeline-relief-readout">2 mm</output>
+                  </div>
+                  <input
+                    id="pipeline-relief-depth"
+                    class="form-range clay-range"
+                    type="range"
+                    min="0.4"
+                    max="8"
+                    step="0.2"
+                  />
+                </div>
+
+                <div class="setting-row">
+                  <div>
+                    <span class="setting-label">Mirror design</span>
+                    <small>Make the clay impression readable</small>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input
+                      id="pipeline-mirror"
+                      class="form-check-input clay-switch"
+                      type="checkbox"
+                      role="switch"
+                    />
+                  </div>
+                </div>
+
+                <label class="control-label mt-3" for="pipeline-handle-select">Handle</label>
+                <select id="pipeline-handle-select" class="form-select clay-input">
+                  <option value="none">No handle — face only</option>
+                  <option value="sample">Sample handle</option>
+                </select>
+
+                <div class="row g-2 mt-2">
+                  <div class="col-6">
+                    <button
+                      id="pipeline-export-stl"
+                      class="btn subtle-button w-100"
+                      type="button"
+                    >
+                      Export STL
+                    </button>
+                  </div>
+                  <div class="col-6">
+                    <button
+                      id="pipeline-export-3mf"
+                      class="btn subtle-button w-100"
+                      type="button"
+                    >
+                      Export 3MF
+                    </button>
+                  </div>
+                </div>
+
+                <p id="pipeline-control-status" class="pipeline-control-status" hidden></p>
+              </section>
+            </div>
+          </aside>
+
+          <!-- Main editor -->
+          <section class="col-12 col-xl-6 order-1 order-xl-2 canvas-column">
+            <div class="canvas-toolbar">
+              <div id="preview-surface-toggle" class="segmented-control" aria-label="Preview surface" hidden>
+                <button class="segment active" data-mode="stamp">Stamp</button>
+                <button class="segment" data-mode="clay">On Clay</button>
+              </div>
+
+              <div class="segmented-control" aria-label="Preview dimension">
+                <button class="segment active" data-view="2d">2D</button>
+                <button class="segment" data-view="3d">3D</button>
+              </div>
+            </div>
+
+            <div class="canvas-area">
+              <div id="stamp-canvas" class="stamp-canvas">
+                <div class="canvas-grid"></div>
+
+                <div id="stamp-artboard" class="stamp-artboard">
+                  <svg
+                    id="canonical-artwork"
+                    class="canonical-artwork"
+                    aria-hidden="true"
+                  ></svg>
+                  <span class="artboard-corner top-left"></span>
+                  <span class="artboard-corner top-right"></span>
+                  <span class="artboard-corner bottom-left"></span>
+                  <span class="artboard-corner bottom-right"></span>
+                </div>
+              </div>
+
+              <div id="three-preview" class="three-preview d-none">
+                <p id="three-preview-status" class="three-preview-status" hidden></p>
+                <p id="three-preview-note" class="three-preview-note">
+                  Drag the stamp to resize the selected artwork. Orbit controls affect only this view.
+                </p>
+              </div>
+            </div>
+
+            <div class="canvas-footer">
+              <p class="drag-instruction mb-0">
+                <span>✥</span>
+                Drag elements to reposition
+              </p>
+
+              <div class="dimension-pill">
+                <span>Current Stamp Dimensions</span>
+                <strong id="dimension-text">60 × 45 mm</strong>
+              </div>
+            </div>
+          </section>
+
+          <!-- Right sidebar -->
+          <aside id="printability-panel" class="col-12 col-xl-3 order-3 print-sidebar">
+            <div id="print-controls-shared" class="print-panel-content">
+              <section class="sidebar-section">
+                <div id="pipeline-overall-icon" class="print-heading-icon warning-icon">…</div>
+                <h2 class="print-title">Printability Check</h2>
+                <p class="print-subtitle">
+                  Results come from the current design and geometry pipeline.
+                </p>
+                <p
+                  id="pipeline-overall-status"
+                  class="overall-status pipeline-overall-working"
+                >
+                  Waiting for build…
+                </p>
+              </section>
+
+              <details class="pipeline-diagnostics-section" open>
+                <summary>Diagnostic messages</summary>
+                <section
+                  id="pipeline-diagnostic-list"
+                  class="validation-list"
+                  aria-live="polite"
+                  aria-label="Validation results"
+                ></section>
+              </details>
+
+              <section class="sidebar-section pipeline-summary-section">
+                <div class="section-heading">
+                  <h2>Generated stamp</h2>
+                </div>
+                <dl class="pipeline-summary">
+                  <div>
+                    <dt>Width</dt>
+                    <dd id="pipeline-total-x">—</dd>
+                  </div>
+                  <div>
+                    <dt>Depth</dt>
+                    <dd id="pipeline-total-y">—</dd>
+                  </div>
+                  <div>
+                    <dt>Height</dt>
+                    <dd id="pipeline-total-z">—</dd>
+                  </div>
+                  <div>
+                    <dt>Face size</dt>
+                    <dd id="pipeline-summary-face-size">—</dd>
+                  </div>
+                  <div>
+                    <dt>Triangles</dt>
+                    <dd id="pipeline-triangle-count">—</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <div class="print-actions">
+                <div class="validation-row pipeline-export-readiness">
+                  <span id="pipeline-export-icon" class="status-icon warning-icon">…</span>
+                  <div class="validation-content">
+                    <span>STL / 3MF export</span>
+                    <small>Export controls are available in the left sidebar.</small>
+                  </div>
+                  <span id="pipeline-export-status" class="status-badge warning-badge">
+                    Building
+                  </span>
+                </div>
+
+                <p id="finalize-hint" class="pipeline-note">
+                  Wait for the stamp to finish building.
+                </p>
+                <button id="continue-button" class="btn primary-button w-100" type="button" disabled>
+                  Finalize order
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <main id="order-page" class="container-fluid page-container px-3 px-lg-5" hidden>
+      <div class="workspace-shell">
+        <div class="row g-0">
+          <section class="col-12 col-xl-8 order-form-column">
+            <form id="order-form" novalidate>
+              <div class="sidebar-section">
+                <div class="section-heading">
+                  <div>
+                    <h2>Order details</h2>
+                    <p class="pipeline-note mb-0">
+                      These details are saved on this device and sent with your stamp once ordering is available.
+                    </p>
+                  </div>
+                  <button id="order-back" class="btn subtle-button" type="button">← Back to design</button>
+                </div>
+
+                <label class="control-label" for="order-title">Name</label>
+                <input id="order-title" class="form-control clay-input" type="text" maxlength="80" placeholder="e.g. Bakery logo stamp" autocomplete="off" />
+                <p class="order-error" id="order-title-error" role="alert"></p>
+
+                <label class="control-label mt-3" for="order-description">Description</label>
+                <textarea id="order-description" class="form-control clay-input" rows="4" maxlength="500" placeholder="What is this stamp for? Anything we should know about the design (optional)."></textarea>
+                <p class="order-error" id="order-description-error" role="alert"></p>
+
+                <label class="control-label mt-3" for="order-quantity">Quantity</label>
+                <input id="order-quantity" class="form-control clay-input order-quantity-input" type="number" min="1" max="999" step="1" inputmode="numeric" />
+                <p class="order-error" id="order-quantity-error" role="alert"></p>
+
+                <label class="control-label mt-3" for="order-notes">Notes <span class="order-optional">(optional)</span></label>
+                <textarea id="order-notes" class="form-control clay-input" rows="3" maxlength="500" placeholder="Delivery wishes or other remarks."></textarea>
+              </div>
+
+              <div class="sidebar-section">
+                <div class="section-heading"><h2>Delivery address</h2></div>
+
+                <div class="pipeline-field-grid">
+                  <div>
+                    <label class="control-label" for="order-delivery-fullName">Full name</label>
+                    <input id="order-delivery-fullName" class="form-control clay-input mt-1" type="text" maxlength="80" autocomplete="name" />
+                    <p class="order-error" id="order-delivery-fullName-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-email">Email</label>
+                    <input id="order-delivery-email" class="form-control clay-input mt-1" type="email" maxlength="120" autocomplete="email" inputmode="email" />
+                    <p class="order-error" id="order-delivery-email-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-street">Street</label>
+                    <input id="order-delivery-street" class="form-control clay-input mt-1" type="text" maxlength="80" autocomplete="address-line1" />
+                    <p class="order-error" id="order-delivery-street-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-houseNumber">House number</label>
+                    <input id="order-delivery-houseNumber" class="form-control clay-input mt-1" type="text" maxlength="12" autocomplete="address-line2" />
+                    <p class="order-error" id="order-delivery-houseNumber-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-postalCode">Postal code</label>
+                    <input id="order-delivery-postalCode" class="form-control clay-input mt-1" type="text" maxlength="10" autocomplete="postal-code" />
+                    <p class="order-error" id="order-delivery-postalCode-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-city">City</label>
+                    <input id="order-delivery-city" class="form-control clay-input mt-1" type="text" maxlength="60" autocomplete="address-level2" />
+                    <p class="order-error" id="order-delivery-city-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-country">Country</label>
+                    <select id="order-delivery-country" class="form-select clay-input mt-1" autocomplete="country"></select>
+                    <p class="order-error" id="order-delivery-country-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-phone">Phone <span class="order-optional">(optional)</span></label>
+                    <input id="order-delivery-phone" class="form-control clay-input mt-1" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" />
+                    <p class="order-error" id="order-delivery-phone-error" role="alert"></p>
+                  </div>
+                </div>
+
+                <p id="order-status" class="pipeline-control-status ok" role="status" hidden></p>
+
+                <button id="order-save" class="btn primary-button w-100 mt-3" type="submit">Save order details</button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="col-12 col-xl-4 print-sidebar order-summary-column">
+            <section class="sidebar-section">
+              <div class="section-heading">
+                <h2>Your stamp</h2>
+                <div id="order-view-toggle" class="segmented-control" aria-label="Preview type">
+                  <button class="segment active" type="button" data-order-view="2d">2D</button>
+                  <button class="segment" type="button" data-order-view="3d">3D</button>
+                </div>
+              </div>
+
+              <div class="order-stamp-frame" id="order-stamp-frame">
+                <svg id="order-stamp-preview" class="order-stamp-preview" role="img" aria-label="2D preview of the stamp"></svg>
+                <div id="order-stamp-3d" class="order-stamp-3d" hidden></div>
+                <p id="order-stamp-empty" class="pipeline-note" hidden>Nothing to show yet. Add artwork on the design page.</p>
+              </div>
+
+              <div class="dimension-pill mt-3">
+                <span>Stamp dimensions</span>
+                <strong id="order-dimension-text">—</strong>
+              </div>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="section-heading"><h2>Price estimate</h2></div>
+              <div id="order-price" class="order-price"></div>
+              <p class="pipeline-note">An estimate only. The final price is confirmed when the order is placed.</p>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="print-heading-icon order-check-icon" id="order-check-icon" aria-hidden="true">✓</div>
+              <h2 class="print-title">Printability Check</h2>
+              <p id="order-check-status" class="overall-status"></p>
+              <div id="order-check-list" class="validation-list order-check-list" aria-label="Validation results"></div>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="section-heading"><h2>Stamp summary</h2></div>
+              <dl id="order-summary" class="pipeline-summary"></dl>
+              <p class="pipeline-note">The stamp itself is exported from the design page.</p>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <input id="image-upload" type="file" accept=".png,.svg,image/png,image/svg+xml" hidden />
+    <input
+      id="font-upload"
+      type="file"
+      accept=".ttf,.otf"
+      hidden
+    />
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
