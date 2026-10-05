@@ -38,8 +38,12 @@ export function offsetOutline(multiPolygon, delta) {
     }, 0) / 2;
 
   try {
-    const rings = multiPolygon.flatMap((polygon) => polygon);
-    const original = keep(new engine.CrossSection(rings, "EvenOdd"));
+    // Each glyph owns its holes; different glyphs add together. Flattening all
+    // rings into one even-odd section would erase overlapping letter strokes.
+    const glyphs = multiPolygon.map((polygon) =>
+      keep(new engine.CrossSection(polygon, "EvenOdd")),
+    );
+    const original = keep(engine.CrossSection.union(glyphs));
     const grown = keep(original.offset(delta, "Round", 2, 16));
     return keep(grown.simplify(1e-6))
       .decompose()

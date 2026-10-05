@@ -36,7 +36,7 @@ button, input, select, textarea { font: inherit; }
 .editor-sidebar, .print-sidebar { background: var(--white); }
 .editor-sidebar { border-right: 1px solid var(--border); }
 .print-sidebar { min-height: 800px; border-left: 1px solid var(--border); }
-.print-panel-content { position: sticky; top: 0; display: flex; height: clamp(620px, calc(100vh - 7rem), 1000px); flex-direction: column; background: var(--white); }
+.print-panel-content { display: flex; height: auto; flex-direction: column; background: var(--white); }
 .sidebar-section { padding: 1.4rem; border-bottom: 1px solid var(--border); }
 .section-heading, .canvas-toolbar, .canvas-footer, .setting-row, .range-heading { display: flex; align-items: center; justify-content: space-between; }
 .section-heading { margin-bottom: .9rem; }
@@ -170,7 +170,14 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .pipeline-overall-ok { color: var(--success); }
 .pipeline-overall-warning, .pipeline-overall-working { color: var(--warning); }
 .pipeline-overall-error { color: var(--coral-dark); }
-.validation-list { min-height: 0; flex: 1; padding: .5rem .9rem; overflow-y: auto; }
+.pipeline-diagnostics-section { border-bottom: 1px solid var(--border); }
+.pipeline-diagnostics-section > summary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.4rem; color: var(--ink); background: var(--surface); cursor: pointer; list-style: none; font-size: .8rem; font-weight: 700; }
+.pipeline-diagnostics-section > summary::-webkit-details-marker { display: none; }
+.pipeline-diagnostics-section > summary::after { content: "⌄"; color: var(--aqua-dark); font-size: 1.1rem; }
+.pipeline-diagnostics-section[open] > summary::after { rotate: 180deg; }
+.pipeline-diagnostics-section > summary:hover { background: rgb(139 223 221 / 15%); }
+.pipeline-diagnostics-section > summary:focus-visible { outline: 2px solid var(--aqua-dark); outline-offset: -2px; }
+.validation-list { padding: .5rem .9rem; overflow: visible; }
 .validation-row { display: flex; gap: .55rem; align-items: flex-start; padding: .8rem .5rem; border-bottom: 1px solid rgb(232 220 202 / 75%); }
 .status-icon { width: 23px; height: 23px; border-radius: 50%; font-size: .67rem; font-weight: 700; }
 .pass-icon, .pass-badge { color: var(--success); background: rgb(61 139 103 / 11%); }
@@ -223,5 +230,3 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
   .canvas-footer { align-items: stretch; flex-direction: column; }
   .dimension-pill { justify-content: space-between; }
 }
-
-#text-bounds-row.warning-row small { color: #c23a1e; font-weight: 600; }

@@ -1,0 +1,371 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { registerHooks } from "node:module";
+import { fileURLToPath } from "node:url";
+import * as THREE from "three";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { DesignModel } from "../src/designModel.js";
+import { DesignEditorController } from "../src/editor2dInteractions.js";
+import { createPipelineDiagnostics } from "../src/pipelineDiagnostics.js";
+import { initializeSolids } from "../src/solidGeometry.js";
+import { prepareClosedStamp, verifiedSTL } from "../src/exportValidation.js";
+import { validate } from "../src/pipeline/validate.js";
+import { bounds, ringArea } from "../src/pipeline/canonical.js";
+import { canonicalizeSVGShapes } from "../src/pipeline/svg.js";
+import { postProcessPNGArtwork } from "../src/pipeline/png.js";
+import { traceMaskToSVG } from "../src/pngTrace.js";
+import { getFilledSVGShapes } from "../src/svgValidation.js";
+
+// Resolve Vite's asset imports for Node without replacing application modules.
+const assets = registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.endsWith("?url")) {
+      const resolved = nextResolve(specifier.slice(0, -4), context);
+      return { ...resolved, url: `${resolved.url}?url` };
+    }
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    if (url.endsWith("?url")) {
+      return {
+        format: "module",
+        source: `export default ${JSON.stringify(fileURLToPath(url))};`,
+        shortCircuit: true,
+      };
+    }
+    return nextLoad(url, context);
+  },
+});
+const { Pipeline } = await import("../src/pipeline/index.js");
+assets.deregister();
+await initializeSolids();
+
+const font = new File(
+  [readFileSync(new URL("../fonts/NotoSans-Bold.ttf", import.meta.url))],
+  "NotoSans-Bold.ttf",
+);
+const rectangle = (x0, y0, x1, y1) => [
+  [[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
+];
+const text = (id = "label", source = {}) => ({
+  id,
+  kind: "text",
+  source: { text: "BOA8", font: { reference: font }, ...source },
+});
+
+function setup(elements, convert = null) {
+  const model = new DesignModel({ elements });
+  const editor = new DesignEditorController(model);
+  const pipeline = new Pipeline({ designModel: model });
+  pipeline.stamp.handle = "none";
+  if (convert !== null) {
+    const original = pipeline.buildElementArtwork.bind(pipeline);
+    pipeline.buildElementArtwork = (element) => convert(element, original);
+  }
+  const rendered = [];
+  const sidebar = createPipelineDiagnostics(pipeline, {
+    render: (state) => rendered.push(state),
+  });
+  return { model, editor, pipeline, sidebar, rendered };
+}
+
+function dispose(pipeline) {
+  clearTimeout(pipeline.timer);
+  pipeline.result?.stamp?.dispose();
+  pipeline.result?.clay?.dispose();
+}
+
+async function rejectedRun(pipeline) {
+  // Expected failures are user-facing; keep their console stack out of TAP.
+  const log = console.error;
+  console.error = () => {};
+  try {
+    await pipeline.run();
+  } finally {
+    console.error = log;
+  }
+}
+
+function bowTie() {
+  const path = new THREE.ShapePath();
+  path.moveTo(0, 0);
+  path.lineTo(10, 10);
+  path.lineTo(0, 10);
+  path.lineTo(10, 0);
+  path.currentPath.closePath();
+  path.userData = {
+    style: { fill: "#000", opacity: 1, fillOpacity: 1, stroke: "none" },
+  };
+  return path;
+}
+
+for (const kind of ["text", "svg", "png"]) {
+  test(`invalid ${kind} blocks the full pipeline and identifies the element in shared diagnostics`, async () => {
+    const bad = kind === "text"
+      ? text("bad-text", { font: { reference: new File(["invalid"], "bad.ttf") } })
+      : { id: `bad-${kind}`, kind, source: { reference: `${kind}-fixture` } };
+    const { pipeline, sidebar, editor, rendered } = setup(
+      [text("valid-text"), bad],
+      (element, original) => {
+        if (element.kind === "svg") {
+          // Browser decoding boundary: exercise the real SVG shape guard.
+          getFilledSVGShapes({ paths: [bowTie()] });
+        }
+        if (element.kind === "png") {
+          // Browser decoding boundary: exercise the real empty-raster guard.
+          traceMaskToSVG(new Uint8Array(16), 4, 4);
+        }
+        return original(element);
+      },
+    );
+    let stampPreparations = 0;
+    pipeline.handleGeometry = async () => { stampPreparations += 1; return null; };
+    try {
+      await rejectedRun(pipeline);
+      assert.equal(pipeline.result, null);
+      assert.equal(stampPreparations, 0);
+      assert.equal(pipeline.error.elementId, `bad-${kind}`);
+      assert.equal(sidebar.state.export.ready, false);
+      const message = sidebar.state.rows.map((row) => row.message).join("\n");
+      assert.match(message, new RegExp(`bad-${kind}`));
+      if (kind === "svg") {
+        assert.match(message, /self-intersecting or zero-area filled outline/i);
+        assert.ok(sidebar.state.rows.some((row) => row.details?.some((detail) => /Stage: SVG shape conversion/.test(detail))));
+      }
+      const before = sidebar.state;
+      const count = rendered.length;
+      editor.setView("3d");
+      editor.setView("2d");
+      assert.equal(sidebar.state, before);
+      assert.equal(rendered.length, count);
+    } finally {
+      dispose(pipeline);
+    }
+  });
+}
+
+test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified STL", async () => {
+  // SVG/PNG use decoded source fixtures; text uses the actual font converter.
+  const svg = new THREE.Shape();
+  svg.absellipse(0, 0, 5, 3, 0, Math.PI * 2, false, 0);
+  const { pipeline, sidebar, editor, rendered } = setup([
+    text(),
+    { id: "vector", kind: "svg", source: { reference: "decoded.svg" }, transform: { xMm: 22, rotationDeg: 20, mirrorX: true } },
+    { id: "raster", kind: "png", source: { reference: "decoded.png" }, transform: { xMm: 22 } },
+  ], (element, original) => {
+    if (element.kind === "text") return original(element);
+    return {
+      canonical: element.kind === "svg"
+        ? canonicalizeSVGShapes([svg], {}, 10)
+        : postProcessPNGArtwork([rectangle(0, 0, 4, 4)], 10, { smoothing: 0 }),
+      issues: [],
+    };
+  });
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.error, null);
+    assert.equal(pipeline.result.renderElements.length, 3);
+    assert.ok(pipeline.result.issues.some(({ scope, level, message }) => scope === "design" && level === "fixed" && /merged overlapping/i.test(message)));
+    for (const polygon of pipeline.result.artwork) {
+      assert.ok(ringArea(polygon[0]) > 0);
+      for (const hole of polygon.slice(1)) assert.ok(ringArea(hole) < 0);
+    }
+    assert.ok(pipeline.result.artwork.some((polygon) => polygon.length > 1));
+    assert.ok(pipeline.result.notes.some((note) => /closed, consistently oriented edges/i.test(note)));
+    assert.equal(sidebar.state.export.ready, true);
+    assert.ok(sidebar.state.info.triangles > 0);
+    const state = sidebar.state;
+    const renderCount = rendered.length;
+    editor.setView("3d");
+    editor.setView("2d");
+    assert.equal(sidebar.state, state);
+    assert.equal(rendered.length, renderCount);
+    const blob = verifiedSTL(pipeline.result.stamp);
+    const reloaded = new STLLoader().parse(await blob.arrayBuffer());
+    const checked = prepareClosedStamp(reloaded);
+    pipeline.result.stamp.computeBoundingBox();
+    assert.ok(checked.boundingBox.equals(pipeline.result.stamp.boundingBox));
+    assert.equal(checked.index.count, pipeline.result.stamp.getAttribute("position").count);
+    checked.dispose();
+    reloaded.dispose();
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("transform-only 2D edits reuse conversion but rerun global validation and clear stale diagnostics", async () => {
+  let conversions = 0;
+  const { model, editor, pipeline, sidebar } = setup([
+    { id: "first", kind: "svg", source: { reference: "first.svg" } },
+    { id: "second", kind: "png", source: { reference: "second.png" }, transform: { xMm: 15 } },
+  ], () => {
+    conversions += 1;
+    return { canonical: [rectangle(0, 0, 10, 10)], issues: [] };
+  });
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.result.artwork.length, 2);
+    dispose(pipeline);
+    editor.select("second");
+    editor.moveFromScreenDelta("second", model.getElement("second").transform,
+      { deltaX: -100, deltaY: 0 }, { width: 400, height: 400 }, { widthMm: 40, heightMm: 40 });
+    assert.equal(sidebar.state.export.ready, false);
+    assert.equal(sidebar.state.info, null);
+    assert.equal(sidebar.state.rows.length, 1);
+    assert.equal(sidebar.state.rows[0].level, "working");
+    await pipeline.run();
+    assert.equal(conversions, 2);
+    assert.equal(pipeline.result.artwork.length, 1);
+    assert.equal(bounds(pipeline.result.artwork).width, 15);
+    assert.ok(pipeline.result.issues.some(({ level }) => level === "fixed"));
+    dispose(pipeline);
+    model.updateElement("first", { transform: { scale: 0.00001 } });
+    await pipeline.run();
+    assert.equal(conversions, 2);
+    assert.ok(pipeline.result.issues.some(({ message }) => /sliver outline/i.test(message)));
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("global polygon repair fails closed before stamp generation and reaches the sidebar", async () => {
+  const { pipeline, sidebar } = setup([text()]);
+  const checked = validate([[[["0", "0"], ["10", "0"], ["10", "10"], ["0", "10"]]]]);
+  pipeline.artwork = async () => checked;
+  let preparations = 0;
+  pipeline.handleGeometry = async () => { preparations += 1; return null; };
+  try {
+    await pipeline.run();
+    assert.equal(preparations, 0);
+    assert.deepEqual(pipeline.result.artwork, []);
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(sidebar.state.export.ready, false);
+    assert.ok(sidebar.state.rows.some(({ level, message }) => level === "error" && /could not be repaired safely/i.test(message)));
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("shared pipeline checks thin features at final element scale without face rescaling", async () => {
+  const { pipeline, sidebar, model } = setup([
+    { id: "strip", kind: "svg", source: { reference: "strip.svg" },
+      transform: { scale: 0.3, xMm: -3, yMm: -0.3 } },
+  ], () => ({ canonical: [rectangle(0, 0, 20, 2)], issues: [] }));
+  pipeline.stamp.autoFaceSize = false;
+  pipeline.stamp.faceShape = "square";
+  pipeline.stamp.faceSize = 10;
+  pipeline.stamp.margin = 2;
+  try {
+    await pipeline.run();
+    assert.ok(pipeline.result.issues.some(({ level, message }) => level === "warning" && /thinner than/i.test(message)));
+    assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
+    assert.ok(sidebar.state.rows.some(({ level }) => level === "warning"));
+    dispose(pipeline);
+    model.updateElement("strip", { transform: { scale: 1, xMm: -10, yMm: -1 } });
+    pipeline.setStamp({ faceSize: 30 });
+    await pipeline.run();
+    assert.equal(pipeline.result.issues.some(({ level }) => level === "warning"), false);
+    assert.equal(sidebar.state.export.ready, true);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("manual face overflow keeps artwork scale and reaches unified diagnostics", async () => {
+  const { pipeline, sidebar } = setup([
+    { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
+  ], () => ({ canonical: [rectangle(-10, -2, 10, 2)], issues: [] }));
+  pipeline.stamp.autoFaceSize = false;
+  pipeline.stamp.faceShape = "square";
+  pipeline.stamp.faceSize = 12;
+  pipeline.stamp.margin = 1;
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.error, null);
+    assert.equal(pipeline.result.layout.faceSize, 12);
+    assert.equal(pipeline.result.layout.widthMm, 12);
+    assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
+    assert.equal(bounds(pipeline.result.layout.artwork).width, 20);
+    assert.equal(pipeline.result.layout.overflows, true);
+    assert.ok(sidebar.state.rows.some(({ level, message }) =>
+      level === "warning" && /extends beyond/i.test(message)));
+    assert.equal(sidebar.state.overall.message, "Ready with warnings");
+    assert.equal(sidebar.state.export.ready, true);
+    assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("a closed zero-volume shell blocks otherwise valid STL geometry", () => {
+  const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  outer.deleteAttribute("uv");
+  // A tetrahedron with four distinct coplanar vertices: its triangles are
+  // non-degenerate and edge-closed, but the shell encloses zero volume.
+  const flat = new THREE.BufferGeometry();
+  flat.setAttribute("position", new THREE.Float32BufferAttribute([
+    20, 0, 0, 22, 0, 0, 20, 2, 0, 22, 2, 0,
+  ], 3));
+  flat.setIndex([0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3]);
+  const flatTriangles = flat.toNonIndexed();
+  flatTriangles.computeVertexNormals();
+  const combined = mergeGeometries([outer, flatTriangles]);
+  try {
+    assert.throws(() => prepareClosedStamp(combined), /no positive enclosed volume/i);
+    assert.throws(() => verifiedSTL(combined), /no positive enclosed volume/i);
+  } finally {
+    [outer, flat, flatTriangles, combined].forEach((geometry) => geometry.dispose());
+  }
+});
+
+test("real pipeline stamp failure and recovery render into the unified sidebar", async () => {
+  // Minimal DOM adapter: exercise the production row/badge/summary renderer.
+  const node = () => ({
+    textContent: "",
+    className: "",
+    children: [],
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+  });
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, node());
+    return nodes.get(id);
+  };
+  const previousDocument = globalThis.document;
+  globalThis.document = { createElement: node, getElementById: byId };
+  const { pipeline } = setup([text()]);
+  createPipelineDiagnostics(pipeline);
+  const messages = () => byId("pipeline-diagnostic-list").children
+    .flatMap((row) => row.children[1].children.map((child) => child.textContent));
+  try {
+    pipeline.stamp.mode = "deboss";
+    pipeline.stamp.reliefDepth = pipeline.stamp.faceThickness;
+    await rejectedRun(pipeline);
+    assert.equal(pipeline.result, null);
+    assert.equal(byId("pipeline-overall-status").textContent, "Build failed");
+    assert.equal(byId("pipeline-export-status").textContent, "Unavailable");
+    assert.ok(messages().some((message) => /Recess depth must be smaller/i.test(message)));
+    assert.ok(messages().some((message) => /Stage: stamp generation/.test(message)));
+
+    pipeline.setStamp({ mode: "emboss", reliefDepth: 2 });
+    assert.equal(byId("pipeline-export-status").textContent, "Building");
+    assert.equal(byId("pipeline-triangle-count").textContent, "—");
+    assert.equal(messages().some((message) => /Recess depth/i.test(message)), false);
+    await pipeline.run();
+    assert.equal(byId("pipeline-overall-status").textContent,
+      pipeline.result.issues.some(({ level }) => level === "warning")
+        ? "Ready with warnings"
+        : "Ready to export");
+    assert.equal(byId("pipeline-export-status").textContent, "Ready");
+    assert.equal(byId("pipeline-triangle-count").textContent, pipeline.result.info.triangles.toLocaleString());
+    assert.match(byId("pipeline-total-x").textContent, /mm$/);
+    assert.ok(messages().some((message) => /closed, consistently oriented edges/i.test(message)));
+  } finally {
+    dispose(pipeline);
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+  }
+});

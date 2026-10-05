@@ -52,7 +52,7 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   if (layout.overflows) {
     thinIssues.push({
       level: "warning",
-      message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin) and will be cut off. It is shown in red; move or shrink it, or enlarge the face.`,
+      message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
     });
   }
 

@@ -54,8 +54,6 @@ const artboard = $("#stamp-artboard");
 const canonicalArtwork = $("#canonical-artwork");
 const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
-const printControls2D = $("#print-controls-2d");
-const printControls3D = $("#print-controls-3d");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline({ designModel });
 const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
@@ -240,7 +238,6 @@ function renderCanonicalArtwork() {
     ({ canonical }) => !fitsFace(canonical, {}, editor.faceLimit),
   );
   overflowingIds = new Set(overflowing.map(({ id }) => id));
-  updateBoundsCheck(overflowing.length);
   document
     .querySelectorAll(".design-element")
     .forEach((item) =>
@@ -270,25 +267,6 @@ function renderCanonicalArtwork() {
     { face: display.face },
   );
   updateDimensions();
-}
-
-// Live "Text fits stamp area" row of the Printability Check panel.
-function updateBoundsCheck(count) {
-  const failing = count > 0;
-  const row = $("#text-bounds-row");
-  row.classList.toggle("warning-row", failing);
-
-  const icon = $("#text-bounds-icon");
-  icon.textContent = failing ? "!" : "✓";
-  icon.className = `status-icon ${failing ? "warning-icon" : "pass-icon"}`;
-
-  const badge = $("#text-bounds-status");
-  badge.textContent = failing ? "Outside stamp" : "Pass";
-  badge.className = `status-badge ${failing ? "warning-badge" : "pass-badge"}`;
-
-  $("#text-bounds-message").textContent = failing
-    ? `${count} element${count === 1 ? " is" : "s are"} outside the printable area and shown in red. Move or shrink ${count === 1 ? "it" : "them"}, or enlarge the stamp.`
-    : "Keep the complete text inside the printable boundary.";
 }
 
 function applyOverlayBounds(item, element) {
@@ -851,8 +829,6 @@ $$("[data-view]").forEach((button) => {
     previewContainer.classList.toggle("d-none", show2D);
     $("#preview-surface-toggle").hidden = show2D;
     $(".drag-instruction").hidden = !show2D;
-    printControls2D.hidden = !show2D;
-    printControls3D.hidden = show2D;
 
     if (!show2D) {
       viewer.frame("both");

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { transform } from "../src/pipeline/canonical.js";
 import { DEFAULT_STAMP, fitToFace } from "../src/pipeline/stamp.js";
 import { thinFeatureIssues } from "../src/pipeline/validate.js";
 import { initializeSolids } from "../src/solidGeometry.js";
@@ -145,9 +146,22 @@ const fit = (faceSize) =>
     [],
   ).art;
 
-test("oversized artwork is never rescaled to fit a fixed face", () => {
+test("artwork that becomes too thin after element scaling is warned in final layout", () => {
+  assert.deepEqual(thinFeatureIssues(artwork), []);
+
+  const scaled = transform(artwork, { scale: 0.5 });
+  const final = fitToFace(scaled, {
+    ...DEFAULT_STAMP, faceShape: "square", faceSize: 20, autoFaceSize: false,
+  }).art;
+  const issues = thinFeatureIssues(final);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].message, /thinner than about 0\.8 mm/i);
+});
+
+test("fixed face sizing preserves safe feature widths without rescaling artwork", () => {
   assert.deepEqual(fit(10), artwork);
   assert.deepEqual(thinFeatureIssues(fit(10)), []);
+  assert.deepEqual(thinFeatureIssues(fit(20)), []);
 });
 
 test("artwork requiring no fitting stays unchanged", () => {
