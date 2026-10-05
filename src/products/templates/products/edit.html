@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ product.name }} | Clayster{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+  <h1 class="h3 fw-semibold mb-1">Edit product</h1>
+  <p class="text-secondary mb-0">
+    Update {{ product.name }}.
+  </p>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  {% include "products/components/product_form.html" %}
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">
+      Save changes
+    </button>
+
+    <a href="{% url 'products:product' product.id %}"
+       class="btn btn-outline-secondary">
+      Cancel
+    </a>
+
+    <button
+      type="submit"
+      class="btn btn-outline-danger ms-auto"
+      formaction="{% url 'products:delete' product.id %}"
+      onclick="return confirm('Are you sure you want to delete this product?');"
+    >
+      <i class="bi bi-trash me-1"></i>
+      Delete
+    </button>
+  </div>
+</form>
+
+{% endblock %}

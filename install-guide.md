@@ -67,3 +67,7 @@ Manually enter the shell
 
 Vite will display the local URL where the application is running,
 usually http://localhost:5173.
+
+## Run Django
+
+    python manage.py runserver (or python3 manage.py runserver)
