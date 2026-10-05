@@ -260,3 +260,19 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .order-check-list { padding: 0; }
 .order-check-icon { margin-bottom: .6rem; }
 .order-quantity-input { max-width: 10rem; }
+
+/* Help buttons and undo / redo */
+.help-button { display: inline-grid; width: 20px; height: 20px; flex: 0 0 auto; padding: 0; place-items: center; color: var(--aqua-dark); background: rgb(139 223 221 / 22%); border: 1px solid var(--aqua); border-radius: 50%; font-size: .68rem; font-weight: 700; line-height: 1; }
+.help-button:hover, .help-button[aria-expanded="true"] { color: #173f3e; background: var(--aqua); }
+.heading-with-help, .label-with-help { display: flex; gap: .45rem; align-items: center; }
+.label-with-help .control-label { margin: 0; }
+.help-text { margin: .6rem 0; padding: .65rem .8rem; color: var(--ink); background: #fbf6e8; border: 1px solid #ecd9a4; border-radius: var(--radius-sm); font-size: .72rem; line-height: 1.5; }
+.help-text[hidden] { display: none; }
+.help-text p { margin: 0 0 .4rem; }
+.help-text p:last-child { margin-bottom: 0; }
+.help-inline { display: block; margin-top: .4rem; }
+.history-buttons { display: inline-flex; gap: .3rem; }
+.history-button { display: grid; width: 32px; height: 32px; place-items: center; color: var(--ink); background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; line-height: 1; }
+.history-button:hover:not(:disabled) { background: rgb(139 223 221 / 20%); border-color: var(--aqua); }
+.history-button:disabled { color: #b5afa6; background: #f4f1ec; }
+.nav-link[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }

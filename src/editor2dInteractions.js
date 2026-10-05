@@ -49,6 +49,11 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
   };
 }
 
+// Realistic range for an element's scale, shared by the corner handles and the
+// scale field so both allow the same sizes.
+export const MIN_ELEMENT_SCALE = 0.2;
+export const MAX_ELEMENT_SCALE = 4;
+
 const EPSILON = 1e-6;
 
 export function fitsFace(canonical, elementTransform, limit) {
@@ -196,8 +201,9 @@ export class DesignEditorController {
   }
 
   resize(id, canonical, startTransform, scale) {
+    const limited = Math.min(MAX_ELEMENT_SCALE, Math.max(MIN_ELEMENT_SCALE, scale));
     return this.model.updateElement(id, {
-      transform: centeredScaleTransform(canonical, startTransform, scale),
+      transform: centeredScaleTransform(canonical, startTransform, limited),
     });
   }
 
@@ -211,6 +217,16 @@ export class DesignEditorController {
     return this.model.updateElement(id, {
       transform: { xMm: allowed.xMm, yMm: allowed.yMm },
     });
+  }
+
+  /** Keeps the selection valid after elements were swapped (undo / redo). */
+  ensureSelection() {
+    if (
+      this.selectedId !== null &&
+      this.model.getElement(this.selectedId) === null
+    ) {
+      this.selectedId = this.model.elements[0]?.id ?? null;
+    }
   }
 
   deleteSelected() {
