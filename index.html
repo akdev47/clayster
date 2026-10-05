@@ -157,7 +157,7 @@
                 <div class="range-control">
                   <div class="range-heading">
                     <label for="font-size">Text size</label>
-                    <output id="font-size-value">16 mm</output>
+                    <output id="font-size-value">7.5 mm</output>
                   </div>
                   <input
                     id="font-size"
@@ -202,15 +202,15 @@
                 <div class="range-control">
                   <div class="range-heading">
                     <label for="font-weight">Letter thickness</label>
-                    <output id="font-weight-value">Regular</output>
+                    <output id="font-weight-value">Normal</output>
                   </div>
                   <input
                     id="font-weight"
                     class="form-range clay-range"
                     type="range"
-                    min="400"
-                    max="900"
-                    step="100"
+                    min="-0.6"
+                    max="1.5"
+                    step="0.1"
                   />
                 </div>
 
@@ -356,6 +356,18 @@
                     />
                   </div>
                 </div>
+
+                <label class="control-label mt-3" for="pipeline-face-size-range">
+                  Stamp size
+                  <input
+                    id="pipeline-face-size-range"
+                    class="form-range"
+                    type="range"
+                    min="10"
+                    max="120"
+                    step="1"
+                  />
+                </label>
 
                 <div class="pipeline-field-grid mt-3">
                   <label class="control-label" for="pipeline-face-size">
@@ -568,11 +580,11 @@
                 <span id="spacing-status" class="status-badge pass-badge">Pass</span>
               </div>
 
-              <div class="validation-row">
-                <span class="status-icon pass-icon">✓</span>
+              <div id="text-bounds-row" class="validation-row">
+                <span id="text-bounds-icon" class="status-icon pass-icon">✓</span>
                 <div class="validation-content">
                   <span>Text fits stamp area</span>
-                  <small>Keep the complete text inside the printable boundary.</small>
+                  <small id="text-bounds-message">Keep the complete text inside the printable boundary.</small>
                 </div>
                 <span id="text-bounds-status" class="status-badge pass-badge">Pass</span>
               </div>

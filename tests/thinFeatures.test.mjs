@@ -145,16 +145,9 @@ const fit = (faceSize) =>
     [],
   ).art;
 
-test("artwork that becomes too thin only after fitting is warned", () => {
-  assert.deepEqual(thinFeatureIssues(artwork), []);
-
-  const issues = thinFeatureIssues(fit(10));
-  assert.equal(issues.length, 1);
-  assert.match(issues[0].message, /thinner than about 0\.8 mm/i);
-});
-
-test("artwork that remains above the threshold after fitting is not warned", () => {
-  assert.deepEqual(thinFeatureIssues(fit(20)), []);
+test("oversized artwork is never rescaled to fit a fixed face", () => {
+  assert.deepEqual(fit(10), artwork);
+  assert.deepEqual(thinFeatureIssues(fit(10)), []);
 });
 
 test("artwork requiring no fitting stays unchanged", () => {

@@ -147,7 +147,7 @@ test("multiline text preserves the same relative layout in both views", () => {
   assert.equal(layout.artwork.length, canonical.length);
 });
 
-test("fit-to-face exposes the exact final scale and placement to 2D", () => {
+test("overflowing artwork neither rescales nor grows the fixed face", () => {
   const local = rectangle(-10, -2, 10, 2);
   const element = {
     id: "png-1",
@@ -167,8 +167,68 @@ test("fit-to-face exposes the exact final scale and placement to 2D", () => {
   );
   const displayed = layoutRenderElements([element], layout.artworkTransform);
 
-  assert.ok(layout.artworkTransform.scale < 1);
+  assert.equal(layout.artworkTransform.scale, 1);
   assert.deepEqual(displayed[0].canonical, layout.artwork);
-  assert.ok(bounds(displayed[0].canonical).maxX <= 8);
-  assert.ok(bounds(displayed[0].canonical).minX >= -8);
+  assert.deepEqual(bounds(displayed[0].canonical), bounds(composed));
+  assert.equal(layout.faceSize, 20);
+});
+
+test("dragging and resizing keep an element inside the face", async () => {
+  const { constrainToFace } = await import(
+    "../src/editor2dInteractions.js"
+  );
+  const box = rectangle(-2, -1, 2, 1);
+  const base = { xMm: 0, yMm: 0, scale: 1, rotationDeg: 0 };
+
+  const square = { shape: "square", halfExtent: 10 };
+  const movedSquare = constrainToFace(box, { ...base, xMm: 50, yMm: -50 }, square);
+  assert.equal(bounds(transform(box, movedSquare)).maxX, 10);
+  assert.equal(bounds(transform(box, movedSquare)).minY, -10);
+
+  const round = { shape: "round", halfExtent: 10 };
+  const movedRound = constrainToFace(box, { ...base, xMm: 50 }, round);
+  const corner = bounds(transform(box, movedRound));
+  assert.ok(Math.hypot(corner.maxX, corner.maxY) <= 10 + 1e-4);
+
+  assert.equal(constrainToFace(box, { ...base, xMm: 50 }, null).xMm, 50);
+});
+
+test("elements too large for the face stay free and are reported", async () => {
+  const { constrainToFace, fitsFace } = await import(
+    "../src/editor2dInteractions.js"
+  );
+  const big = rectangle(-30, -5, 30, 5);
+  const t = { xMm: 3, yMm: 0, scale: 1, rotationDeg: 0 };
+  const limit = { shape: "round", halfExtent: 15 };
+
+  assert.equal(constrainToFace(big, t, limit), null);
+  assert.equal(fitsFace(big, t, limit), false);
+  assert.equal(fitsFace(big, t, null), true);
+
+  const layout = createStampLayout(
+    big,
+    settings({ faceShape: "round", autoFaceSize: false, faceSize: 30, margin: 0 }),
+  );
+  assert.equal(layout.overflows, true);
+});
+
+test("offsetOutline thickens and thins strokes while keeping holes", async () => {
+  const { offsetOutline } = await import("../src/solidGeometry.js");
+  // A 10 x 10 square with a 4 x 4 hole: a ring 3 mm wide.
+  const ring = [[
+    [[-5, -5], [5, -5], [5, 5], [-5, 5]],
+    [[-2, -2], [-2, 2], [2, 2], [2, -2]],
+  ]];
+  const width = (shape) => bounds(shape).width;
+
+  const thicker = offsetOutline(ring, 0.5);
+  assert.ok(Math.abs(width(thicker) - 11) < 1e-3);
+  assert.equal(thicker.length, 1);
+  assert.equal(thicker[0].length, 2);
+
+  const thinner = offsetOutline(ring, -0.5);
+  assert.ok(Math.abs(width(thinner) - 9) < 1e-3);
+  assert.equal(thinner[0].length, 2);
+
+  assert.equal(offsetOutline(ring, 0), ring);
 });
