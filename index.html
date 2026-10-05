@@ -36,14 +36,15 @@
 
         <div id="main-navigation" class="collapse navbar-collapse">
           <div class="navbar-nav ms-auto gap-md-2">
-            <a class="nav-link active" href="#">Design</a>
+            <a id="nav-design" class="nav-link active" href="#">Design</a>
+            <a id="nav-order" class="nav-link" href="#order">Order details</a>
             <a class="nav-link" href="#">Account</a>
           </div>
         </div>
       </div>
     </nav>
 
-    <main class="container-fluid page-container px-3 px-lg-5">
+    <main id="design-page" class="container-fluid page-container px-3 px-lg-5">
       <div class="workspace-shell">
         <button
           id="print-panel-toggle"
@@ -597,8 +598,146 @@
                     Building
                   </span>
                 </div>
+
+                <p id="finalize-hint" class="pipeline-note">
+                  Wait for the stamp to finish building.
+                </p>
+                <button id="continue-button" class="btn primary-button w-100" type="button" disabled>
+                  Finalize order
+                  <span>→</span>
+                </button>
               </div>
             </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <main id="order-page" class="container-fluid page-container px-3 px-lg-5" hidden>
+      <div class="workspace-shell">
+        <div class="row g-0">
+          <section class="col-12 col-xl-8 order-form-column">
+            <form id="order-form" novalidate>
+              <div class="sidebar-section">
+                <div class="section-heading">
+                  <div>
+                    <h2>Order details</h2>
+                    <p class="pipeline-note mb-0">
+                      These details are saved on this device and sent with your stamp once ordering is available.
+                    </p>
+                  </div>
+                  <button id="order-back" class="btn subtle-button" type="button">← Back to design</button>
+                </div>
+
+                <label class="control-label" for="order-title">Name</label>
+                <input id="order-title" class="form-control clay-input" type="text" maxlength="80" placeholder="e.g. Bakery logo stamp" autocomplete="off" />
+                <p class="order-error" id="order-title-error" role="alert"></p>
+
+                <label class="control-label mt-3" for="order-description">Description</label>
+                <textarea id="order-description" class="form-control clay-input" rows="4" maxlength="500" placeholder="What is this stamp for? Anything we should know about the design (optional)."></textarea>
+                <p class="order-error" id="order-description-error" role="alert"></p>
+
+                <label class="control-label mt-3" for="order-quantity">Quantity</label>
+                <input id="order-quantity" class="form-control clay-input order-quantity-input" type="number" min="1" max="999" step="1" inputmode="numeric" />
+                <p class="order-error" id="order-quantity-error" role="alert"></p>
+
+                <label class="control-label mt-3" for="order-notes">Notes <span class="order-optional">(optional)</span></label>
+                <textarea id="order-notes" class="form-control clay-input" rows="3" maxlength="500" placeholder="Delivery wishes or other remarks."></textarea>
+              </div>
+
+              <div class="sidebar-section">
+                <div class="section-heading"><h2>Delivery address</h2></div>
+
+                <div class="pipeline-field-grid">
+                  <div>
+                    <label class="control-label" for="order-delivery-fullName">Full name</label>
+                    <input id="order-delivery-fullName" class="form-control clay-input mt-1" type="text" maxlength="80" autocomplete="name" />
+                    <p class="order-error" id="order-delivery-fullName-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-email">Email</label>
+                    <input id="order-delivery-email" class="form-control clay-input mt-1" type="email" maxlength="120" autocomplete="email" inputmode="email" />
+                    <p class="order-error" id="order-delivery-email-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-street">Street</label>
+                    <input id="order-delivery-street" class="form-control clay-input mt-1" type="text" maxlength="80" autocomplete="address-line1" />
+                    <p class="order-error" id="order-delivery-street-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-houseNumber">House number</label>
+                    <input id="order-delivery-houseNumber" class="form-control clay-input mt-1" type="text" maxlength="12" autocomplete="address-line2" />
+                    <p class="order-error" id="order-delivery-houseNumber-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-postalCode">Postal code</label>
+                    <input id="order-delivery-postalCode" class="form-control clay-input mt-1" type="text" maxlength="10" autocomplete="postal-code" />
+                    <p class="order-error" id="order-delivery-postalCode-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-city">City</label>
+                    <input id="order-delivery-city" class="form-control clay-input mt-1" type="text" maxlength="60" autocomplete="address-level2" />
+                    <p class="order-error" id="order-delivery-city-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-country">Country</label>
+                    <select id="order-delivery-country" class="form-select clay-input mt-1" autocomplete="country"></select>
+                    <p class="order-error" id="order-delivery-country-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-phone">Phone <span class="order-optional">(optional)</span></label>
+                    <input id="order-delivery-phone" class="form-control clay-input mt-1" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" />
+                    <p class="order-error" id="order-delivery-phone-error" role="alert"></p>
+                  </div>
+                </div>
+
+                <p id="order-status" class="pipeline-control-status ok" role="status" hidden></p>
+
+                <button id="order-save" class="btn primary-button w-100 mt-3" type="submit">Save order details</button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="col-12 col-xl-4 print-sidebar order-summary-column">
+            <section class="sidebar-section">
+              <div class="section-heading">
+                <h2>Your stamp</h2>
+                <div id="order-view-toggle" class="segmented-control" aria-label="Preview type">
+                  <button class="segment active" type="button" data-order-view="2d">2D</button>
+                  <button class="segment" type="button" data-order-view="3d">3D</button>
+                </div>
+              </div>
+
+              <div class="order-stamp-frame" id="order-stamp-frame">
+                <svg id="order-stamp-preview" class="order-stamp-preview" role="img" aria-label="2D preview of the stamp"></svg>
+                <div id="order-stamp-3d" class="order-stamp-3d" hidden></div>
+                <p id="order-stamp-empty" class="pipeline-note" hidden>Nothing to show yet. Add artwork on the design page.</p>
+              </div>
+
+              <div class="dimension-pill mt-3">
+                <span>Stamp dimensions</span>
+                <strong id="order-dimension-text">—</strong>
+              </div>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="section-heading"><h2>Price estimate</h2></div>
+              <div id="order-price" class="order-price"></div>
+              <p class="pipeline-note">An estimate only. The final price is confirmed when the order is placed.</p>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="print-heading-icon order-check-icon" id="order-check-icon" aria-hidden="true">✓</div>
+              <h2 class="print-title">Printability Check</h2>
+              <p id="order-check-status" class="overall-status"></p>
+              <div id="order-check-list" class="validation-list order-check-list" aria-label="Validation results"></div>
+            </section>
+
+            <section class="sidebar-section">
+              <div class="section-heading"><h2>Stamp summary</h2></div>
+              <dl id="order-summary" class="pipeline-summary"></dl>
+              <p class="pipeline-note">The stamp itself is exported from the design page.</p>
+            </section>
           </aside>
         </div>
       </div>

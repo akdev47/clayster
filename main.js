@@ -6,6 +6,7 @@ import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
+import { createOrderPage } from "./src/orderPage.js";
 import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
@@ -63,6 +64,7 @@ let renderGeometry = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
 let overflowingIds = new Set();
+let lastScene = null;
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
@@ -246,6 +248,18 @@ function renderCanonicalArtwork() {
         overflowingIds.has(item.dataset.elementId),
       ),
     );
+
+  lastScene = {
+    artwork: display.artwork,
+    overflowing,
+    face: display.face,
+    dimensions: {
+      widthMm: state.width,
+      heightMm: state.height,
+      minX: state.minX,
+      minY: state.minY,
+    },
+  };
 
   canonicalRenderer.render(
     display.artwork.length === 0
@@ -848,6 +862,77 @@ $("#print-panel-toggle").addEventListener("click", () => {
   toggle.title = label;
   toggle.querySelector(".visually-hidden").textContent = label;
 });
+
+// Read-only copy of the 2D stamp for the order page. Returns the drawn
+// stamp's width in mm, or null when there is nothing to draw yet.
+function renderOrderPreview(svg, dimensionLabel) {
+  const scene = lastScene;
+  dimensionLabel.textContent = $("#dimension-text").textContent;
+  if (scene === null || scene.artwork.length === 0) {
+    createCanonicalSvgRenderer(svg).clear();
+    return null;
+  }
+  createCanonicalSvgRenderer(svg).render(
+    [
+      { id: "combined-artwork", kind: "design", canonical: scene.artwork },
+      ...scene.overflowing.map(({ id, canonical }) => ({
+        id: `overflow-${id}`,
+        kind: "overflow",
+        canonical,
+      })),
+    ],
+    scene.dimensions,
+    { face: scene.face },
+  );
+  return { widthMm: scene.dimensions.widthMm };
+}
+
+// Design <-> order details pages.
+const designPage = $("#design-page");
+const orderPageElement = $("#order-page");
+const orderPage = createOrderPage({
+  designModel,
+  pipeline,
+  onBack: () => showPage("design"),
+  renderPreview: renderOrderPreview,
+});
+
+function showPage(name) {
+  const order = name === "order";
+  designPage.hidden = order;
+  orderPageElement.hidden = !order;
+  $("#nav-design").classList.toggle("active", !order);
+  $("#nav-order").classList.toggle("active", order);
+  if (order) orderPage.show();
+  else orderPage.hide();
+  window.scrollTo({ top: 0 });
+}
+
+$("#nav-design").addEventListener("click", (event) => {
+  event.preventDefault();
+  showPage("design");
+});
+$("#nav-order").addEventListener("click", (event) => {
+  event.preventDefault();
+  showPage("order");
+});
+$("#continue-button").addEventListener("click", () => showPage("order"));
+
+// Finalizing needs a built stamp; warnings are allowed, errors are not.
+function updateFinalizeButton() {
+  const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
+  const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
+  $("#continue-button").disabled = !ready || Boolean(blocked);
+  $("#finalize-hint").textContent = !ready
+    ? "Wait for the stamp to finish building."
+    : blocked
+      ? "Fix the errors above before finalizing."
+      : "Next: add the order details.";
+}
+for (const type of ["running", "result", "failed"]) {
+  pipeline.addEventListener(type, updateFinalizeButton);
+}
+updateFinalizeButton();
 
 render();
 await pipeline.run();
