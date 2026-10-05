@@ -19,6 +19,43 @@ export async function initializeSolids(wasmUrl) {
   await loading;
 }
 
+// Grows (positive) or shrinks (negative) a canonical multipolygon by `delta`
+// millimetres on every side, so strokes get 2 * delta thicker or thinner.
+// Needs initializeSolids() to have finished.
+export function offsetOutline(multiPolygon, delta) {
+  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (delta === 0 || multiPolygon.length === 0) return multiPolygon;
+
+  const temporary = [];
+  const keep = (object) => {
+    temporary.push(object);
+    return object;
+  };
+  const area = (ring) =>
+    ring.reduce((sum, [x, y], i) => {
+      const [nextX, nextY] = ring[(i + 1) % ring.length];
+      return sum + (x * nextY - nextX * y);
+    }, 0) / 2;
+
+  try {
+    const rings = multiPolygon.flatMap((polygon) => polygon);
+    const original = keep(new engine.CrossSection(rings, "EvenOdd"));
+    const grown = keep(original.offset(delta, "Round", 2, 16));
+    return keep(grown.simplify(1e-6))
+      .decompose()
+      .map((component) => {
+        temporary.push(component);
+        const rings = component.toPolygons();
+        const outer = rings.reduce((best, ring) =>
+          area(ring) > area(best) ? ring : best,
+        );
+        return [outer, ...rings.filter((ring) => ring !== outer)];
+      });
+  } finally {
+    temporary.reverse().forEach((object) => object.delete());
+  }
+}
+
 // Estimates local printable width by opening a filled 2D polygon: inset by
 // half the minimum feature, then expand by the same amount. Thin regions are
 // removed or disconnected by that operation even when the polygon is large

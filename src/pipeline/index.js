@@ -10,7 +10,7 @@ import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { loadSTLGeometry } from "../loaders.js";
-import { initializeSolids } from "../solidGeometry.js";
+import { initializeSolids, offsetOutline } from "../solidGeometry.js";
 import { prepareClosedStamp } from "../exportValidation.js";
 import { DesignModel } from "../designModel.js";
 import {
@@ -313,13 +313,18 @@ export class Pipeline extends EventTarget {
       letterSpacing: source.letterSpacingMm,
     });
 
-    const canonical = layoutText(font, {
+    let canonical = layoutText(font, {
       text: wrapped.text,
       size: wrapped.size,
       letterSpacing: source.letterSpacingMm,
       lineSpacing: source.lineSpacing,
       align: source.alignment,
     });
+
+    if (source.thicknessMm) {
+      await initializeSolids(wasmUrl);
+      canonical = offsetOutline(canonical, source.thicknessMm / 2);
+    }
 
     return { canonical, issues: wrapped.issues };
   }

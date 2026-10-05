@@ -211,3 +211,24 @@ test("elements too large for the face stay free and are reported", async () => {
   );
   assert.equal(layout.overflows, true);
 });
+
+test("offsetOutline thickens and thins strokes while keeping holes", async () => {
+  const { offsetOutline } = await import("../src/solidGeometry.js");
+  // A 10 x 10 square with a 4 x 4 hole: a ring 3 mm wide.
+  const ring = [[
+    [[-5, -5], [5, -5], [5, 5], [-5, 5]],
+    [[-2, -2], [-2, 2], [2, 2], [2, -2]],
+  ]];
+  const width = (shape) => bounds(shape).width;
+
+  const thicker = offsetOutline(ring, 0.5);
+  assert.ok(Math.abs(width(thicker) - 11) < 1e-3);
+  assert.equal(thicker.length, 1);
+  assert.equal(thicker[0].length, 2);
+
+  const thinner = offsetOutline(ring, -0.5);
+  assert.ok(Math.abs(width(thinner) - 9) < 1e-3);
+  assert.equal(thinner[0].length, 2);
+
+  assert.equal(offsetOutline(ring, 0), ring);
+});

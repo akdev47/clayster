@@ -347,10 +347,6 @@ function fontLabel(font) {
   );
 }
 
-function fontWeight(font) {
-  return font.id?.includes("bold") ? 700 : 400;
-}
-
 function updateFontPicker(element) {
   const preview = fontPreviewText(element.source.text);
   const selectedFont = element.source.font;
@@ -437,13 +433,13 @@ function updateControls() {
   $("#font-size").value = element.source.fontSizeMm;
   $("#letter-spacing").value = element.source.letterSpacingMm;
   $("#line-spacing").value = element.source.lineSpacing;
-  $("#font-weight").value = fontWeight(element.source.font);
+  $("#font-weight").value = element.source.thicknessMm;
 
   $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
   $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
   $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
-  $("#font-weight-value").textContent = weightLabel(
-    fontWeight(element.source.font),
+  $("#font-weight-value").textContent = thicknessLabel(
+    element.source.thicknessMm,
   );
 
   $$(".alignment-button").forEach((button) => {
@@ -463,11 +459,9 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
-function weightLabel(weight) {
-  if (weight <= 400) return "Regular";
-  if (weight <= 600) return "Medium";
-  if (weight <= 700) return "Bold";
-  return "Heavy";
+function thicknessLabel(thicknessMm) {
+  if (thicknessMm === 0) return "Normal";
+  return `${thicknessMm > 0 ? "+" : "−"}${Math.abs(round2(thicknessMm))} mm`;
 }
 
 function updateDimensions() {
@@ -764,16 +758,7 @@ $("#line-spacing").addEventListener("input", (event) => {
 });
 
 $("#font-weight").addEventListener("input", (event) => {
-  const selected = selectedElement();
-  if (selected?.kind !== "text") return;
-  const family = selected.source.font.id?.includes("serif") ? "serif" : "sans";
-  const weight = Number(event.target.value) >= 700 ? "bold" : "regular";
-  updateSelectedText({
-    font: {
-      id: `${family}-${weight}`,
-      reference: null,
-    },
-  });
+  updateSelectedText({ thicknessMm: round2(Number(event.target.value)) });
 });
 
 $$("#editor-controls-shared [data-align]").forEach((button) => {
