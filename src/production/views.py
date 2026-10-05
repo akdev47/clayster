@@ -1,8 +1,10 @@
-from django.shortcuts import render, get_object_or_404, redirect
-
-from .models import ProductionJob
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .forms import ProductionJobForm
+from .models import ProductionJob
 
 def index(request):
     current_job = ProductionJob.objects.filter(
@@ -41,11 +43,72 @@ def add(request):
         "form": form,
     })
 
-def start(request):
-    return render(request, "production/index.html")
+@require_POST
+def start(request, job_id):
+    job = get_object_or_404(ProductionJob, pk=job_id)
 
-def ready(request):
-    return render(request, "production/index.html")
+    currently_printing = ProductionJob.objects.filter(
+        status=ProductionJob.ProductionStatus.PRINTING
+    ).exists()
 
-def complete(request):
-    return render(request, "production/index.html")
+    if currently_printing:
+        messages.error(
+            request,
+            "Another production job is already printing."
+        )
+        return redirect("production:index")
+
+    job.status = ProductionJob.ProductionStatus.PRINTING
+    job.started_at = timezone.now()
+    job.save()
+
+    return redirect("production:index")
+
+@require_POST
+def ready(request, job_id):
+    job = get_object_or_404(ProductionJob, pk=job_id)
+
+    if job.status == ProductionJob.ProductionStatus.PRINTING:
+        job.status = ProductionJob.ProductionStatus.READY
+        job.save()
+
+    return redirect("production:index")
+
+@require_POST
+def complete(request, job_id):
+    job = get_object_or_404(ProductionJob, pk=job_id)
+
+    if job.status == ProductionJob.ProductionStatus.READY:
+        job.status = ProductionJob.ProductionStatus.COMPLETED
+        job.completed_at = timezone.now()
+
+        job.product.stock += job.quantity
+
+        job.product.save()
+        job.save()
+
+    return redirect("production:index")
+
+@require_POST
+def cancel(request, job_id):
+    job = get_object_or_404(ProductionJob, pk=job_id)
+
+    if job.status not in [
+        ProductionJob.ProductionStatus.COMPLETED,
+        ProductionJob.ProductionStatus.CANCELLED,
+    ]:
+        job.status = ProductionJob.ProductionStatus.CANCELLED
+        job.save()
+
+    return redirect("production:index")
+
+@require_POST
+def stop(request, job_id):
+    job = get_object_or_404(ProductionJob, pk=job_id)
+
+    if job.status == ProductionJob.ProductionStatus.PRINTING:
+        job.status = ProductionJob.ProductionStatus.WAITING
+        job.started_at = None
+        job.save()
+
+    return redirect("production:index")

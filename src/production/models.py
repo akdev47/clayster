@@ -7,6 +7,7 @@ class ProductionJob(models.Model):
             PRINTING = "PR", _("Printing")
             READY = "RE", _("Ready")
             COMPLETED = "CO", _("Completed")
+            CANCELLED = "CA", _("Cancelled")
 
     product = models.ForeignKey(
              "products.Product",
