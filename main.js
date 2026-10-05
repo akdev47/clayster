@@ -18,7 +18,7 @@ import {
   createStampLayout,
   layoutRenderElements,
 } from "./src/pipeline/stampLayout.js";
-import { transform } from "./src/pipeline/canonical.js";
+import { bounds, transform } from "./src/pipeline/canonical.js";
 import { readableStampDisplay } from "./src/stamp2dDisplay.js";
 
 const state = {
@@ -35,7 +35,7 @@ const designModel = new DesignModel({
       kind: "text",
       source: {
         text: "CLAYSTER\nSTUDIO",
-        font: { id: "sans-regular", reference: null },
+        font: { id: "sans-bold", reference: null },
         fontSizeMm: 7.5,
         letterSpacingMm: 1,
         lineSpacing: 1.25,
@@ -593,16 +593,47 @@ function startResize(event, element, item) {
   handle.addEventListener("pointercancel", stop);
 }
 
-$("#add-text").addEventListener("click", () => {
-  designControls.addElement("text", {
-    text: "NEW TEXT",
-    font: { id: "sans-bold", reference: null },
-    fontSizeMm: 7.5,
-    letterSpacingMm: 1,
-    lineSpacing: 1.25,
-    alignment: "center",
+const NEW_TEXT_SIZE_MM = 7.5;
+const NEW_TEXT_GAP_MM = 2;
+
+// New text goes into free space under (or else above) the existing artwork
+// rather than on top of it, where it would merge into one unreadable shape.
+function freeSpotForNewText(heightMm) {
+  const occupied = designModel.elements.flatMap((element) => {
+    const canonical = renderGeometry.get(element.id);
+    return element.visible && canonical !== undefined
+      ? transform(canonical, element.transform)
+      : [];
   });
+  if (occupied.length === 0) return 0;
+
+  const box = bounds(occupied);
+  const limit = editor.faceLimit;
+  const reach = limit === null ? Infinity : limit.halfExtent;
+  const below = box.minY - NEW_TEXT_GAP_MM - heightMm / 2;
+  if (Math.abs(below) + heightMm / 2 <= reach) return below;
+  const above = box.maxY + NEW_TEXT_GAP_MM + heightMm / 2;
+  if (Math.abs(above) + heightMm / 2 <= reach) return above;
+  return 0;
+}
+
+$("#add-text").addEventListener("click", () => {
+  designControls.addElement(
+    "text",
+    {
+      text: "TEXT",
+      font: { id: "sans-bold", reference: null },
+      fontSizeMm: NEW_TEXT_SIZE_MM,
+      letterSpacingMm: 1,
+      lineSpacing: 1.25,
+      alignment: "center",
+    },
+    { yMm: freeSpotForNewText(NEW_TEXT_SIZE_MM) },
+  );
   render();
+  const input = $("#text-input");
+  input.focus();
+  input.select();
 });
 
 function chooseImage(action, kind) {
