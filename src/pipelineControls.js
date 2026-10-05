@@ -19,10 +19,18 @@ export function createPipelineControls(
     pipeline.setStamp({ faceShape }),
   );
   dom.autoFace.addEventListener("change", () => {
-    dom.faceSize.disabled = dom.autoFace.checked;
+    dom.faceSize.disabled = dom.faceSizeRange.disabled = dom.autoFace.checked;
     pipeline.setStamp({ autoFaceSize: dom.autoFace.checked });
   });
-  bindNumber(dom.faceSize, (faceSize) => pipeline.setStamp({ faceSize }), 1);
+  bindNumber(dom.faceSize, (faceSize) => {
+    dom.faceSizeRange.value = String(faceSize);
+    pipeline.setStamp({ faceSize });
+  }, 1);
+  dom.faceSizeRange.addEventListener("input", () => {
+    const faceSize = Number(dom.faceSizeRange.value);
+    dom.faceSize.value = String(faceSize);
+    pipeline.setStamp({ faceSize });
+  });
   bindNumber(
     dom.faceThickness,
     (faceThickness) => pipeline.setStamp({ faceThickness }),
@@ -73,6 +81,7 @@ export function createPipelineControls(
     onSize: (value) => {
       const input = dom[SIZE_FIELDS[resizeTarget.sizeDriver.field]];
       if (input !== undefined) input.value = String(round1(value));
+      if (input === dom.faceSize) dom.faceSizeRange.value = String(round1(value));
     },
   });
 }
@@ -81,8 +90,8 @@ function syncControls(dom, pipeline) {
   const stamp = pipeline.stamp;
 
   dom.autoFace.checked = stamp.autoFaceSize;
-  dom.faceSize.value = stamp.faceSize;
-  dom.faceSize.disabled = stamp.autoFaceSize;
+  dom.faceSize.value = dom.faceSizeRange.value = stamp.faceSize;
+  dom.faceSize.disabled = dom.faceSizeRange.disabled = stamp.autoFaceSize;
   dom.faceThickness.value = stamp.faceThickness;
   dom.margin.value = stamp.margin;
   dom.reliefDepth.value = stamp.reliefDepth;
@@ -190,6 +199,7 @@ function collectDOM() {
     faceShape: byId("pipeline-face-shape"),
     autoFace: byId("pipeline-auto-face"),
     faceSize: byId("pipeline-face-size"),
+    faceSizeRange: byId("pipeline-face-size-range"),
     faceThickness: byId("pipeline-face-thickness"),
     margin: byId("pipeline-margin"),
     reliefMode: byId("pipeline-relief-mode"),

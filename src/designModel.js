@@ -27,6 +27,9 @@ const SOURCE_DEFAULTS = Object.freeze({
     letterSpacingMm: 0,
     lineSpacing: 1.25,
     alignment: "center",
+    // Stroke thickness change on top of the font's own weight, in mm. The
+    // outline is grown (+) or shrunk (-) by half of it on every side.
+    thicknessMm: 0,
   }),
   svg: Object.freeze({
     // A File, URL, or durable asset reference. Object URLs are UI-only.
@@ -226,7 +229,7 @@ function validateSourceNumbers(kind, source) {
     kind === "text" ? ["fontSizeMm", "lineSpacing"] : ["baseSizeMm"];
   const finite =
     kind === "text"
-      ? ["fontSizeMm", "letterSpacingMm", "lineSpacing"]
+      ? ["fontSizeMm", "letterSpacingMm", "lineSpacing", "thicknessMm"]
       : ["baseSizeMm"];
 
   for (const field of finite) {

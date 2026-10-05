@@ -10,6 +10,7 @@ import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  fitsFace,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -17,7 +18,7 @@ import {
   createStampLayout,
   layoutRenderElements,
 } from "./src/pipeline/stampLayout.js";
-import { transform } from "./src/pipeline/canonical.js";
+import { bounds, transform } from "./src/pipeline/canonical.js";
 import { readableStampDisplay } from "./src/stamp2dDisplay.js";
 
 const state = {
@@ -34,8 +35,8 @@ const designModel = new DesignModel({
       kind: "text",
       source: {
         text: "CLAYSTER\nSTUDIO",
-        font: { id: "sans-regular", reference: null },
-        fontSizeMm: 16,
+        font: { id: "sans-bold", reference: null },
+        fontSizeMm: 7.5,
         letterSpacingMm: 1,
         lineSpacing: 1.25,
         alignment: "center",
@@ -61,11 +62,25 @@ let interactionActive = false;
 let renderGeometry = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
+let overflowingIds = new Set();
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
 
 artboard.classList.add("canonical-rendering-enabled");
+
+// Elements may not leave the stamp's usable area (face minus margin). Outline
+// and automatic faces are derived from the artwork, so they have no limit.
+editor.canonicalFor = (id) => renderGeometry.get(id);
+Object.defineProperty(editor, "faceLimit", {
+  get() {
+    const stamp = pipeline.stamp;
+    if (stamp.autoFaceSize || stamp.faceShape === "outline") return null;
+    const halfExtent = (stamp.faceSize - stamp.margin * 2) / 2;
+    return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
+  },
+  set() {},
+});
 
 createPipelineControls(viewer, pipeline, { designControls });
 createPipelineDiagnostics(pipeline);
@@ -153,7 +168,9 @@ function renderArtboard() {
     item.tabIndex = 0;
     item.className = `design-element ${
       element.kind === "text" ? "" : "image-element"
-    } ${element.id === editor.selectedId ? "selected" : ""}`;
+    } ${element.id === editor.selectedId ? "selected" : ""} ${
+      overflowingIds.has(element.id) ? "out-of-bounds" : ""
+    }`;
 
     if (element.kind === "text") {
       item.style.textAlign = element.source.alignment;
@@ -215,10 +232,32 @@ function renderCanonicalArtwork() {
   state.minY = display.minY;
   artboard.dataset.faceShape = layout.faceShape;
 
+  // Elements that stick out past the face are redrawn on top in a warning
+  // colour, so they stay visible and editable but are clearly not printable.
+  const overflowing = display.elements.filter(
+    ({ canonical }) => !fitsFace(canonical, {}, editor.faceLimit),
+  );
+  overflowingIds = new Set(overflowing.map(({ id }) => id));
+  document
+    .querySelectorAll(".design-element")
+    .forEach((item) =>
+      item.classList.toggle(
+        "out-of-bounds",
+        overflowingIds.has(item.dataset.elementId),
+      ),
+    );
+
   canonicalRenderer.render(
     display.artwork.length === 0
       ? []
-      : [{ id: "combined-artwork", kind: "design", canonical: display.artwork }],
+      : [
+          { id: "combined-artwork", kind: "design", canonical: display.artwork },
+          ...overflowing.map(({ id, canonical }) => ({
+            id: `overflow-${id}`,
+            kind: "overflow",
+            canonical,
+          })),
+        ],
     {
       widthMm: state.width,
       heightMm: state.height,
@@ -284,10 +323,6 @@ function fontLabel(font) {
     font.id ??
     "Choose a font"
   );
-}
-
-function fontWeight(font) {
-  return font.id?.includes("bold") ? 700 : 400;
 }
 
 function updateFontPicker(element) {
@@ -376,13 +411,13 @@ function updateControls() {
   $("#font-size").value = element.source.fontSizeMm;
   $("#letter-spacing").value = element.source.letterSpacingMm;
   $("#line-spacing").value = element.source.lineSpacing;
-  $("#font-weight").value = fontWeight(element.source.font);
+  $("#font-weight").value = element.source.thicknessMm;
 
   $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
   $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
   $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
-  $("#font-weight-value").textContent = weightLabel(
-    fontWeight(element.source.font),
+  $("#font-weight-value").textContent = thicknessLabel(
+    element.source.thicknessMm,
   );
 
   $$(".alignment-button").forEach((button) => {
@@ -402,11 +437,9 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
-function weightLabel(weight) {
-  if (weight <= 400) return "Regular";
-  if (weight <= 600) return "Medium";
-  if (weight <= 700) return "Bold";
-  return "Heavy";
+function thicknessLabel(thicknessMm) {
+  if (thicknessMm === 0) return "Normal";
+  return `${thicknessMm > 0 ? "+" : "−"}${Math.abs(round2(thicknessMm))} mm`;
 }
 
 function updateDimensions() {
@@ -532,16 +565,47 @@ function startResize(event, element, item) {
   handle.addEventListener("pointercancel", stop);
 }
 
-$("#add-text").addEventListener("click", () => {
-  designControls.addElement("text", {
-    text: "NEW TEXT",
-    font: { id: "sans-bold", reference: null },
-    fontSizeMm: 16,
-    letterSpacingMm: 1,
-    lineSpacing: 1.25,
-    alignment: "center",
+const NEW_TEXT_SIZE_MM = 7.5;
+const NEW_TEXT_GAP_MM = 2;
+
+// New text goes into free space under (or else above) the existing artwork
+// rather than on top of it, where it would merge into one unreadable shape.
+function freeSpotForNewText(heightMm) {
+  const occupied = designModel.elements.flatMap((element) => {
+    const canonical = renderGeometry.get(element.id);
+    return element.visible && canonical !== undefined
+      ? transform(canonical, element.transform)
+      : [];
   });
+  if (occupied.length === 0) return 0;
+
+  const box = bounds(occupied);
+  const limit = editor.faceLimit;
+  const reach = limit === null ? Infinity : limit.halfExtent;
+  const below = box.minY - NEW_TEXT_GAP_MM - heightMm / 2;
+  if (Math.abs(below) + heightMm / 2 <= reach) return below;
+  const above = box.maxY + NEW_TEXT_GAP_MM + heightMm / 2;
+  if (Math.abs(above) + heightMm / 2 <= reach) return above;
+  return 0;
+}
+
+$("#add-text").addEventListener("click", () => {
+  designControls.addElement(
+    "text",
+    {
+      text: "TEXT",
+      font: { id: "sans-bold", reference: null },
+      fontSizeMm: NEW_TEXT_SIZE_MM,
+      letterSpacingMm: 1,
+      lineSpacing: 1.25,
+      alignment: "center",
+    },
+    { yMm: freeSpotForNewText(NEW_TEXT_SIZE_MM) },
+  );
   render();
+  const input = $("#text-input");
+  input.focus();
+  input.select();
 });
 
 function chooseImage(action, kind) {
@@ -672,16 +736,7 @@ $("#line-spacing").addEventListener("input", (event) => {
 });
 
 $("#font-weight").addEventListener("input", (event) => {
-  const selected = selectedElement();
-  if (selected?.kind !== "text") return;
-  const family = selected.source.font.id?.includes("serif") ? "serif" : "sans";
-  const weight = Number(event.target.value) >= 700 ? "bold" : "regular";
-  updateSelectedText({
-    font: {
-      id: `${family}-${weight}`,
-      reference: null,
-    },
-  });
+  updateSelectedText({ thicknessMm: round2(Number(event.target.value)) });
 });
 
 $$("#editor-controls-shared [data-align]").forEach((button) => {
@@ -723,6 +778,7 @@ function bindTransformNumber(selector, field, minimum = -Infinity) {
       value >= minimum
     ) {
       designControls.updateSelectedTransform({ [field]: value });
+      if (editor.selectedId !== null) editor.constrainElement(editor.selectedId);
       renderCanonicalArtwork();
       renderArtboard();
     }

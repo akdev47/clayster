@@ -248,9 +248,10 @@ test("global polygon repair fails closed before stamp generation and reaches the
   }
 });
 
-test("shared pipeline checks thin features after final fitting", async () => {
-  const { pipeline, sidebar } = setup([
-    { id: "strip", kind: "svg", source: { reference: "strip.svg" } },
+test("shared pipeline checks thin features at final element scale without face rescaling", async () => {
+  const { pipeline, sidebar, model } = setup([
+    { id: "strip", kind: "svg", source: { reference: "strip.svg" },
+      transform: { scale: 0.3, xMm: -3, yMm: -0.3 } },
   ], () => ({ canonical: [rectangle(0, 0, 20, 2)], issues: [] }));
   pipeline.stamp.autoFaceSize = false;
   pipeline.stamp.faceShape = "square";
@@ -259,12 +260,40 @@ test("shared pipeline checks thin features after final fitting", async () => {
   try {
     await pipeline.run();
     assert.ok(pipeline.result.issues.some(({ level, message }) => level === "warning" && /thinner than/i.test(message)));
+    assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
     assert.ok(sidebar.state.rows.some(({ level }) => level === "warning"));
     dispose(pipeline);
+    model.updateElement("strip", { transform: { scale: 1, xMm: -10, yMm: -1 } });
     pipeline.setStamp({ faceSize: 30 });
     await pipeline.run();
     assert.equal(pipeline.result.issues.some(({ level }) => level === "warning"), false);
     assert.equal(sidebar.state.export.ready, true);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("manual face overflow keeps artwork scale and reaches unified diagnostics", async () => {
+  const { pipeline, sidebar } = setup([
+    { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
+  ], () => ({ canonical: [rectangle(-10, -2, 10, 2)], issues: [] }));
+  pipeline.stamp.autoFaceSize = false;
+  pipeline.stamp.faceShape = "square";
+  pipeline.stamp.faceSize = 12;
+  pipeline.stamp.margin = 1;
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.error, null);
+    assert.equal(pipeline.result.layout.faceSize, 12);
+    assert.equal(pipeline.result.layout.widthMm, 12);
+    assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
+    assert.equal(bounds(pipeline.result.layout.artwork).width, 20);
+    assert.equal(pipeline.result.layout.overflows, true);
+    assert.ok(sidebar.state.rows.some(({ level, message }) =>
+      level === "warning" && /extends beyond/i.test(message)));
+    assert.equal(sidebar.state.overall.message, "Ready with warnings");
+    assert.equal(sidebar.state.export.ready, true);
+    assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
   } finally {
     dispose(pipeline);
   }

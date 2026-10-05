@@ -147,7 +147,7 @@ test("multiline text preserves the same relative layout in both views", () => {
   assert.equal(layout.artwork.length, canonical.length);
 });
 
-test("fit-to-face exposes the exact final scale and placement to 2D", () => {
+test("overflowing artwork neither rescales nor grows the fixed face", () => {
   const local = rectangle(-10, -2, 10, 2);
   const element = {
     id: "png-1",
@@ -167,8 +167,9 @@ test("fit-to-face exposes the exact final scale and placement to 2D", () => {
   );
   const displayed = layoutRenderElements([element], layout.artworkTransform);
 
-  assert.ok(layout.artworkTransform.scale < 1);
+  assert.equal(layout.artworkTransform.scale, 1);
   assert.deepEqual(displayed[0].canonical, layout.artwork);
-  assert.ok(bounds(displayed[0].canonical).maxX <= 8);
-  assert.ok(bounds(displayed[0].canonical).minX >= -8);
+  assert.deepEqual(bounds(displayed[0].canonical), bounds(composed));
+  assert.equal(layout.faceSize, 20);
+  assert.equal(layout.overflows, true);
 });

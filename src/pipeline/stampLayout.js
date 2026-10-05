@@ -14,6 +14,7 @@ export function createStampLayout(artwork, settings, notes = []) {
     xMm: fitted.transform.xMm,
     yMm: fitted.transform.yMm,
   };
+  const overflows = Boolean(fitted.overflows);
   const face = stampFace(fitted.art, fitted.faceSize, settings);
   const faceBounds = bounds(face);
   const faceSize =
@@ -24,6 +25,7 @@ export function createStampLayout(artwork, settings, notes = []) {
   return {
     artwork: fitted.art,
     artworkTransform,
+    overflows,
     face,
     faceShape: settings.faceShape,
     faceSize,
@@ -47,7 +49,7 @@ export function layoutRenderElements(elements, artworkTransform) {
 }
 
 // Auto sizing grows a face centred on the shared origin, preserving element
-// coordinates. Fixed sizing scales about that same origin only when required.
+// coordinates. Fixed sizing keeps the face and artwork as they are and only reports overflow.
 export function fitToFace(artwork, settings, notes = []) {
   if (artwork.length === 0) {
     return {
@@ -68,21 +70,18 @@ export function fitToFace(artwork, settings, notes = []) {
     };
   }
 
+  // The face keeps the size the user set and the artwork is never rescaled, so
+  // dragging an element toward the edge changes nothing but its own position.
+  // Anything past the face is reported instead.
+  const applied = { scale: 1, xMm: 0, yMm: 0 };
   const faceSize = settings.faceSize;
-  const available = faceSize - settings.margin * 2;
-  const scale = artSize > available && artSize !== 0 ? available / artSize : 1;
+  const overflows = extendsBeyond(artwork, settings, faceSize);
 
-  if (scale < 1) {
-    notes.push(
-      `Artwork was scaled to ${Math.round(scale * 100)}% to fit the ${faceSize} mm face.`,
-    );
-  }
-
-  const applied = { scale, xMm: 0, yMm: 0 };
   return {
     art: transform(artwork, applied),
     faceSize,
     transform: applied,
+    overflows,
   };
 }
 
@@ -111,6 +110,18 @@ export function stampFace(artwork, faceSize, settings) {
     return stampFace([], 10, { ...settings, faceShape: "square" });
   }
   return [[hull]];
+}
+
+function extendsBeyond(artwork, settings, faceSize) {
+  const half = (faceSize - settings.margin * 2) / 2;
+  const limit = half + 1e-6;
+  return artwork.some((polygon) =>
+    polygon[0].some(([x, y]) =>
+      settings.faceShape === "round"
+        ? Math.hypot(x, y) > limit
+        : Math.abs(x) > limit || Math.abs(y) > limit,
+    ),
+  );
 }
 
 function sizeAroundOrigin(artwork, faceShape) {

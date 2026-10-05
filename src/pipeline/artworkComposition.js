@@ -164,6 +164,7 @@ export class ArtworkComposer {
         source.letterSpacingMm,
         source.lineSpacing,
         source.alignment,
+        source.thicknessMm,
       ]);
     }
     if (element.kind === "svg") {

@@ -11,8 +11,8 @@ export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "round", // 'round' | 'square' | 'outline'
-  autoFaceSize: true,
-  faceSize: 40,
+  autoFaceSize: false,
+  faceSize: 50,
   faceThickness: 4,
   reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
@@ -49,6 +49,12 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   const layout = createStampLayout(artwork, settings, notes);
   const { artwork: art, faceSize } = layout;
   const thinIssues = thinFeatureIssues(art);
+  if (layout.overflows) {
+    thinIssues.push({
+      level: "warning",
+      message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
+    });
+  }
 
   if (offTheMug(bounds(art))) {
     notes.push(

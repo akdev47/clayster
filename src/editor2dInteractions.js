@@ -49,12 +49,93 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
   };
 }
 
+const EPSILON = 1e-6;
+
+export function fitsFace(canonical, elementTransform, limit) {
+  return (
+    limit === null ||
+    limit === undefined ||
+    insideLimit(canonical, elementTransform, limit)
+  );
+}
+
+function insideLimit(canonical, elementTransform, { shape, halfExtent }) {
+  for (const polygon of transform(canonical, elementTransform)) {
+    for (const [x, y] of polygon[0]) {
+      const outside =
+        shape === "round"
+          ? Math.hypot(x, y) > halfExtent + EPSILON
+          : Math.abs(x) > halfExtent + EPSILON ||
+            Math.abs(y) > halfExtent + EPSILON;
+      if (outside) return false;
+    }
+  }
+  return true;
+}
+
+// Shift needed on one axis to bring [min, max] inside [-half, half].
+function axisShift(min, max, half) {
+  if (max - min > half * 2) return -(min + max) / 2;
+  if (min < -half) return -half - min;
+  if (max > half) return half - max;
+  return 0;
+}
+
+/**
+ * Keeps an element's transformed outline inside the stamp's usable area
+ * (a circle or square of half-size `halfExtent`, centred on the origin).
+ * Returns the nearest allowed transform, or null when the element is simply
+ * too large to fit; callers then leave it free (it is shown as overflowing).
+ */
+export function constrainToFace(canonical, elementTransform, limit) {
+  if (limit === null || limit === undefined) return elementTransform;
+  if (canonical.length === 0) return elementTransform;
+  if (insideLimit(canonical, elementTransform, limit)) return elementTransform;
+
+  const box = bounds(transform(canonical, elementTransform));
+
+  if (limit.shape !== "round") {
+    const moved = {
+      ...elementTransform,
+      xMm: elementTransform.xMm + axisShift(box.minX, box.maxX, limit.halfExtent),
+      yMm: elementTransform.yMm + axisShift(box.minY, box.maxY, limit.halfExtent),
+    };
+    return insideLimit(canonical, moved, limit) ? moved : null;
+  }
+
+  const centred = {
+    ...elementTransform,
+    xMm: elementTransform.xMm - (box.minX + box.maxX) / 2,
+    yMm: elementTransform.yMm - (box.minY + box.maxY) / 2,
+  };
+  if (!insideLimit(canonical, centred, limit)) return null;
+
+  // Slide back toward the centre until the outline just touches the rim.
+  const at = (amount) => ({
+    ...elementTransform,
+    xMm: elementTransform.xMm + (centred.xMm - elementTransform.xMm) * amount,
+    yMm: elementTransform.yMm + (centred.yMm - elementTransform.yMm) * amount,
+  });
+  let low = 0;
+  let high = 1;
+  for (let step = 0; step < 30; step += 1) {
+    const middle = (low + high) / 2;
+    if (insideLimit(canonical, at(middle), limit)) high = middle;
+    else low = middle;
+  }
+  return at(high);
+}
+
 /** UI-only selection/view state plus mutations of authoritative design intent. */
 export class DesignEditorController {
   constructor(model, { selectedId = model.elements[0]?.id ?? null } = {}) {
     this.model = model;
     this.selectedId = selectedId;
     this.view = "2d";
+    // Set by the app: { shape, halfExtent } of the usable face, or null.
+    this.faceLimit = null;
+    // Set by the app: id => canonical geometry of that element, or undefined.
+    this.canonicalFor = () => undefined;
   }
 
   selectedElement() {
@@ -99,17 +180,36 @@ export class DesignEditorController {
         displayedMovement.yMm /
         (displayScale * (displayTransform.mirrorY ? -1 : 1)),
     };
+    const desired = {
+      ...startTransform,
+      xMm: startTransform.xMm + movement.xMm,
+      yMm: startTransform.yMm + movement.yMm,
+    };
+    const canonical = this.canonicalFor(id);
+    const allowed =
+      canonical === undefined
+        ? desired
+        : (constrainToFace(canonical, desired, this.faceLimit) ?? desired);
     return this.model.updateElement(id, {
-      transform: {
-        xMm: startTransform.xMm + movement.xMm,
-        yMm: startTransform.yMm + movement.yMm,
-      },
+      transform: { xMm: allowed.xMm, yMm: allowed.yMm },
     });
   }
 
   resize(id, canonical, startTransform, scale) {
     return this.model.updateElement(id, {
       transform: centeredScaleTransform(canonical, startTransform, scale),
+    });
+  }
+
+  /** Pulls an element back inside the face after a typed-in transform. */
+  constrainElement(id) {
+    const canonical = this.canonicalFor(id);
+    const element = this.model.getElement(id);
+    if (canonical === undefined || element === null) return null;
+    const allowed = constrainToFace(canonical, element.transform, this.faceLimit);
+    if (allowed === null || allowed === element.transform) return element;
+    return this.model.updateElement(id, {
+      transform: { xMm: allowed.xMm, yMm: allowed.yMm },
     });
   }
 
