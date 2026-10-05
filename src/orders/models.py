@@ -68,6 +68,10 @@ class OrderItem(models.Model):
         upload_to="stl/",
         blank=True,
     )
+    design = models.JSONField(
+         default=dict,
+         blank=True
+    )
     # stl_file = models.URLField(blank=True) if we are using URLs
 
     def __str__(self):
