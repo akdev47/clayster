@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "dashboard",
     "orders",
     "products",
+    "production",
 ]
 
 MIDDLEWARE = [
@@ -125,9 +126,10 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-# Media files
-
+# Media settings
+import os
 MEDIA_ROOT = "./media/"
+MEDIA_URL = os.path.join(BASE_DIR, MEDIA_ROOT)
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration

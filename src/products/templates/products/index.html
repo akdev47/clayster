@@ -18,13 +18,14 @@
 <div class="card overflow-hidden">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-hover align-middle">
+      <table class="table table-hover align-middle mb-0">
         <thead>
           <tr>
             <th>Name</th>
             <th>Description</th>
+            <th>In stock</th>
             <th>Price</th>
-            <th>Product Type</th>
+            <th>On website</th>
             <th></th>
           </tr>
         </thead>
@@ -32,21 +33,65 @@
         <tbody>
           {% for product in products %}
           <tr>
-            <td class="fw-medium">{{ product.name }}</td>
+            <td class="fw-medium">
+              {{ product.name }}
+            </td>
 
-            <td class="text-secondary">{{ product.description }}</td>
+            <td>
+              <div
+                class="text-secondary text-truncate"
+                style="max-width: 300px;"
+                title="{{ product.short_description }}"
+              >
+                {{ product.short_description }}
+              </div>
+            </td>
 
-            <td>€{{ product.price }}</td>
+            <td>
+              {{ product.stock }}
+            </td>
 
-            <td>{{ product.get_product_type_display }}</td>
+            <td class="text-nowrap">
+              €{{ product.price }}
+            </td>
 
-            <td class="text-end">
+            <td>
+              {% if product.on_website %}
+                <span class="badge rounded-pill text-bg-success">
+                  <i class="bi bi-check-lg me-1"></i>
+                  Visible
+                </span>
+              {% else %}
+                <span class="badge rounded-pill text-bg-secondary">
+                  <i class="bi bi-x-lg me-1"></i>
+                  Hidden
+                </span>
+              {% endif %}
+            </td>
+
+            <td class="text-end text-nowrap">
+              {% if product.file %}
+                <a
+                  href="{% url 'products:download_stl' product.id %}"
+                  class="btn btn-sm btn-outline-secondary"
+                  title="Download STL"
+                >
+                  <i class="bi bi-download"></i>
+                </a>
+              {% endif %}
+
               <a
                 href="{% url 'products:product' product.id %}"
-                class="btn btn-sm btn-outline-secondary"
+                class="btn btn-sm btn-outline-secondary ms-1"
               >
                 Details
               </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-secondary py-4">
+              No products found.
             </td>
           </tr>
           {% endfor %}
@@ -55,5 +100,4 @@
     </div>
   </div>
 </div>
-
 {% endblock %}

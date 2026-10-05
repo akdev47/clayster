@@ -3,10 +3,9 @@ from django.utils.translation import gettext_lazy as _
 
 class Order(models.Model):
     class OrderStatus(models.TextChoices):
-            WAITING = "WA", _("Waiting")
-            PRINTING = "PR", _("Printing")
+            PROCESSING = "PR", _("Processing")
             READY = "RE", _("Ready")
-            COMPLETED = "CO", _("Completed")
+            SHIPPED = "SH", _("Shipped")
             CANCELLED = "CA", _("Cancelled")
 
     customer = models.ForeignKey(
@@ -18,7 +17,7 @@ class Order(models.Model):
     order_status = models.CharField(
         max_length=2,
         choices=OrderStatus.choices,
-        default=OrderStatus.WAITING,
+        default=OrderStatus.PROCESSING,
     )
     delivery_notes = models.CharField(
         max_length=256,

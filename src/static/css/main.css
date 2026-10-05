@@ -92,3 +92,36 @@
   color: var(--bs-body-color);
   transform: rotate(90deg);
 }
+
+.back-link {
+    color: var(--bs-secondary-color);
+    transition: color 0.15s ease;
+}
+
+.back-link:hover {
+    color: var(--bs-body-color);
+}
+
+/* Website status */
+
+.website-status {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 0.9rem;
+}
+
+.website-status--active {
+    color: var(--bs-success);
+    background-color: var(--bs-success-bg-subtle);
+}
+
+.website-status--inactive {
+    color: var(--bs-secondary-color);
+    background-color: var(--bs-secondary-bg-subtle);
+}

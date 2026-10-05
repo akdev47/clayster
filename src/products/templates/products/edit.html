@@ -1,59 +1,40 @@
-{% extends "base.html" %} {% block title %}Edit {{ product.name }} | Clayster{%
-endblock %} {% block content %}
+{% extends "base.html" %}
+
+{% block title %}Edit {{ product.name }} | Clayster{% endblock %}
+
+{% block content %}
 
 <div class="mb-4">
   <h1 class="h3 fw-semibold mb-1">Edit product</h1>
-  <p class="text-secondary mb-0">Update {{ product.name }}.</p>
+  <p class="text-secondary mb-0">
+    Update {{ product.name }}.
+  </p>
 </div>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
   {% csrf_token %}
 
-  <div class="mb-3">
-    <label for="{{ form.name.id_for_label }}" class="form-label"> Name </label>
-    {{ form.name }}
-  </div>
-
-  <div class="mb-3">
-    <label for="{{ form.description.id_for_label }}" class="form-label">
-      Description
-    </label>
-    {{ form.description }}
-  </div>
-
-  <div class="mb-3">
-    <label for="{{ form.price.id_for_label }}" class="form-label">
-      Price
-    </label>
-    {{ form.price }}
-  </div>
-
-  <div class="mb-4">
-    <label for="{{ form.product_type.id_for_label }}" class="form-label">
-      Product type
-    </label>
-    {{ form.product_type }}
-  </div>
+  {% include "products/components/product_form.html" %}
 
   <div class="d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save changes</button>
+    <button type="submit" class="btn btn-primary">
+      Save changes
+    </button>
+
+    <a href="{% url 'products:product' product.id %}"
+       class="btn btn-outline-secondary">
+      Cancel
+    </a>
 
     <button
       type="submit"
-      class="btn btn-danger"
+      class="btn btn-outline-danger ms-auto"
       formaction="{% url 'products:delete' product.id %}"
       onclick="return confirm('Are you sure you want to delete this product?');"
     >
       <i class="bi bi-trash me-1"></i>
       Delete
     </button>
-
-    <a
-      href="{% url 'products:product' product.id %}"
-      class="btn btn-outline-secondary"
-    >
-      Cancel
-    </a>
   </div>
 </form>
 

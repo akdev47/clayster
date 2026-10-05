@@ -66,7 +66,7 @@
 
   # https://devenv.sh/git-hooks/
   git-hooks.hooks = {
-    treefmt.enable = true;
+    treefmt.enable = false;
     detect-private-keys.enable = true;
     check-added-large-files.enable = true;
     check-case-conflicts.enable = true;
