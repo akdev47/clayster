@@ -10,6 +10,7 @@ import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  fitsFace,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -35,7 +36,7 @@ const designModel = new DesignModel({
       source: {
         text: "CLAYSTER\nSTUDIO",
         font: { id: "sans-regular", reference: null },
-        fontSizeMm: 16,
+        fontSizeMm: 7.5,
         letterSpacingMm: 1,
         lineSpacing: 1.25,
         alignment: "center",
@@ -63,11 +64,25 @@ let interactionActive = false;
 let renderGeometry = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
+let overflowingIds = new Set();
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
 
 artboard.classList.add("canonical-rendering-enabled");
+
+// Elements may not leave the stamp's usable area (face minus margin). Outline
+// and automatic faces are derived from the artwork, so they have no limit.
+editor.canonicalFor = (id) => renderGeometry.get(id);
+Object.defineProperty(editor, "faceLimit", {
+  get() {
+    const stamp = pipeline.stamp;
+    if (stamp.autoFaceSize || stamp.faceShape === "outline") return null;
+    const halfExtent = (stamp.faceSize - stamp.margin * 2) / 2;
+    return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
+  },
+  set() {},
+});
 
 createPipelineControls(viewer, pipeline, { designControls });
 createPipelineDiagnostics(pipeline);
@@ -155,7 +170,9 @@ function renderArtboard() {
     item.tabIndex = 0;
     item.className = `design-element ${
       element.kind === "text" ? "" : "image-element"
-    } ${element.id === editor.selectedId ? "selected" : ""}`;
+    } ${element.id === editor.selectedId ? "selected" : ""} ${
+      overflowingIds.has(element.id) ? "out-of-bounds" : ""
+    }`;
 
     if (element.kind === "text") {
       item.style.textAlign = element.source.alignment;
@@ -217,10 +234,33 @@ function renderCanonicalArtwork() {
   state.minY = display.minY;
   artboard.dataset.faceShape = layout.faceShape;
 
+  // Elements that stick out past the face are redrawn on top in a warning
+  // colour, so they stay visible and editable but are clearly not printable.
+  const overflowing = display.elements.filter(
+    ({ canonical }) => !fitsFace(canonical, {}, editor.faceLimit),
+  );
+  overflowingIds = new Set(overflowing.map(({ id }) => id));
+  updateBoundsCheck(overflowing.length);
+  document
+    .querySelectorAll(".design-element")
+    .forEach((item) =>
+      item.classList.toggle(
+        "out-of-bounds",
+        overflowingIds.has(item.dataset.elementId),
+      ),
+    );
+
   canonicalRenderer.render(
     display.artwork.length === 0
       ? []
-      : [{ id: "combined-artwork", kind: "design", canonical: display.artwork }],
+      : [
+          { id: "combined-artwork", kind: "design", canonical: display.artwork },
+          ...overflowing.map(({ id, canonical }) => ({
+            id: `overflow-${id}`,
+            kind: "overflow",
+            canonical,
+          })),
+        ],
     {
       widthMm: state.width,
       heightMm: state.height,
@@ -230,6 +270,25 @@ function renderCanonicalArtwork() {
     { face: display.face },
   );
   updateDimensions();
+}
+
+// Live "Text fits stamp area" row of the Printability Check panel.
+function updateBoundsCheck(count) {
+  const failing = count > 0;
+  const row = $("#text-bounds-row");
+  row.classList.toggle("warning-row", failing);
+
+  const icon = $("#text-bounds-icon");
+  icon.textContent = failing ? "!" : "✓";
+  icon.className = `status-icon ${failing ? "warning-icon" : "pass-icon"}`;
+
+  const badge = $("#text-bounds-status");
+  badge.textContent = failing ? "Outside stamp" : "Pass";
+  badge.className = `status-badge ${failing ? "warning-badge" : "pass-badge"}`;
+
+  $("#text-bounds-message").textContent = failing
+    ? `${count} element${count === 1 ? " is" : "s are"} outside the printable area and shown in red. Move or shrink ${count === 1 ? "it" : "them"}, or enlarge the stamp.`
+    : "Keep the complete text inside the printable boundary.";
 }
 
 function applyOverlayBounds(item, element) {
@@ -538,7 +597,7 @@ $("#add-text").addEventListener("click", () => {
   designControls.addElement("text", {
     text: "NEW TEXT",
     font: { id: "sans-bold", reference: null },
-    fontSizeMm: 16,
+    fontSizeMm: 7.5,
     letterSpacingMm: 1,
     lineSpacing: 1.25,
     alignment: "center",
@@ -725,6 +784,7 @@ function bindTransformNumber(selector, field, minimum = -Infinity) {
       value >= minimum
     ) {
       designControls.updateSelectedTransform({ [field]: value });
+      if (editor.selectedId !== null) editor.constrainElement(editor.selectedId);
       renderCanonicalArtwork();
       renderArtboard();
     }

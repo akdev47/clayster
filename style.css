@@ -121,6 +121,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .canvas-grid { position: absolute; inset: 0; opacity: .32; background-image: linear-gradient(rgb(78 71 62 / 7%) 1px, transparent 1px), linear-gradient(90deg, rgb(78 71 62 / 7%) 1px, transparent 1px); background-size: 24px 24px; }
 .stamp-artboard { position: relative; width: min(72%, 510px); aspect-ratio: 1; overflow: visible; background: transparent; border: 0; touch-action: none; }
 .canonical-artwork { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; overflow: visible; fill: #3f352b; pointer-events: none; }
+.canonical-artwork [data-element-kind="overflow"] { fill: #d9482b; fill-opacity: .8; }
 .canonical-face { fill: #f2dfbf; filter: drop-shadow(0 6px 8px rgb(83 62 38 / 12%)); stroke: #a78665; stroke-width: .3; }
 .canonical-rendering-enabled .design-element { min-width: 0; padding: 0; box-sizing: border-box; }
 .canonical-rendering-enabled .design-element > span:first-child, .canonical-rendering-enabled .design-element > img { visibility: hidden; }
@@ -222,3 +223,5 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
   .canvas-footer { align-items: stretch; flex-direction: column; }
   .dimension-pill { justify-content: space-between; }
 }
+
+#text-bounds-row.warning-row small { color: #c23a1e; font-weight: 600; }
