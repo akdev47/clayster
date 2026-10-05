@@ -1,4 +1,4 @@
-// Renders authoritative pipeline results inside the 3D diagnostics sidebar.
+// Renders authoritative pipeline results inside the shared diagnostics sidebar.
 import { format } from "./dimensions.js";
 
 const LEVELS = {
@@ -34,57 +34,48 @@ const LEVELS = {
   },
 };
 
-export function createPipelineDiagnostics(pipeline) {
-  const dom = collectDOM();
+export function createPipelineDiagnostics(
+  pipeline,
+  { render = null } = {},
+) {
+  const renderState = render ?? ((state) => renderDOM(collectDOM(), state));
+  let state = null;
 
-  pipeline.addEventListener("running", () => {
-    setOverall(dom, "Building 3D stamp…", "working");
-    renderRows(dom, [
-      {
-        level: "working",
-        message: pipeline.diagnostics?.message ?? "Processing artwork and rebuilding geometry…",
-      },
-    ]);
-    showSummary(dom, null);
-    setExportReadiness(dom, "Building", "working");
-  });
+  const publish = (phase) => {
+    state = createPipelineDiagnosticState(pipeline, phase);
+    renderState(state);
+  };
 
-  pipeline.addEventListener("result", () => {
-    const result = pipeline.result;
-    const rows = [
-      ...result.issues,
-      ...result.notes.map((message) => ({
-        level: "ok",
-        badge: "Verified",
-        message,
-      })),
-      ...diagnosticRows(pipeline.diagnostics),
-    ];
+  pipeline.addEventListener("running", () => publish("running"));
+  pipeline.addEventListener("result", () => publish("result"));
+  pipeline.addEventListener("failed", () => publish("failed"));
 
-    renderRows(dom, rows);
-    showSummary(dom, result.info);
+  return {
+    get state() {
+      return state;
+    },
+  };
+}
 
-    const hasError =
-      result.issues.some(({ level }) => level === "error") ||
-      pipeline.diagnostics?.level === "error";
-    const hasWarning =
-      result.issues.some(({ level }) => level === "warning") ||
-      pipeline.diagnostics?.level === "warning";
-    const ready = Boolean(result.stamp) && !hasError;
+/** Builds the one diagnostics presentation used by both the 2D and 3D views. */
+export function createPipelineDiagnosticState(pipeline, phase) {
+  if (phase === "running") {
+    return {
+      overall: { message: "Building stamp…", level: "working" },
+      rows: [
+        {
+          level: "working",
+          message:
+            pipeline.diagnostics?.message ??
+            "Processing artwork and rebuilding geometry…",
+        },
+      ],
+      info: null,
+      export: { label: "Building", level: "working", ready: false },
+    };
+  }
 
-    if (!ready) {
-      setOverall(dom, "Not ready to export", "error");
-      setExportReadiness(dom, "Unavailable", "error");
-    } else if (hasWarning) {
-      setOverall(dom, "Ready with warnings", "warning");
-      setExportReadiness(dom, "Ready", "ok");
-    } else {
-      setOverall(dom, "Ready to export", "ok");
-      setExportReadiness(dom, "Ready", "ok");
-    }
-  });
-
-  pipeline.addEventListener("failed", () => {
+  if (phase === "failed") {
     const rows = diagnosticRows(pipeline.diagnostics);
     if (rows.length === 0) {
       rows.push({
@@ -92,12 +83,68 @@ export function createPipelineDiagnostics(pipeline) {
         message: `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
       });
     }
+    return {
+      overall: { message: "Build failed", level: "error" },
+      rows,
+      info: null,
+      export: { label: "Unavailable", level: "error", ready: false },
+    };
+  }
 
-    setOverall(dom, "Build failed", "error");
-    renderRows(dom, rows);
-    showSummary(dom, null);
-    setExportReadiness(dom, "Unavailable", "error");
-  });
+  const result = pipeline.result;
+  if (result === null || result === undefined) {
+    throw new Error("A pipeline result event requires a current result.");
+  }
+
+  const issues = result.issues ?? [];
+  const rows = [
+    ...issues.map(issueRow),
+    ...(result.notes ?? []).map((message) => ({
+      level: "ok",
+      badge: "Verified",
+      message,
+    })),
+    ...diagnosticRows(pipeline.diagnostics),
+  ];
+  const hasError =
+    issues.some(({ level }) => level === "error") ||
+    pipeline.diagnostics?.level === "error";
+  const hasWarning =
+    issues.some(({ level }) => level === "warning") ||
+    pipeline.diagnostics?.level === "warning";
+  const ready = Boolean(result.stamp) && !hasError;
+
+  if (!ready) {
+    return {
+      overall: { message: "Not ready to export", level: "error" },
+      rows,
+      info: result.info,
+      export: { label: "Unavailable", level: "error", ready: false },
+    };
+  }
+  if (hasWarning) {
+    return {
+      overall: { message: "Ready with warnings", level: "warning" },
+      rows,
+      info: result.info,
+      export: { label: "Ready", level: "ok", ready: true },
+    };
+  }
+  return {
+    overall: { message: "Ready to export", level: "ok" },
+    rows,
+    info: result.info,
+    export: { label: "Ready", level: "ok", ready: true },
+  };
+}
+
+function issueRow(issue) {
+  if (issue.elementId === undefined) return issue;
+  const kind = issue.elementKind === undefined ? "" : ` (${issue.elementKind})`;
+  return {
+    ...issue,
+    message: `Element "${issue.elementId}"${kind}: ${issue.message}`,
+  };
 }
 
 function diagnosticRows(diagnostics) {
@@ -118,6 +165,13 @@ function renderRows(dom, rows) {
       ? rows
       : [{ level: "ok", message: "No validation issues reported." }];
   dom.list.replaceChildren(...shown.map(createRow));
+}
+
+function renderDOM(dom, state) {
+  setOverall(dom, state.overall.message, state.overall.level);
+  renderRows(dom, state.rows);
+  showSummary(dom, state.info);
+  setExportReadiness(dom, state.export.label, state.export.level);
 }
 
 function createRow(row) {

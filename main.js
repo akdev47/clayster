@@ -53,8 +53,6 @@ const artboard = $("#stamp-artboard");
 const canonicalArtwork = $("#canonical-artwork");
 const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
-const printControls2D = $("#print-controls-2d");
-const printControls3D = $("#print-controls-3d");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline({ designModel });
 const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
@@ -775,8 +773,6 @@ $$("[data-view]").forEach((button) => {
     previewContainer.classList.toggle("d-none", show2D);
     $("#preview-surface-toggle").hidden = show2D;
     $(".drag-instruction").hidden = !show2D;
-    printControls2D.hidden = !show2D;
-    printControls3D.hidden = show2D;
 
     if (!show2D) {
       viewer.frame("both");
