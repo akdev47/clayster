@@ -57,6 +57,9 @@ export class Pipeline extends EventTarget {
     this.stamp = { ...DEFAULT_STAMP };
 
     this.result = null;
+    // The latest successfully converted artwork remains useful to the 2D
+    // editor even when a later stamp-generation or mesh-validation step fails.
+    this.artworkPreview = null;
     this.cache = { key: null, artwork: null, issues: [], sourceStats: null };
     this.designModel = null;
     this.artworkComposer = new ArtworkComposer((element) =>
@@ -135,6 +138,7 @@ export class Pipeline extends EventTarget {
     // still awaiting a font would otherwise overwrite it.
     const token = ++this.token;
     this.busy = true;
+    this.artworkPreview = null;
     this.resetDiagnostics();
     this.dispatchEvent(new Event("running"));
 
@@ -147,6 +151,14 @@ export class Pipeline extends EventTarget {
         renderElements = null,
       } = await this.artwork();
       if (token !== this.token) return;
+
+      this.artworkPreview = {
+        artwork,
+        issues: initialIssues,
+        sourceStats,
+        elementStats,
+        renderElements,
+      };
 
       let issues = initialIssues;
       this.recordValidation(sourceStats, elementStats, issues);

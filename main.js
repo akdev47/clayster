@@ -97,9 +97,7 @@ pipeline.addEventListener("running", () => {
 
 pipeline.addEventListener("result", () => {
   const result = pipeline.result;
-  renderGeometry = new Map(
-    (result.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
-  );
+  setRenderGeometry(result.renderElements);
   publishedLayout = result.layout ?? null;
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
@@ -116,8 +114,10 @@ pipeline.addEventListener("result", () => {
 });
 
 pipeline.addEventListener("failed", () => {
-  renderGeometry = new Map();
-  displayGeometry = new Map();
+  // Stamp generation can fail after the artwork itself was converted (for
+  // example when enlarged text sits outside the backing). Keep that artwork
+  // editable so the user can shrink or move it and trigger a successful run.
+  setRenderGeometry(pipeline.artworkPreview?.renderElements);
   publishedLayout = null;
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
@@ -125,6 +125,13 @@ pipeline.addEventListener("failed", () => {
   previewStatus.hidden = false;
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
 });
+
+function setRenderGeometry(renderElements) {
+  renderGeometry = new Map(
+    (renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  if (renderGeometry.size === 0) displayGeometry = new Map();
+}
 
 function selectedElement() {
   return editor.selectedElement();
