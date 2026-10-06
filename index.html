@@ -15,35 +15,26 @@
   </head>
 
   <body>
-    <nav class="navbar navbar-expand-md clayster-navbar">
+    <nav class="navbar clayster-navbar">
       <div class="container-fluid px-3 px-lg-5">
         <a class="navbar-brand clayster-logo" href="#">
           <span class="logo-text">Logo Here</span>
           <span>Clayster</span>
         </a>
 
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#main-navigation"
-          aria-controls="main-navigation"
-          aria-expanded="false"
-          aria-label="Open navigation"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div id="main-navigation" class="collapse navbar-collapse">
-          <div class="navbar-nav ms-auto gap-md-2">
-            <a id="nav-design" class="nav-link active" href="#">Design</a>
-            <a id="nav-review" class="nav-link" href="#review">Review design</a>
-            <a id="nav-order" class="nav-link" href="#order">Order details</a>
-            <a class="nav-link" href="#">Account</a>
-          </div>
+        <div class="navbar-nav ms-auto">
+          <a class="nav-link" href="#">Account</a>
         </div>
       </div>
     </nav>
+
+    <div class="workflow-progress-wrap container-fluid px-3 px-lg-5">
+      <ol class="workflow-progress" aria-label="Order progress">
+        <li data-workflow-step="design" class="current" aria-current="step"><span class="workflow-step-number">1</span>Design</li>
+        <li data-workflow-step="review"><span class="workflow-step-number">2</span>Review</li>
+        <li data-workflow-step="order"><span class="workflow-step-number">3</span>Order details</li>
+      </ol>
+    </div>
 
     <main id="design-page" class="container-fluid page-container px-3 px-lg-5">
       <div class="workspace-shell">
@@ -618,7 +609,6 @@
       <div class="workspace-shell review-shell">
         <header class="review-heading">
           <div>
-            <p class="review-step">Step 2 of 3 · Review design</p>
             <h1>Review your stamp</h1>
             <p>Check your design, dimensions and printability before continuing.</p>
           </div>

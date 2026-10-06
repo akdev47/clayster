@@ -900,16 +900,12 @@ function renderOrderPreview(svg, dimensionLabel) {
 const designPage = $("#design-page");
 const reviewPageElement = $("#review-page");
 const orderPageElement = $("#order-page");
-let reviewConfirmed = false;
 const reviewPage = createReviewPage({
   designModel,
   pipeline,
   diagnostics: pipelineDiagnostics,
   onBack: () => showPage("design"),
-  onContinue: () => {
-    reviewConfirmed = true;
-    showPage("order");
-  },
+  onContinue: () => showPage("order"),
   renderPreview: renderOrderPreview,
 });
 const orderPage = createOrderPage({
@@ -927,30 +923,21 @@ function showPage(name) {
   designPage.hidden = review || order;
   reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  $("#nav-design").classList.toggle("active", !review && !order);
-  $("#nav-review").classList.toggle("active", review);
-  $("#nav-order").classList.toggle("active", order);
+  const steps = ["design", "review", "order"];
+  const currentIndex = steps.indexOf(name);
+  $$('[data-workflow-step]').forEach((step) => {
+    const index = steps.indexOf(step.dataset.workflowStep);
+    step.classList.toggle("current", index === currentIndex);
+    step.classList.toggle("complete", index < currentIndex);
+    if (index === currentIndex) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
   if (review) reviewPage.show();
   if (order) orderPage.show();
   window.scrollTo({ top: 0 });
 }
 
-$("#nav-design").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("design");
-});
-$("#nav-review").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("review");
-});
-$("#nav-order").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage(reviewConfirmed ? "order" : "review");
-});
 $("#continue-button").addEventListener("click", () => showPage("review"));
-
-// A fresh build means the previous review no longer covers the current design.
-pipeline.addEventListener("running", () => { reviewConfirmed = false; });
 
 // Review needs a built stamp; warnings are allowed, errors are not.
 function updateFinalizeButton() {
