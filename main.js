@@ -11,6 +11,7 @@ import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  cornerDragScale,
   fitsFace,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
@@ -546,28 +547,27 @@ function startResize(event, element, item) {
   event.currentTarget.setPointerCapture(event.pointerId);
 
   const itemBounds = item.getBoundingClientRect();
-  const centerX = itemBounds.left + itemBounds.width / 2;
-  const centerY = itemBounds.top + itemBounds.height / 2;
-  const startDistance = Math.hypot(
-    event.clientX - centerX,
-    event.clientY - centerY,
-  );
+  const centre = {
+    x: itemBounds.left + itemBounds.width / 2,
+    y: itemBounds.top + itemBounds.height / 2,
+  };
+  const startPointer = { x: event.clientX, y: event.clientY };
   const startTransform = element.transform;
-  const startScale = startTransform.scale;
   const handle = event.currentTarget;
 
   const resize = (moveEvent) => {
-    const distance = Math.hypot(
-      moveEvent.clientX - centerX,
-      moveEvent.clientY - centerY,
+    const nextScale = cornerDragScale(
+      startPointer,
+      centre,
+      { x: moveEvent.clientX, y: moveEvent.clientY },
+      startTransform.scale,
     );
-    const nextScale = startScale * (distance / Math.max(startDistance, 1));
 
     const changed = editor.resize(
       element.id,
       canonical,
       startTransform,
-      Math.min(2.5, Math.max(0.45, nextScale)),
+      nextScale,
     );
     renderCanonicalArtwork();
     applyOverlayBounds(item, changed);

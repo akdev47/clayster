@@ -1,6 +1,6 @@
 // Coordinates input → 2D artwork → validation → 3D stamp and mug preview.
 // The UI listens for running/result/failed events rather than building geometry itself.
-import { loadFont, layoutText, wrapText } from "./text.js";
+import { loadFont, layoutText } from "./text.js";
 import {
   loadSVGArtworkDetails,
   SVG_SIMPLIFY_TOLERANCE_MM,
@@ -317,17 +317,11 @@ export class Pipeline extends EventTarget {
       source.font.reference ?? fontURL(source.font.id ?? DEFAULT_FONT_ID),
     );
 
-    // Rows are settled before anything is drawn: the wrap decides the
-    // breaks and the size, the layout sets what it is handed.
-    const wrapped = wrapText(font, {
+    // Preserve the user's line breaks exactly. The preview and generated
+    // geometry use the same text without inserting wraps or changing its size.
+    let canonical = layoutText(font, {
       text: source.text,
       size: source.fontSizeMm,
-      letterSpacing: source.letterSpacingMm,
-    });
-
-    let canonical = layoutText(font, {
-      text: wrapped.text,
-      size: wrapped.size,
       letterSpacing: source.letterSpacingMm,
       lineSpacing: source.lineSpacing,
       align: source.alignment,
@@ -338,7 +332,7 @@ export class Pipeline extends EventTarget {
       canonical = offsetOutline(canonical, source.thicknessMm / 2);
     }
 
-    return { canonical, issues: wrapped.issues };
+    return { canonical, issues: [] };
   }
 
   async handleGeometry() {

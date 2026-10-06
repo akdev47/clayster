@@ -49,6 +49,25 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
   };
 }
 
+/** Scale a corner drag along its original direction from the selection centre. */
+export function cornerDragScale(
+  startPointer,
+  centre,
+  pointer,
+  startScale,
+  { minimum = 0.05, maximum = 20 } = {},
+) {
+  const startX = startPointer.x - centre.x;
+  const startY = startPointer.y - centre.y;
+  const lengthSquared = startX * startX + startY * startY;
+  if (lengthSquared < 1) return startScale;
+
+  const currentX = pointer.x - centre.x;
+  const currentY = pointer.y - centre.y;
+  const factor = (currentX * startX + currentY * startY) / lengthSquared;
+  return Math.min(maximum, Math.max(minimum, startScale * factor));
+}
+
 const EPSILON = 1e-6;
 
 export function fitsFace(canonical, elementTransform, limit) {

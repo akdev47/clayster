@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DesignModel } from "../src/designModel.js";
 import { ArtworkComposer } from "../src/pipeline/artworkComposition.js";
-import { bounds } from "../src/pipeline/canonical.js";
+import { bounds, transform } from "../src/pipeline/canonical.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  cornerDragScale,
   screenDeltaToMillimetres,
 } from "../src/editor2dInteractions.js";
 
@@ -91,6 +92,22 @@ test("resizing updates one uniform scale and preserves selection centre", () => 
   assert.equal(changed.yMm, -4);
   assert.equal(before.leftPercent + before.widthPercent / 2, after.leftPercent + after.widthPercent / 2);
   assert.equal(before.topPercent + before.heightPercent / 2, after.topPercent + after.heightPercent / 2);
+});
+
+test("corner dragging shrinks oversized text below its original size", () => {
+  const start = { x: 400, y: 110 };
+  const centre = { x: 200, y: 100 };
+  const scale = cornerDragScale(start, centre, { x: 220, y: 101 }, 1);
+  const model = new DesignModel({ elements: [textElement()] });
+  const editor = new DesignEditorController(model);
+  const startTransform = model.getElement("text-1").transform;
+  editor.resize("text-1", [square], startTransform, scale);
+
+  assert.ok(scale > 0.05 && scale < 0.11);
+  assert.ok(bounds(transform([square], model.getElement("text-1").transform)).width < 0.44);
+  assert.equal(cornerDragScale(start, centre, centre, 1), 0.05);
+  assert.equal(cornerDragScale(start, centre, { x: 0, y: 90 }, 1), 0.05);
+  assert.equal(cornerDragScale(start, centre, { x: 600, y: 120 }, 1), 2);
 });
 
 test("deletion removes the selected shared element", () => {
