@@ -5,6 +5,7 @@ import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
+import { createReviewPage } from "./src/reviewPage.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
 import { createOrderPage } from "./src/orderPage.js";
 import { DesignModel } from "./src/designModel.js";
@@ -86,7 +87,7 @@ Object.defineProperty(editor, "faceLimit", {
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
-createPipelineDiagnostics(pipeline);
+const pipelineDiagnostics = createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
   publishedLayout = null;
@@ -894,24 +895,43 @@ function renderOrderPreview(svg, dimensionLabel) {
   return { widthMm: scene.dimensions.widthMm };
 }
 
-// Design <-> order details pages.
+// Editor -> review -> order details. The review remains read-only; returning
+// to the editor keeps the same authoritative model and pipeline settings.
 const designPage = $("#design-page");
+const reviewPageElement = $("#review-page");
 const orderPageElement = $("#order-page");
+let reviewConfirmed = false;
+const reviewPage = createReviewPage({
+  designModel,
+  pipeline,
+  diagnostics: pipelineDiagnostics,
+  onBack: () => showPage("design"),
+  onContinue: () => {
+    reviewConfirmed = true;
+    showPage("order");
+  },
+  renderPreview: renderOrderPreview,
+});
 const orderPage = createOrderPage({
   designModel,
   pipeline,
-  onBack: () => showPage("design"),
+  onBack: () => showPage("review"),
   renderPreview: renderOrderPreview,
 });
 
 function showPage(name) {
+  const review = name === "review";
   const order = name === "order";
-  designPage.hidden = order;
+  reviewPage.hide();
+  orderPage.hide();
+  designPage.hidden = review || order;
+  reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  $("#nav-design").classList.toggle("active", !order);
+  $("#nav-design").classList.toggle("active", !review && !order);
+  $("#nav-review").classList.toggle("active", review);
   $("#nav-order").classList.toggle("active", order);
+  if (review) reviewPage.show();
   if (order) orderPage.show();
-  else orderPage.hide();
   window.scrollTo({ top: 0 });
 }
 
@@ -919,13 +939,20 @@ $("#nav-design").addEventListener("click", (event) => {
   event.preventDefault();
   showPage("design");
 });
+$("#nav-review").addEventListener("click", (event) => {
+  event.preventDefault();
+  showPage("review");
+});
 $("#nav-order").addEventListener("click", (event) => {
   event.preventDefault();
-  showPage("order");
+  showPage(reviewConfirmed ? "order" : "review");
 });
-$("#continue-button").addEventListener("click", () => showPage("order"));
+$("#continue-button").addEventListener("click", () => showPage("review"));
 
-// Finalizing needs a built stamp; warnings are allowed, errors are not.
+// A fresh build means the previous review no longer covers the current design.
+pipeline.addEventListener("running", () => { reviewConfirmed = false; });
+
+// Review needs a built stamp; warnings are allowed, errors are not.
 function updateFinalizeButton() {
   const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
   const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
@@ -933,8 +960,8 @@ function updateFinalizeButton() {
   $("#finalize-hint").textContent = !ready
     ? "Wait for the stamp to finish building."
     : blocked
-      ? "Fix the errors above before finalizing."
-      : "Next: add the order details.";
+      ? "Fix the errors above before reviewing."
+      : "Next: review your design.";
 }
 for (const type of ["running", "result", "failed"]) {
   pipeline.addEventListener(type, updateFinalizeButton);
