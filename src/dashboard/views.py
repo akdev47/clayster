@@ -45,7 +45,7 @@ def create_dummy_order(request):
         name="Dummy Product"
         order=order,
         product=product,
-        description="dummy product used for testing"
+        description="dummy product used for testing",
         unit_price = 10
     )
 
