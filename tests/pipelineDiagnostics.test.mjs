@@ -62,6 +62,16 @@ test("the same diagnostic state remains visible across the 2D/3D toggle", () => 
   assert.equal(state.overall.message, "Ready to export");
 });
 
+test("an untouched design prompts for artwork instead of showing an error", () => {
+  const { pipeline, controller } = setup();
+  pipeline.result = { artwork: [], issues: [], stamp: null };
+  pipeline.dispatchEvent(new Event("result"));
+
+  assert.equal(controller.state.overall.level, "idle");
+  assert.match(controller.state.rows[0].message, /add text/i);
+  assert.equal(controller.state.export.ready, false);
+});
+
 test("a 2D design edit triggers updated authoritative diagnostics", () => {
   const model = new DesignModel({ elements: [{ id: "text-1", kind: "text" }] });
   const editor = new DesignEditorController(model);

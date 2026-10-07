@@ -31,22 +31,7 @@ const state = {
   minY: -22.5,
 };
 
-const designModel = new DesignModel({
-  elements: [
-    {
-      id: "text-1",
-      kind: "text",
-      source: {
-        text: "CLAYSTER\nSTUDIO",
-        font: { id: "sans-bold", reference: null },
-        fontSizeMm: 7.5,
-        letterSpacingMm: 1,
-        lineSpacing: 1.25,
-        alignment: "center",
-      },
-    },
-  ],
-});
+const designModel = new DesignModel({ elements: [] });
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
 
@@ -401,6 +386,7 @@ function updateControls() {
   const isText = element?.kind === "text";
   const isImage = element?.kind === "svg" || element?.kind === "png";
 
+  $("#selected-element-section").hidden = !element;
   $("#text-controls").classList.toggle("d-none", !isText);
   $("#image-controls").classList.toggle("d-none", !isImage);
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
@@ -944,7 +930,9 @@ function updateFinalizeButton() {
   const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
   const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
   $("#continue-button").disabled = !ready || Boolean(blocked);
-  $("#finalize-hint").textContent = !ready
+  $("#finalize-hint").textContent = designModel.elements.length === 0
+    ? "Add text or artwork to continue."
+    : !ready
     ? "Wait for the stamp to finish building."
     : blocked
       ? "Fix the errors above before reviewing."
