@@ -65,6 +65,7 @@ export class ArtworkComposer {
     const renderElements = [];
     const elementIssues = [];
     const elementStats = [];
+    const segmentations = [];
     let validationTolerance;
 
     for (let index = 0; index < keyed.length; index++) {
@@ -93,6 +94,13 @@ export class ArtworkComposer {
           elementKind: element.kind,
         });
       }
+      if (conversion.segmentation !== null) {
+        segmentations.push({
+          elementId: element.id,
+          elementKind: element.kind,
+          ...conversion.segmentation,
+        });
+      }
       if (conversion.validationTolerance !== undefined) {
         validationTolerance =
           validationTolerance === undefined
@@ -114,6 +122,7 @@ export class ArtworkComposer {
       issues: [...elementIssues, ...designIssues],
       sourceStats: null,
       elementStats,
+      segmentations,
       renderElements,
     };
 
@@ -228,7 +237,12 @@ export function elementFromLegacySource(source) {
       source: {
         reference: source.pngFile,
         baseSizeMm: source.pngSize,
-        tracing: { smoothing: source.pngSmoothing },
+        tracing: {
+          smoothing: source.pngSmoothing,
+          backgroundMode: source.pngBackgroundMode ?? "auto",
+          backgroundSamples: source.pngBackgroundSamples ?? [],
+          backgroundTolerance: source.pngBackgroundTolerance ?? 1,
+        },
       },
     };
   }
@@ -250,6 +264,7 @@ function normalizeConversion(conversion) {
     canonical: conversion.canonical ?? [],
     issues: conversion.issues ?? [],
     sourceStats: conversion.sourceStats ?? null,
+    segmentation: conversion.segmentation ?? null,
     validationTolerance: conversion.validationTolerance,
   };
 }

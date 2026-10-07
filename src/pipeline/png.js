@@ -1,6 +1,9 @@
 // Traces a high-contrast PNG, then reuses the SVG-to-canonical artwork path.
 import { parseSVGShapes } from "../loaders.js";
-import { tracePNGToSVG } from "../pngTrace.js";
+import {
+  DEFAULT_PNG_BACKGROUND_MODE,
+  tracePNGToSVGDetails,
+} from "../pngTrace.js";
 import {
   fromShapes,
   bounds,
@@ -15,12 +18,33 @@ export const DEFAULT_PNG_SMOOTHING = 2;
 
 export async function loadPNGArtwork(
   file,
-  { size = 30, smoothing = DEFAULT_PNG_SMOOTHING } = {},
+  options = {},
 ) {
-  const svg = await tracePNGToSVG(file);
-  const shapes = parseSVGShapes(svg);
+  return (await loadPNGArtworkDetails(file, options)).artwork;
+}
+
+export async function loadPNGArtworkDetails(
+  file,
+  {
+    size = 30,
+    smoothing = DEFAULT_PNG_SMOOTHING,
+    backgroundMode = DEFAULT_PNG_BACKGROUND_MODE,
+    backgroundSamples = [],
+    backgroundTolerance,
+  } = {},
+) {
+  const traced = await tracePNGToSVGDetails(file, {
+    backgroundMode,
+    backgroundSamples,
+    backgroundTolerance,
+  });
+  const shapes = parseSVGShapes(traced.svg);
   const artwork = fromShapes(shapes, { flipY: true });
-  return postProcessPNGArtwork(artwork, size, { smoothing });
+  return {
+    artwork: postProcessPNGArtwork(artwork, size, { smoothing }),
+    issues: traced.issues,
+    segmentation: traced.segmentation,
+  };
 }
 
 // Raster contours inherently carry a few pixels of edge and threshold noise.

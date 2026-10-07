@@ -76,7 +76,7 @@
               <div id="help-elements" class="help-text" hidden>
                 <p><strong>Text</strong> is anything you type yourself.</p>
                 <p><strong>SVG</strong> is a vector drawing, such as a logo or icon. It stays sharp at any size, so it is the best choice for logos.</p>
-                <p><strong>PNG</strong> is a picture made of pixels. It works best for simple, high-contrast images (black on white). Photos do not turn out well.</p>
+                <p><strong>PNG</strong> is a picture made of pixels. Auto works best for simple backgrounds; use Pick background to mark trusted background areas when a gradient or vignette needs help.</p>
                 <p>A stamp has one colour, so only the shape of an image is used. Its colours are ignored.</p>
               </div>
 
@@ -277,6 +277,41 @@
                 </label>
 
                 <div id="png-options" class="range-control d-none">
+                  <label class="control-label" for="png-background">Background</label>
+                  <select id="png-background" class="form-select clay-input">
+                    <option value="auto">Auto</option>
+                    <option value="light">Light background</option>
+                    <option value="dark">Dark background</option>
+                    <option value="pick">Pick background</option>
+                    <option value="original">Original processing</option>
+                  </select>
+                  <div id="png-sample-controls" class="png-sample-controls" hidden>
+                    <p class="pipeline-note">
+                      Click trusted background areas in the original image. Spread samples across bright and dark regions.
+                    </p>
+                    <div id="png-sample-editor" class="png-sample-editor">
+                      <img id="png-sample-image" alt="Original PNG for choosing background samples" />
+                      <div id="png-sample-markers" class="png-sample-markers"></div>
+                    </div>
+                    <div class="range-heading mt-2">
+                      <label for="png-background-tolerance">Background tolerance</label>
+                      <output id="png-background-tolerance-value">1×</output>
+                    </div>
+                    <input
+                      id="png-background-tolerance"
+                      class="form-range clay-range"
+                      type="range"
+                      min="0.5"
+                      max="1.5"
+                      step="0.05"
+                    />
+                    <div class="png-sample-actions">
+                      <span id="png-sample-count">0 samples</span>
+                      <button id="png-clear-samples" type="button" class="btn subtle-button">
+                        Clear samples
+                      </button>
+                    </div>
+                  </div>
                   <div class="range-heading">
                     <label for="png-smoothing">PNG smoothing</label>
                     <button type="button" class="help-button" data-help="help-smoothing" aria-expanded="false" aria-controls="help-smoothing" aria-label="More information">?</button>

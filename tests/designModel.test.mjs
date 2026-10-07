@@ -45,10 +45,53 @@ test("creates type-specific editable element intent without derived geometry", (
   assert.equal(elements[1].source.reference, svgReference);
   assert.deepEqual(elements[2].source.tracing, {
     smoothing: 3,
+    backgroundMode: "auto",
+    backgroundSamples: [],
+    backgroundTolerance: 1,
     threshold: 140,
   });
   assert.equal("canonical" in elements[0], false);
   assert.equal("selected" in elements[0], false);
+});
+
+test("normalizes and freezes trusted PNG background sampling settings", () => {
+  const element = createDesignElement({
+    id: "sampled-png",
+    kind: "png",
+    source: {
+      tracing: {
+        backgroundMode: "pick",
+        backgroundSamples: [
+          { x: 0.1, y: 0.2 },
+          { x: 0.9, y: 0.8 },
+        ],
+        backgroundTolerance: 1.25,
+      },
+    },
+  });
+
+  assert.deepEqual(element.source.tracing.backgroundSamples, [
+    { x: 0.1, y: 0.2 },
+    { x: 0.9, y: 0.8 },
+  ]);
+  assert.equal(Object.isFrozen(element.source.tracing.backgroundSamples), true);
+  assert.equal(Object.isFrozen(element.source.tracing.backgroundSamples[0]), true);
+  assert.throws(
+    () =>
+      createDesignElement({
+        kind: "png",
+        source: { tracing: { backgroundSamples: [{ x: -0.1, y: 0.5 }] } },
+      }),
+    /normalized between zero and one/i,
+  );
+  assert.throws(
+    () =>
+      createDesignElement({
+        kind: "png",
+        source: { tracing: { backgroundTolerance: 2 } },
+      }),
+    /tolerance must be between/i,
+  );
 });
 
 test("keeps ids stable while updating source and physical transform", () => {

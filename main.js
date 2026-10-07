@@ -72,6 +72,8 @@ let lastScene = null;
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
+let samplePreviewReference = null;
+let samplePreviewObjectUrl = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
@@ -120,9 +122,11 @@ pipeline.addEventListener("result", () => {
 });
 
 pipeline.addEventListener("failed", () => {
-  renderGeometry = new Map();
-  displayGeometry = new Map();
-  publishedLayout = null;
+  const result = pipeline.result;
+  renderGeometry = new Map(
+    (result?.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  publishedLayout = result?.layout ?? null;
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
@@ -143,7 +147,16 @@ function imageKind(file) {
 
 function imageSource(kind, file) {
   return kind === "png"
-    ? { reference: file, baseSizeMm: 30, tracing: { smoothing: 2 } }
+    ? {
+        reference: file,
+        baseSizeMm: 30,
+        tracing: {
+          smoothing: 2,
+          backgroundMode: "auto",
+          backgroundSamples: [],
+          backgroundTolerance: 1,
+        },
+      }
     : { reference: file, baseSizeMm: 30 };
 }
 
@@ -416,11 +429,14 @@ function updateControls() {
     $("#image-message").textContent = `${element.kind.toUpperCase()} source: ${sourceName(element.source.reference)}`;
     if (element.kind === "png") {
       const smoothing = element.source.tracing.smoothing;
+      $("#png-background").value = element.source.tracing.backgroundMode;
       $("#png-smoothing").value = smoothing;
       $("#png-smoothing-value").textContent =
         smoothing === 0 ? "Off" : `${smoothing}×`;
     }
   }
+
+  updatePNGSampleControls(element);
 
   if (!isText) return;
 
@@ -444,6 +460,78 @@ function updateControls() {
       button.dataset.align === element.source.alignment,
     );
   });
+}
+
+function updatePNGSampleControls(element) {
+  const controls = $("#png-sample-controls");
+  const picking =
+    element?.kind === "png" &&
+    element.source.tracing.backgroundMode === "pick";
+  controls.hidden = !picking;
+  if (!picking) return;
+
+  setPNGSamplePreview(element.source.reference);
+  const { backgroundSamples, backgroundTolerance } = element.source.tracing;
+  $("#png-background-tolerance").value = backgroundTolerance;
+  $("#png-background-tolerance-value").textContent = `${backgroundTolerance}×`;
+  $("#png-sample-count").textContent = `${backgroundSamples.length} ${
+    backgroundSamples.length === 1 ? "sample" : "samples"
+  }`;
+  $("#png-clear-samples").disabled = backgroundSamples.length === 0;
+
+  const markers = $("#png-sample-markers");
+  markers.replaceChildren(
+    ...backgroundSamples.map(({ x, y }, index) => {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "png-sample-marker";
+      marker.style.left = `${x * 100}%`;
+      marker.style.top = `${y * 100}%`;
+      marker.textContent = "×";
+      marker.setAttribute(
+        "aria-label",
+        `Remove background sample ${index + 1}`,
+      );
+      marker.addEventListener("click", (event) => {
+        event.stopPropagation();
+        updatePNGTracing({
+          backgroundSamples: backgroundSamples.filter(
+            (_sample, sampleIndex) => sampleIndex !== index,
+          ),
+        });
+      });
+      return marker;
+    }),
+  );
+}
+
+function setPNGSamplePreview(reference) {
+  if (reference === samplePreviewReference) return;
+  if (samplePreviewObjectUrl !== null) {
+    URL.revokeObjectURL(samplePreviewObjectUrl);
+    samplePreviewObjectUrl = null;
+  }
+  samplePreviewReference = reference;
+
+  const image = $("#png-sample-image");
+  if (reference instanceof Blob) {
+    samplePreviewObjectUrl = URL.createObjectURL(reference);
+    image.src = samplePreviewObjectUrl;
+  } else if (typeof reference === "string") {
+    image.src = reference;
+  } else {
+    image.removeAttribute("src");
+  }
+}
+
+function updatePNGTracing(tracingPatch) {
+  const selected = selectedElement();
+  if (selected?.kind !== "png") return null;
+  const changed = designControls.updateSelectedSource("png", {
+    tracing: { ...selected.source.tracing, ...tracingPatch },
+  });
+  if (changed !== null) render();
+  return changed;
 }
 
 function sourceName(reference) {
@@ -659,7 +747,18 @@ $("#image-upload").addEventListener("change", (event) => {
   }
 
   if (request.action === "replace") {
-    designControls.replaceSelectedReference(kind, file);
+    const selected = selectedElement();
+    if (kind === "png" && selected?.kind === "png") {
+      designControls.updateSelectedSource("png", {
+        reference: file,
+        tracing: {
+          ...selected.source.tracing,
+          backgroundSamples: [],
+        },
+      });
+    } else {
+      designControls.replaceSelectedReference(kind, file);
+    }
   } else {
     designControls.addElement(kind, imageSource(kind, file));
   }
@@ -834,6 +933,51 @@ $("#png-smoothing").addEventListener("input", (event) => {
   }) !== null) {
     $("#png-smoothing-value").textContent =
       smoothing === 0 ? "Off" : `${smoothing}×`;
+  }
+});
+
+$("#png-background").addEventListener("change", (event) => {
+  updatePNGTracing({ backgroundMode: event.target.value });
+});
+
+$("#png-background-tolerance").addEventListener("input", (event) => {
+  updatePNGTracing({ backgroundTolerance: Number(event.target.value) });
+});
+
+$("#png-sample-editor").addEventListener("click", (event) => {
+  if (event.target.closest(".png-sample-marker") !== null) return;
+  const selected = selectedElement();
+  if (
+    selected?.kind !== "png" ||
+    selected.source.tracing.backgroundMode !== "pick"
+  ) {
+    return;
+  }
+
+  const image = $("#png-sample-image");
+  if (!image.complete || image.naturalWidth === 0) return;
+  const rect = image.getBoundingClientRect();
+  if (!(rect.width > 0) || !(rect.height > 0)) return;
+  const x = (event.clientX - rect.left) / rect.width;
+  const y = (event.clientY - rect.top) / rect.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  if (selected.source.tracing.backgroundSamples.length >= 32) return;
+
+  updatePNGTracing({
+    backgroundSamples: [
+      ...selected.source.tracing.backgroundSamples,
+      { x: round2(x), y: round2(y) },
+    ],
+  });
+});
+
+$("#png-clear-samples").addEventListener("click", () => {
+  updatePNGTracing({ backgroundSamples: [] });
+});
+
+window.addEventListener("beforeunload", () => {
+  if (samplePreviewObjectUrl !== null) {
+    URL.revokeObjectURL(samplePreviewObjectUrl);
   }
 });
 

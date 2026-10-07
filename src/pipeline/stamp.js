@@ -68,8 +68,16 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   // The face is everything that touches clay: the plate plus its artwork.
   const face =
     settings.mode === "emboss"
-      ? booleanGeometry(base, relief, UNION)
-      : booleanGeometry(base, relief, SUBTRACT);
+      ? booleanGeometry(base, relief, UNION, {
+          firstLabel:
+            settings.faceShape === "outline" ? "custom face" : "stamp base",
+          secondLabel: "relief mesh",
+        })
+      : booleanGeometry(base, relief, SUBTRACT, {
+          firstLabel:
+            settings.faceShape === "outline" ? "custom face" : "stamp base",
+          secondLabel: "relief mesh",
+        });
 
   base.dispose();
 
@@ -190,7 +198,10 @@ function attachHandle(face, handleGeometry, faceCentre) {
     -box.max.z + OVERLAP,
   ); // Overlap, not butt.
 
-  const stamp = booleanGeometry(face, handle, UNION);
+  const stamp = booleanGeometry(face, handle, UNION, {
+    firstLabel: "stamp face",
+    secondLabel: "handle",
+  });
   handle.dispose();
 
   return stamp;

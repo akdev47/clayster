@@ -108,7 +108,12 @@ export function hasThinCrossSection(
 }
 
 // Use solid booleans for the printable stamp. The clay preview is separate.
-export function solidBoolean(first, second, operation) {
+export function solidBoolean(
+  first,
+  second,
+  operation,
+  { firstLabel = "first stamp part", secondLabel = "second stamp part" } = {},
+) {
   if (!engine) throw new Error("The solid geometry engine is not ready.");
   const temporary = [];
   const keep = (object) => {
@@ -116,7 +121,7 @@ export function solidBoolean(first, second, operation) {
     return object;
   };
   // Convert positions and triangle indices into the format Manifold expects.
-  function solid(geometry) {
+  function solid(geometry, label) {
     const position = geometry.getAttribute("position");
     const coordinates = new Float32Array(position.count * 3);
     for (let i = 0; i < position.count; i++) {
@@ -135,17 +140,25 @@ export function solidBoolean(first, second, operation) {
     });
     // Primitive geometries repeat corners for shading. Join coincident corners.
     mesh.merge();
-    const result = keep(new engine.Manifold(mesh));
+    let result;
+    try {
+      result = keep(new engine.Manifold(mesh));
+    } catch (error) {
+      throw new Error(
+        `${capitalize(label)} is not a closed manifold solid: ${errorMessage(error)}`,
+        { cause: error },
+      );
+    }
     if (result.status() !== "NoError") {
       throw new Error(
-        "A stamp part is not a closed solid. Check the artwork or handle.",
+        `${capitalize(label)} is not a closed manifold solid: ${result.status()}`,
       );
     }
     return result;
   }
   try {
-    const a = solid(first);
-    const b = solid(second);
+    const a = solid(first, firstLabel);
+    const b = solid(second, secondLabel);
     const result = keep(
       operation === "union"
         ? a.add(b)
@@ -180,4 +193,12 @@ export function solidBoolean(first, second, operation) {
     // WASM solids need explicit cleanup, including when a check fails.
     temporary.reverse().forEach((object) => object.delete());
   }
+}
+
+function capitalize(value) {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function errorMessage(error) {
+  return String(error?.message ?? "invalid mesh").split("\n", 1)[0];
 }

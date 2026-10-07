@@ -14,6 +14,12 @@ const LEVELS = {
     iconClass: "pass-icon",
     badgeClass: "pass-badge",
   },
+  info: {
+    mark: "i",
+    badge: "Note",
+    iconClass: "pass-icon",
+    badgeClass: "pass-badge",
+  },
   warning: {
     mark: "!",
     badge: "Warning",
@@ -76,7 +82,10 @@ export function createPipelineDiagnosticState(pipeline, phase) {
   }
 
   if (phase === "failed") {
-    const rows = diagnosticRows(pipeline.diagnostics);
+    const rows = [
+      ...segmentationRows(pipeline.result?.segmentations),
+      ...diagnosticRows(pipeline.diagnostics),
+    ];
     if (rows.length === 0) {
       rows.push({
         level: "error",
@@ -97,8 +106,19 @@ export function createPipelineDiagnosticState(pipeline, phase) {
   }
 
   const issues = result.issues ?? [];
+  const reviewRows = segmentationRows(result.segmentations);
   const rows = [
-    ...issues.map(issueRow),
+    ...reviewRows,
+    ...issues
+      .filter(
+        (issue) =>
+          !reviewRows.some(
+            ({ sourceMessage, elementId }) =>
+              issue.message === sourceMessage &&
+              (issue.elementId === undefined || issue.elementId === elementId),
+          ),
+      )
+      .map(issueRow),
     ...(result.notes ?? []).map((message) => ({
       level: "ok",
       badge: "Verified",
@@ -147,6 +167,25 @@ function issueRow(issue) {
   };
 }
 
+function segmentationRows(segmentations = []) {
+  return segmentations
+    .filter(({ status }) => status === "needs-review")
+    .map(({ elementId, elementKind, message }) => ({
+      level: "info",
+      badge: "Review",
+      iconClass: "warning-icon",
+      badgeClass: "warning-badge",
+      elementId,
+      sourceMessage: message,
+      message:
+        elementId === undefined
+          ? message
+          : `Element "${elementId}"${
+              elementKind === undefined ? "" : ` (${elementKind})`
+            }: ${message}`,
+    }));
+}
+
 function diagnosticRows(diagnostics) {
   if (diagnostics === null) return [];
   return [
@@ -180,7 +219,7 @@ function createRow(row) {
   item.className = "validation-row";
 
   const icon = document.createElement("span");
-  icon.className = `status-icon ${level.iconClass}`;
+  icon.className = `status-icon ${row.iconClass ?? level.iconClass}`;
   icon.textContent = level.mark;
 
   const content = document.createElement("div");
@@ -197,7 +236,7 @@ function createRow(row) {
   }
 
   const badge = document.createElement("span");
-  badge.className = `status-badge ${level.badgeClass}`;
+  badge.className = `status-badge ${row.badgeClass ?? level.badgeClass}`;
   badge.textContent = row.badge ?? level.badge;
 
   item.append(icon, content, badge);

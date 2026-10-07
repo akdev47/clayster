@@ -248,6 +248,26 @@ test("global polygon repair fails closed before stamp generation and reaches the
   }
 });
 
+test("artwork validation failure exposes no canonical preview geometry", async () => {
+  const { pipeline, sidebar } = setup([text()]);
+  pipeline.artwork = async () => ({
+    artwork: [],
+    issues: [{ level: "error", message: "Artwork validation failed." }],
+    renderElements: [
+      { id: "invalid", kind: "text", canonical: [rectangle(0, 0, 10, 10)] },
+    ],
+  });
+  try {
+    await pipeline.run();
+    assert.deepEqual(pipeline.result.artwork, []);
+    assert.equal(pipeline.result.renderElements, null);
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(sidebar.state.export.ready, false);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
 test("shared pipeline checks thin features at final element scale without face rescaling", async () => {
   const { pipeline, sidebar, model } = setup([
     { id: "strip", kind: "svg", source: { reference: "strip.svg" },
@@ -344,7 +364,12 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
     pipeline.stamp.mode = "deboss";
     pipeline.stamp.reliefDepth = pipeline.stamp.faceThickness;
     await rejectedRun(pipeline);
-    assert.equal(pipeline.result, null);
+    assert.ok(pipeline.result.artwork.length > 0);
+    assert.ok(pipeline.result.renderElements.length > 0);
+    assert.equal(pipeline.result.previewOnly, true);
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(pipeline.result.clay, null);
+    assert.equal(pipeline.result.info, null);
     assert.equal(byId("pipeline-overall-status").textContent, "Build failed");
     assert.equal(byId("pipeline-export-status").textContent, "Unavailable");
     assert.ok(messages().some((message) => /Recess depth must be smaller/i.test(message)));

@@ -5,7 +5,11 @@ import {
   loadSVGArtworkDetails,
   SVG_SIMPLIFY_TOLERANCE_MM,
 } from "./svg.js";
-import { loadPNGArtwork, DEFAULT_PNG_SMOOTHING } from "./png.js";
+import { loadPNGArtworkDetails, DEFAULT_PNG_SMOOTHING } from "./png.js";
+import {
+  DEFAULT_PNG_BACKGROUND_MODE,
+  DEFAULT_PNG_BACKGROUND_TOLERANCE,
+} from "../pngTrace.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
@@ -36,6 +40,9 @@ export const DEFAULT_SOURCE = {
   pngFile: null,
   pngSize: 30,
   pngSmoothing: DEFAULT_PNG_SMOOTHING,
+  pngBackgroundMode: DEFAULT_PNG_BACKGROUND_MODE,
+  pngBackgroundSamples: Object.freeze([]),
+  pngBackgroundTolerance: DEFAULT_PNG_BACKGROUND_TOLERANCE,
 };
 
 /**
@@ -57,7 +64,13 @@ export class Pipeline extends EventTarget {
     this.stamp = { ...DEFAULT_STAMP };
 
     this.result = null;
-    this.cache = { key: null, artwork: null, issues: [], sourceStats: null };
+    this.cache = {
+      key: null,
+      artwork: null,
+      issues: [],
+      sourceStats: null,
+      segmentations: [],
+    };
     this.designModel = null;
     this.artworkComposer = new ArtworkComposer((element) =>
       this.buildElementArtwork(element),
@@ -137,6 +150,7 @@ export class Pipeline extends EventTarget {
     this.busy = true;
     this.resetDiagnostics();
     this.dispatchEvent(new Event("running"));
+    let validatedPreview = null;
 
     try {
       const {
@@ -145,6 +159,7 @@ export class Pipeline extends EventTarget {
         sourceStats,
         elementStats = null,
         renderElements = null,
+        segmentations = [],
       } = await this.artwork();
       if (token !== this.token) return;
 
@@ -152,11 +167,15 @@ export class Pipeline extends EventTarget {
       this.recordValidation(sourceStats, elementStats, issues);
 
       if (artwork.length === 0) {
+        const validationFailed = issues.some(
+          ({ level }) => level === "error",
+        );
         this.publish(
           {
             artwork,
             issues,
-            renderElements,
+            renderElements: validationFailed ? null : renderElements,
+            segmentations,
             stamp: null,
             clay: null,
             info: null,
@@ -165,6 +184,21 @@ export class Pipeline extends EventTarget {
           token,
         );
         return;
+      }
+
+      if (!issues.some(({ level }) => level === "error")) {
+        validatedPreview = {
+          artwork,
+          issues,
+          renderElements,
+          segmentations,
+          stamp: null,
+          clay: null,
+          info: null,
+          layout: null,
+          notes: [],
+          previewOnly: true,
+        };
       }
 
       this.setSVGStage("stamp preparation");
@@ -204,13 +238,16 @@ export class Pipeline extends EventTarget {
         throw error;
       }
       this.completeSVGDiagnostics();
-      this.publish({ artwork, issues, renderElements, ...built }, token);
+      this.publish(
+        { artwork, issues, renderElements, segmentations, ...built },
+        token,
+      );
     } catch (error) {
       if (token !== this.token) return;
 
       console.error(error);
       this.failSVGDiagnostics(error);
-      this.result = null;
+      this.result = validatedPreview;
       this.busy = false;
       this.error = error;
       this.dispatchEvent(new Event("failed"));
@@ -240,6 +277,7 @@ export class Pipeline extends EventTarget {
         artwork: this.cache.artwork,
         issues: this.cache.issues,
         sourceStats: this.cache.sourceStats,
+        segmentations: this.cache.segmentations,
       };
     }
 
@@ -247,6 +285,7 @@ export class Pipeline extends EventTarget {
       canonical,
       issues,
       sourceStats = null,
+      segmentation = null,
       validationTolerance,
     } = await this.buildArtwork();
     const checked = validate(canonical, { tolerance: validationTolerance });
@@ -260,9 +299,24 @@ export class Pipeline extends EventTarget {
       artwork: checked.artwork,
       issues: combined,
       sourceStats,
+      segmentations:
+        segmentation === null
+          ? []
+          : [
+              {
+                elementId: "legacy-source",
+                elementKind: this.source.kind,
+                ...segmentation,
+              },
+            ],
     };
 
-    return { artwork: checked.artwork, issues: combined, sourceStats };
+    return {
+      artwork: checked.artwork,
+      issues: combined,
+      sourceStats,
+      segmentations: this.cache.segmentations,
+    };
   }
 
   async buildArtwork() {
@@ -292,11 +346,18 @@ export class Pipeline extends EventTarget {
     if (element.kind === "png") {
       if (source.reference === null) return { canonical: [], issues: [] };
 
-      const canonical = await loadPNGArtwork(source.reference, {
+      const loaded = await loadPNGArtworkDetails(source.reference, {
         size: source.baseSizeMm,
         smoothing: source.tracing.smoothing,
+        backgroundMode: source.tracing.backgroundMode,
+        backgroundSamples: source.tracing.backgroundSamples,
+        backgroundTolerance: source.tracing.backgroundTolerance,
       });
-      return { canonical, issues: [] };
+      return {
+        canonical: loaded.artwork,
+        issues: loaded.issues,
+        segmentation: loaded.segmentation,
+      };
     }
 
     if (source.text.trim() === "") return { canonical: [], issues: [] };
@@ -364,7 +425,7 @@ export class Pipeline extends EventTarget {
     if (source.kind === "png") {
       const file = source.pngFile;
       if (file === null) return "png:none";
-      return `png:${file.name}:${file.size}:${file.lastModified}:${source.pngSize}:${source.pngSmoothing}`;
+      return `png:${file.name}:${file.size}:${file.lastModified}:${source.pngSize}:${source.pngSmoothing}:${source.pngBackgroundMode}:${JSON.stringify(source.pngBackgroundSamples)}:${source.pngBackgroundTolerance}`;
     }
 
     return [
@@ -424,6 +485,7 @@ export class Pipeline extends EventTarget {
 
     const errors = issues.filter(({ level }) => level === "error");
     const warnings = issues.filter(({ level }) => level === "warning");
+    const information = issues.filter(({ level }) => level === "info");
     this.diagnostics.stage = "geometry validation";
     this.diagnostics.details = [
       ...elementStats.map(
@@ -439,6 +501,11 @@ export class Pipeline extends EventTarget {
       ...warnings.map(({ message, elementId }) =>
         elementId === undefined
           ? `Warning: ${message}`
+          : `Element "${elementId}": ${message}`,
+      ),
+      ...information.map(({ message, elementId }) =>
+        elementId === undefined
+          ? `Note: ${message}`
           : `Element "${elementId}": ${message}`,
       ),
     ];

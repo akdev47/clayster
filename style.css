@@ -107,6 +107,15 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .pipeline-note { margin: .55rem 0; color: var(--muted); font-size: .68rem; line-height: 1.45; }
 .pipeline-control-status { margin: 1rem 0 0; padding: .65rem; color: var(--coral-dark); background: rgb(244 143 104 / 13%); border: 1px solid rgb(201 87 56 / 20%); border-radius: var(--radius-sm); font-size: .7rem; line-height: 1.45; }
 .pipeline-control-status.ok { color: var(--success); background: rgb(61 139 103 / 11%); border-color: rgb(61 139 103 / 20%); }
+.png-sample-controls[hidden] { display: none; }
+.png-sample-editor { position: relative; overflow: hidden; background: #e8e3da; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: crosshair; }
+.png-sample-editor img { display: block; width: 100%; height: auto; min-height: 72px; object-fit: contain; }
+.png-sample-markers { position: absolute; inset: 0; pointer-events: none; }
+.png-sample-marker { position: absolute; display: grid; width: 18px; height: 18px; padding: 0; translate: -50% -50%; place-items: center; color: var(--white); background: var(--coral-dark); border: 2px solid var(--white); border-radius: 50%; box-shadow: 0 1px 4px rgb(48 45 42 / 45%); pointer-events: auto; font-size: .65rem; font-weight: 700; line-height: 1; }
+.png-sample-marker:hover { background: #8d321d; }
+.png-sample-marker:focus-visible { outline: 2px solid var(--aqua-dark); outline-offset: 2px; }
+.png-sample-actions { display: flex; align-items: center; justify-content: space-between; gap: .65rem; margin-top: .45rem; color: var(--muted); font-size: .68rem; }
+.png-sample-actions .subtle-button { padding: .35rem .55rem; }
 
 /* Design canvas */
 .canvas-column { padding: 1.4rem; background: var(--surface); }
