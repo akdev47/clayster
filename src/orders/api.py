@@ -1,6 +1,8 @@
 import json
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST
 
 from .forms import CustomerForm, OrderAddressForm
 
@@ -133,3 +135,7 @@ def create_order(request):
         status=201,
     )
 
+@require_GET
+@ensure_csrf_cookie
+def csrf_token(request):
+    return JsonResponse({"csrfToken": get_token(request)})
