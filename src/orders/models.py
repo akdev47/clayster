@@ -52,6 +52,7 @@ class OrderAddress(models.Model):
         return f"{self.street_name} {self.house_number}{self.house_number_addition}"
 
 class OrderItem(models.Model):
+    name = models.CharField(max_length=100)
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -62,6 +63,7 @@ class OrderItem(models.Model):
          on_delete=models.PROTECT,
          related_name="order_items"
     )
+    description = models.CharField(max_length=512, blank=True)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     stl_file = models.FileField(
