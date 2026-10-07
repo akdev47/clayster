@@ -5,6 +5,7 @@ import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
+import { createReviewPage } from "./src/reviewPage.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
 import { createOrderPage } from "./src/orderPage.js";
 import { DesignModel } from "./src/designModel.js";
@@ -30,22 +31,7 @@ const state = {
   minY: -22.5,
 };
 
-const designModel = new DesignModel({
-  elements: [
-    {
-      id: "text-1",
-      kind: "text",
-      source: {
-        text: "CLAYSTER\nSTUDIO",
-        font: { id: "sans-bold", reference: null },
-        fontSizeMm: 7.5,
-        letterSpacingMm: 1,
-        lineSpacing: 1.25,
-        alignment: "center",
-      },
-    },
-  ],
-});
+const designModel = new DesignModel({ elements: [] });
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
 
@@ -86,7 +72,7 @@ Object.defineProperty(editor, "faceLimit", {
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
-createPipelineDiagnostics(pipeline);
+const pipelineDiagnostics = createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
   publishedLayout = null;
@@ -400,6 +386,7 @@ function updateControls() {
   const isText = element?.kind === "text";
   const isImage = element?.kind === "svg" || element?.kind === "png";
 
+  $("#selected-element-section").hidden = !element;
   $("#text-controls").classList.toggle("d-none", !isText);
   $("#image-controls").classList.toggle("d-none", !isImage);
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
@@ -894,47 +881,62 @@ function renderOrderPreview(svg, dimensionLabel) {
   return { widthMm: scene.dimensions.widthMm };
 }
 
-// Design <-> order details pages.
+// Editor -> review -> order details. The review remains read-only; returning
+// to the editor keeps the same authoritative model and pipeline settings.
 const designPage = $("#design-page");
+const reviewPageElement = $("#review-page");
 const orderPageElement = $("#order-page");
+const reviewPage = createReviewPage({
+  designModel,
+  pipeline,
+  diagnostics: pipelineDiagnostics,
+  onBack: () => showPage("design"),
+  onContinue: () => showPage("order"),
+  renderPreview: renderOrderPreview,
+});
 const orderPage = createOrderPage({
   designModel,
   pipeline,
-  onBack: () => showPage("design"),
+  onBack: () => showPage("review"),
   renderPreview: renderOrderPreview,
 });
 
 function showPage(name) {
+  const review = name === "review";
   const order = name === "order";
-  designPage.hidden = order;
+  reviewPage.hide();
+  orderPage.hide();
+  designPage.hidden = review || order;
+  reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  $("#nav-design").classList.toggle("active", !order);
-  $("#nav-order").classList.toggle("active", order);
+  const steps = ["design", "review", "order"];
+  const currentIndex = steps.indexOf(name);
+  $$('[data-workflow-step]').forEach((step) => {
+    const index = steps.indexOf(step.dataset.workflowStep);
+    step.classList.toggle("current", index === currentIndex);
+    step.classList.toggle("complete", index < currentIndex);
+    if (index === currentIndex) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
+  if (review) reviewPage.show();
   if (order) orderPage.show();
-  else orderPage.hide();
   window.scrollTo({ top: 0 });
 }
 
-$("#nav-design").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("design");
-});
-$("#nav-order").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("order");
-});
-$("#continue-button").addEventListener("click", () => showPage("order"));
+$("#continue-button").addEventListener("click", () => showPage("review"));
 
-// Finalizing needs a built stamp; warnings are allowed, errors are not.
+// Review needs a built stamp; warnings are allowed, errors are not.
 function updateFinalizeButton() {
   const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
   const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
   $("#continue-button").disabled = !ready || Boolean(blocked);
-  $("#finalize-hint").textContent = !ready
+  $("#finalize-hint").textContent = designModel.elements.length === 0
+    ? "Add text or artwork to continue."
+    : !ready
     ? "Wait for the stamp to finish building."
     : blocked
-      ? "Fix the errors above before finalizing."
-      : "Next: add the order details.";
+      ? "Fix the errors above before reviewing."
+      : "Next: review your design.";
 }
 for (const type of ["running", "result", "failed"]) {
   pipeline.addEventListener(type, updateFinalizeButton);

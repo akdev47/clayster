@@ -164,6 +164,7 @@ export class Pipeline extends EventTarget {
       this.recordValidation(sourceStats, elementStats, issues);
 
       if (artwork.length === 0) {
+        if (this.designModel?.elements.length === 0) this.diagnostics = null;
         this.publish(
           {
             artwork,

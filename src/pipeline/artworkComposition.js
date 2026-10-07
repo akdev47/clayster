@@ -104,7 +104,11 @@ export class ArtworkComposer {
       }
     }
 
-    const checked = validate(canonical, { tolerance: validationTolerance });
+    // A new, untouched design is intentionally empty; it is not invalid
+    // artwork. Once an element exists, even empty output remains an error.
+    const checked = visible.length === 0
+      ? { artwork: [], issues: [] }
+      : validate(canonical, { tolerance: validationTolerance });
     const designIssues = checked.issues.map((issue) => ({
       ...issue,
       scope: "design",
