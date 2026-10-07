@@ -18,7 +18,7 @@ def get_custom_stamp_product():
         defaults={
                 "short_description": "Custom stamp",
                 "price": 8.50,
-                "prodcut_type": Product.ProductType.CUSTOM_STAMP,
+                "product_type": Product.ProductType.CUSTOM_STAMP,
         },
     )
 
