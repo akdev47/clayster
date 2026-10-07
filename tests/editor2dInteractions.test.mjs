@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import { DesignModel } from "../src/designModel.js";
 import { DesignHistory } from "../src/designHistory.js";
 import { ArtworkComposer } from "../src/pipeline/artworkComposition.js";
-import { bounds } from "../src/pipeline/canonical.js";
+import { bounds, transform } from "../src/pipeline/canonical.js";
 import {
   DesignEditorController,
   KEYBOARD_MOVE_STEP_MM,
   MAX_TEXT_SIZE_MM,
   arrowKeyDelta,
   canonicalOverlayBox,
+  fitElementTransform,
+  fitsFace,
   shouldHandleElementArrowKey,
   screenDeltaToMillimetres,
   textResizePreview,
@@ -225,6 +227,79 @@ test("text resize previews are transient and commit one authoritative size chang
     10,
   );
   assert.equal(limitedPreview.fontSizeMm, MAX_TEXT_SIZE_MM);
+});
+
+test("Fit to stamp preserves image aspect ratio and resolves square and round overflow", () => {
+  const canonical = [square];
+  for (const shape of ["square", "round"]) {
+    const limit = { shape, halfExtent: 5 };
+    const start = {
+      xMm: 20,
+      yMm: -15,
+      scale: 4,
+      rotationDeg: 25,
+    };
+    const before = bounds(transform(canonical, start));
+    const fitted = fitElementTransform(canonical, start, limit);
+    const after = bounds(transform(canonical, fitted));
+
+    assert.equal(fitsFace(canonical, fitted, limit), true);
+    assert.ok(fitted.scale <= start.scale);
+    assert.ok(Math.abs(before.width / before.height - after.width / after.height) < 1e-9);
+  }
+});
+
+test("Fit to stamp uses Text size for text and transform scale for SVG and PNG", () => {
+  const oversized = [[
+    [-10, -2],
+    [10, -2],
+    [10, 2],
+    [-10, 2],
+  ]];
+  const model = new DesignModel({
+    elements: [
+      {
+        id: "text-1",
+        kind: "text",
+        source: { text: "WIDE", fontSizeMm: 20 },
+        transform: { xMm: 30, scale: 1 },
+      },
+      {
+        ...svgElement({ xMm: 30, scale: 2 }),
+        source: { reference: "mark.svg" },
+      },
+      {
+        id: "png-1",
+        kind: "png",
+        source: { reference: "mark.png" },
+        transform: { xMm: 30, scale: 2 },
+      },
+    ],
+  });
+  const editor = new DesignEditorController(model);
+  const history = new DesignHistory(model);
+  editor.faceLimit = { shape: "square", halfExtent: 5 };
+  editor.canonicalFor = () => [oversized];
+
+  editor.fitToStamp("text-1");
+  const text = model.getElement("text-1");
+  assert.ok(text.source.fontSizeMm < 20);
+  assert.equal(text.transform.scale, 1);
+  assert.equal(fitsFace([oversized], {
+    ...text.transform,
+    scale: text.source.fontSizeMm / 20,
+  }, editor.faceLimit), true);
+  history.undo();
+  assert.equal(model.getElement("text-1").source.fontSizeMm, 20);
+
+  for (const id of ["svg-1", "png-1"]) {
+    const source = model.getElement(id).source;
+    editor.fitToStamp(id);
+    const fitted = model.getElement(id);
+    assert.deepEqual(fitted.source, source);
+    assert.ok(fitted.transform.scale < 2);
+    assert.equal(fitsFace([oversized], fitted.transform, editor.faceLimit), true);
+  }
 });
 
 test("deletion removes the selected shared element", () => {

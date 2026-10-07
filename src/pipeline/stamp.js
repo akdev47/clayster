@@ -52,6 +52,7 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   if (layout.overflows) {
     thinIssues.push({
       level: "warning",
+      code: "artwork-overflow",
       message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
     });
   }

@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DesignModel } from "../src/designModel.js";
-import { DesignEditorController } from "../src/editor2dInteractions.js";
+import {
+  DesignEditorController,
+  fitsFace,
+} from "../src/editor2dInteractions.js";
 import { createPipelineDiagnostics } from "../src/pipelineDiagnostics.js";
 
 class DiagnosticPipeline extends EventTarget {
@@ -188,4 +191,90 @@ test("PNG segmentation review metadata reaches diagnostics without blocking expo
   assert.equal(controller.state.rows[0].badge, "Review");
   assert.equal(controller.state.rows[0].badgeClass, "warning-badge");
   assert.match(controller.state.rows[0].message, /logo-png.*review the traced result/i);
+});
+
+test("Fit to stamp buttons appear only on overflow warnings", () => {
+  const node = () => ({
+    textContent: "",
+    className: "",
+    children: [],
+    dataset: {},
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    setAttribute(name, value) { this[name] = value; },
+    addEventListener(type, listener) { this[type] = listener; },
+  });
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, node());
+    return nodes.get(id);
+  };
+  const previousDocument = globalThis.document;
+  globalThis.document = { createElement: node, getElementById: byId };
+  const pipeline = new DiagnosticPipeline();
+  const model = new DesignModel({
+    elements: [{
+      id: "wide-svg",
+      kind: "svg",
+      transform: { xMm: 20, scale: 3 },
+    }],
+  });
+  const editor = new DesignEditorController(model);
+  const canonical = [[
+    [[-5, -2], [5, -2], [5, 2], [-5, 2]],
+  ]];
+  editor.faceLimit = { shape: "square", halfExtent: 5 };
+  editor.canonicalFor = () => canonical;
+  let overflowingIds = ["wide-svg"];
+  let fittedId = null;
+  createPipelineDiagnostics(pipeline, {
+    getOverflowElementIds: () => overflowingIds,
+    onFitToStamp: (id) => {
+      fittedId = id;
+      editor.fitToStamp(id);
+    },
+  });
+  const buttons = () => byId("pipeline-diagnostic-list").children
+    .flatMap((row) => row.children[1].children)
+    .filter(({ className }) => className === "suggestion-button");
+
+  try {
+    pipeline.complete({
+      issues: [{ level: "warning", message: "A feature is thin." }],
+    });
+    assert.equal(buttons().length, 0);
+
+    pipeline.complete({
+      issues: [{
+        level: "warning",
+        code: "artwork-overflow",
+        message: "Some artwork extends beyond the face.",
+      }],
+    });
+    assert.equal(buttons().length, 1);
+    assert.equal(buttons()[0].textContent, "Fit to stamp");
+    buttons()[0].click();
+    assert.equal(fittedId, "wide-svg");
+    assert.equal(
+      fitsFace(
+        canonical,
+        model.getElement("wide-svg").transform,
+        editor.faceLimit,
+      ),
+      true,
+    );
+
+    overflowingIds = [];
+    pipeline.complete({
+      issues: [{
+        level: "warning",
+        code: "artwork-overflow",
+        message: "Some artwork extends beyond the face.",
+      }],
+    });
+    assert.equal(buttons().length, 0);
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+  }
 });

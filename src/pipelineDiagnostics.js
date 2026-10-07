@@ -42,9 +42,19 @@ const LEVELS = {
 
 export function createPipelineDiagnostics(
   pipeline,
-  { render = null } = {},
+  {
+    render = null,
+    getOverflowElementIds = () => [],
+    onFitToStamp = null,
+  } = {},
 ) {
-  const renderState = render ?? ((state) => renderDOM(collectDOM(), state));
+  const renderState =
+    render ??
+    ((state) =>
+      renderDOM(collectDOM(), state, {
+        getOverflowElementIds,
+        onFitToStamp,
+      }));
   let state = null;
 
   const publish = (phase) => {
@@ -198,22 +208,22 @@ function diagnosticRows(diagnostics) {
   ];
 }
 
-function renderRows(dom, rows) {
+function renderRows(dom, rows, actions) {
   const shown =
     rows.length > 0
       ? rows
       : [{ level: "ok", message: "No validation issues reported." }];
-  dom.list.replaceChildren(...shown.map(createRow));
+  dom.list.replaceChildren(...shown.map((row) => createRow(row, actions)));
 }
 
-function renderDOM(dom, state) {
+function renderDOM(dom, state, actions) {
   setOverall(dom, state.overall.message, state.overall.level);
-  renderRows(dom, state.rows);
+  renderRows(dom, state.rows, actions);
   showSummary(dom, state.info);
   setExportReadiness(dom, state.export.label, state.export.level);
 }
 
-function createRow(row) {
+function createRow(row, { getOverflowElementIds, onFitToStamp }) {
   const level = LEVELS[row.level] ?? LEVELS.warning;
   const item = document.createElement("div");
   item.className = "validation-row";
@@ -233,6 +243,22 @@ function createRow(row) {
     const text = document.createElement("small");
     text.textContent = detail;
     content.append(text);
+  }
+
+  if (row.code === "artwork-overflow" && onFitToStamp !== null) {
+    for (const elementId of getOverflowElementIds()) {
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "suggestion-button";
+      action.dataset.elementId = elementId;
+      action.textContent = "Fit to stamp";
+      action.setAttribute(
+        "aria-label",
+        `Fit element ${elementId} to stamp`,
+      );
+      action.addEventListener("click", () => onFitToStamp(elementId));
+      content.append(action);
+    }
   }
 
   const badge = document.createElement("span");

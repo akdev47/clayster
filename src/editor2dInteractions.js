@@ -83,6 +83,50 @@ export function textResizePreview(startSizeMm, startTransform, scale) {
   };
 }
 
+function centeredTransform(canonical, elementTransform) {
+  const unpositioned = transform(canonical, {
+    ...elementTransform,
+    xMm: 0,
+    yMm: 0,
+  });
+  const box = bounds(unpositioned);
+  return {
+    ...elementTransform,
+    xMm: -(box.minX + box.maxX) / 2,
+    yMm: -(box.minY + box.maxY) / 2,
+  };
+}
+
+/** Uniformly shrinks and recentres one element inside the usable face. */
+export function fitElementTransform(canonical, startTransform, limit) {
+  if (limit === null || limit === undefined || canonical.length === 0) {
+    return null;
+  }
+
+  const unitTransform = centeredTransform(canonical, {
+    ...startTransform,
+    scale: 1,
+  });
+  const unitGeometry = transform(canonical, unitTransform);
+  const unitBounds = bounds(unitGeometry);
+  const maximumScale =
+    limit.shape === "round"
+      ? limit.halfExtent /
+        Math.max(
+          ...unitGeometry.flatMap((polygon) =>
+            polygon.flatMap((ring) =>
+              ring.map(([x, y]) => Math.hypot(x, y)),
+            ),
+          ),
+        )
+      : Math.min(
+          (limit.halfExtent * 2) / unitBounds.width,
+          (limit.halfExtent * 2) / unitBounds.height,
+        );
+  const scale = Math.min(startTransform.scale, maximumScale);
+  return centeredTransform(canonical, { ...startTransform, scale });
+}
+
 const ARROW_MOVEMENT = Object.freeze({
   ArrowLeft: Object.freeze({ xMm: -1, yMm: 0 }),
   ArrowRight: Object.freeze({ xMm: 1, yMm: 0 }),
@@ -295,13 +339,47 @@ export class DesignEditorController {
     });
   }
 
-  setTextSize(id, fontSizeMm) {
+  setTextSize(id, fontSizeMm, transformPatch = {}) {
     const element = this.model.getElement(id);
     if (element === null || element.kind !== "text") return null;
     const size = textSizeFromScale(fontSizeMm, 1);
     return this.model.updateElement(id, {
       source: { fontSizeMm: size },
-      transform: { scale: 1 },
+      transform: { ...transformPatch, scale: 1 },
+    });
+  }
+
+  fitToStamp(id) {
+    const element = this.model.getElement(id);
+    const canonical = this.canonicalFor(id);
+    if (element === null || canonical === undefined) return null;
+
+    const fitted = fitElementTransform(
+      canonical,
+      element.transform,
+      this.faceLimit,
+    );
+    if (fitted === null) return null;
+    this.select(id);
+
+    if (element.kind !== "text") {
+      return this.model.updateElement(id, { transform: fitted });
+    }
+
+    let fontSizeMm = textSizeFromScale(
+      element.source.fontSizeMm,
+      fitted.scale,
+    );
+    if (fontSizeMm / element.source.fontSizeMm > fitted.scale + EPSILON) {
+      fontSizeMm = Math.max(MIN_TEXT_SIZE_MM, fontSizeMm - TEXT_SIZE_STEP_MM);
+    }
+    const previewTransform = centeredTransform(canonical, {
+      ...element.transform,
+      scale: fontSizeMm / element.source.fontSizeMm,
+    });
+    return this.setTextSize(id, fontSizeMm, {
+      xMm: previewTransform.xMm,
+      yMm: previewTransform.yMm,
     });
   }
 

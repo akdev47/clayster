@@ -96,7 +96,6 @@ Object.defineProperty(editor, "faceLimit", {
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
-createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
   publishedLayout = null;
@@ -139,6 +138,13 @@ pipeline.addEventListener("failed", () => {
   viewer.show({ stamp: null, clay: null });
   previewStatus.hidden = false;
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
+});
+
+createPipelineDiagnostics(pipeline, {
+  getOverflowElementIds: () => [...overflowingIds],
+  onFitToStamp: (elementId) => {
+    if (editor.fitToStamp(elementId) !== null) render();
+  },
 });
 
 function selectedElement() {
