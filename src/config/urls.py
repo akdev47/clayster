@@ -17,11 +17,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from orders.api import create_order
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("dashboard/", include("dashboard.urls")),
     path("products/", include("products.urls")),
     path("orders/", include("orders.urls")),
     path("production/", include("production.urls")),
-    
+    path("api/orders/", create_order, name="api_create_order"),
 ]
