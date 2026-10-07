@@ -35,3 +35,25 @@ test("alignment icon buttons expose action names and pressed state", async () =>
     assert.match(button[0], /aria-pressed="(?:true|false)"/);
   }
 });
+
+test("only the left alignment icon uses varied lines with one left edge", async () => {
+  const html = await projectFile("index.html");
+  const buttonContents = (alignment) =>
+    html.match(
+      new RegExp(
+        `<button[^>]*data-align="${alignment}"[^>]*>([\\s\\S]*?)<\\/button>`,
+      ),
+    )?.[1].trim();
+  const leftIcon = buttonContents("left");
+
+  assert.match(leftIcon, /^<svg[\s\S]*<\/svg>$/);
+  assert.match(leftIcon, /width="16"/);
+  assert.match(leftIcon, /height="12"/);
+  assert.match(leftIcon, /stroke-width="1\.5"/);
+  const lines = [...leftIcon.matchAll(/<line x1="(\d+)"[^>]*x2="(\d+)"/g)];
+  assert.equal(lines.length, 3);
+  assert.equal(new Set(lines.map((match) => match[1])).size, 1);
+  assert.ok(new Set(lines.map((match) => match[2])).size >= 3);
+  assert.equal(buttonContents("center"), "≡");
+  assert.equal(buttonContents("right"), "≡");
+});

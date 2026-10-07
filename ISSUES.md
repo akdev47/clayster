@@ -6,6 +6,12 @@ add new ones as they come up. Tags: **[bug]**, **[ux]**, **[backend]**,
 
 Last updated: 2026-10-05
 
+## Done
+
+- [x] **[ux] PNG photos give poor results.** Help text explains it; a preview of the traced shape or a warning on very detailed images would be better.
+- [x] **[ux] Keyboard use.** Elements cannot be moved with the arrow keys, visible focus outlines are removed on design elements, and the alignment buttons are not labelled correctly.
+- [x] **[ux] Text alignment moved the whole element.** Alignment now positions the text lines inside the text box instead of moving the text around the stamp.
+
 ## Open issues
 
 ### Order flow
@@ -21,13 +27,11 @@ Last updated: 2026-10-05
 - [ ] **[ux] Hidden gesture.** Dragging the stamp in the 3D view resizes it, and nothing explains this.
 - [ ] **[ux] 2D view is shown unmirrored, 3D mirrored.** The "Mirror design" help text explains it, but the 2D view itself says nothing.
 - [ ] **[ux] "Add SVG" and "Add PNG" share the same icon.**
-- [ ] **[ux] PNG photos give poor results.** Help text explains it; a preview of the traced shape or a warning on very detailed images would be better.
 - [ ] **[bug?] Delete key on Mac.** Many Mac keyboards have no Delete key (Fn+Backspace). The button still works. *Decide* if another shortcut is needed.
 - [ ] **[ux] Undo does not cover stamp settings** (face size, relief, margin, handle, mirror). Only design elements are in the history.
 - [ ] **[ux] Design is lost on reload.** *Decided: think about it later* (local save vs. database).
 
 ### Accessibility and devices
-- [ ] **[ux] Keyboard use.** Elements cannot be moved with the arrow keys, visible focus outlines are removed on design elements, and the alignment buttons are not labelled.
 - [ ] **[ux] Toggle buttons** (2D/3D, shapes, relief) do not expose their state to screen readers (`aria-pressed`).
 - [ ] **[ux] Touch and small screens** are untested (dragging, resize handles, the right-hand panel).
 
