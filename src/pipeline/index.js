@@ -20,6 +20,7 @@ import { DesignModel } from "../designModel.js";
 import {
   ArtworkComposer,
   elementFromLegacySource,
+  textLetterSpacingMm,
 } from "./artworkComposition.js";
 import wasmUrl from "manifold-3d/manifold.wasm?url";
 
@@ -362,6 +363,8 @@ export class Pipeline extends EventTarget {
 
     if (source.text.trim() === "") return { canonical: [], issues: [] };
 
+    const letterSpacingMm = textLetterSpacingMm(source);
+
     const font = await loadFont(
       source.font.reference ?? fontURL(source.font.id ?? DEFAULT_FONT_ID),
     );
@@ -371,13 +374,13 @@ export class Pipeline extends EventTarget {
     const wrapped = wrapText(font, {
       text: source.text,
       size: source.fontSizeMm,
-      letterSpacing: source.letterSpacingMm,
+      letterSpacing: letterSpacingMm,
     });
 
     let canonical = layoutText(font, {
       text: wrapped.text,
       size: wrapped.size,
-      letterSpacing: source.letterSpacingMm,
+      letterSpacing: letterSpacingMm,
       lineSpacing: source.lineSpacing,
       align: source.alignment,
     });

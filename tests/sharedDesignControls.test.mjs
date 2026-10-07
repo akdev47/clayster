@@ -123,14 +123,14 @@ test("adding Text, SVG and PNG creates and selects DesignModel entries", () => {
 
 test("switching modes preserves shared source and transform values", () => {
   const { model, editor, controls } = setup();
-  controls.updateSelectedSource("text", { letterSpacingMm: 1.75 });
+  controls.updateSelectedSource("text", { letterSpacingRatio: 0.1 });
   controls.updateSelectedTransform({ xMm: 8, scale: 1.4, mirrorX: true });
 
   editor.setView("3d");
   editor.setView("2d");
 
   const element = model.getElement("text-1");
-  assert.equal(element.source.letterSpacingMm, 1.75);
+  assert.equal(element.source.letterSpacingRatio, 0.1);
   assert.equal(element.transform.xMm, 8);
   assert.equal(element.transform.scale, 1.4);
   assert.equal(element.transform.mirrorX, true);

@@ -31,7 +31,7 @@ const SOURCE_DEFAULTS = Object.freeze({
       reference: null,
     }),
     fontSizeMm: 16,
-    letterSpacingMm: 0,
+    letterSpacingRatio: 0,
     lineSpacing: 1.25,
     alignment: "center",
     // Stroke thickness change on top of the font's own weight, in mm. The
@@ -217,6 +217,13 @@ function createElementSource(kind, source) {
   const result = { ...SOURCE_DEFAULTS[kind], ...source };
   if (kind === "text") {
     if (
+      source.letterSpacingRatio === undefined &&
+      source.letterSpacingMm !== undefined
+    ) {
+      result.letterSpacingRatio = source.letterSpacingMm / result.fontSizeMm;
+    }
+    delete result.letterSpacingMm;
+    if (
       source.font !== undefined &&
       (source.font === null || typeof source.font !== "object")
     ) {
@@ -254,7 +261,7 @@ function validateSourceNumbers(kind, source) {
     kind === "text" ? ["fontSizeMm", "lineSpacing"] : ["baseSizeMm"];
   const finite =
     kind === "text"
-      ? ["fontSizeMm", "letterSpacingMm", "lineSpacing", "thicknessMm"]
+      ? ["fontSizeMm", "letterSpacingRatio", "lineSpacing", "thicknessMm"]
       : ["baseSizeMm"];
 
   for (const field of finite) {

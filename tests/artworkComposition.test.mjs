@@ -362,7 +362,7 @@ test("the legacy single-source adapter preserves the current source fields", () 
     text: source.text,
     font: { id: source.fontId, reference: source.fontFile },
     fontSizeMm: source.size,
-    letterSpacingMm: source.letterSpacing,
+    letterSpacingRatio: source.letterSpacing / source.size,
     lineSpacing: source.lineSpacing,
     alignment: source.align,
   });

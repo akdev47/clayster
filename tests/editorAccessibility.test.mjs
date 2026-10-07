@@ -72,6 +72,17 @@ test("the selected element controls expose a Duplicate action", async () => {
   assert.match(main, /editor\.duplicateSelected\(\)/);
 });
 
+test("letter spacing is presented and edited as a percentage", async () => {
+  const [html, main] = await Promise.all([
+    projectFile("index.html"),
+    projectFile("main.js"),
+  ]);
+
+  assert.match(html, /id="letter-spacing-value">13\.33%<\/output>/);
+  assert.match(main, /element\.source\.letterSpacingRatio \* 100/);
+  assert.match(main, /letterSpacingRatio: Number\(event\.target\.value\) \/ 100/);
+});
+
 test("only the left alignment icon uses varied lines with one left edge", async () => {
   const html = await projectFile("index.html");
   const buttonContents = (alignment) =>

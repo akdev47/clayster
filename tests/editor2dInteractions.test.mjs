@@ -168,7 +168,12 @@ test("text resize previews are transient and commit one authoritative size chang
     elements: [
       {
         ...textElement({ xMm: 7, yMm: -2 }),
-        source: { text: "CLAY", fontSizeMm: 10 },
+        source: {
+          text: "CLAY",
+          fontSizeMm: 10,
+          letterSpacingRatio: 0.1,
+          lineSpacing: 1.5,
+        },
       },
     ],
   });
@@ -211,6 +216,8 @@ test("text resize previews are transient and commit one authoritative size chang
   const resized = model.getElement("text-1");
   assert.equal(modelChanges, 1);
   assert.equal(resized.source.fontSizeMm, 15);
+  assert.equal(resized.source.letterSpacingRatio, 0.1);
+  assert.equal(resized.source.lineSpacing, 1.5);
   assert.equal(resized.transform.scale, 1);
   assert.equal(resized.transform.xMm, 7);
   assert.equal(resized.transform.yMm, -2);
@@ -417,14 +424,14 @@ test("text editing updates the selected text source", () => {
   editor.updateSelectedText({
     text: "UPDATED",
     fontSizeMm: 22,
-    letterSpacingMm: 1.5,
+    letterSpacingRatio: 0.1,
     alignment: "right",
   });
 
   const source = model.getElement("text-1").source;
   assert.equal(source.text, "UPDATED");
   assert.equal(source.fontSizeMm, 22);
-  assert.equal(source.letterSpacingMm, 1.5);
+  assert.equal(source.letterSpacingRatio, 0.1);
   assert.equal(source.alignment, "right");
 });
 

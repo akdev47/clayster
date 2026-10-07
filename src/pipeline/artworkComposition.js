@@ -180,7 +180,7 @@ export class ArtworkComposer {
         source.font.id ?? "",
         this.#referenceKey(source.font.reference),
         source.fontSizeMm,
-        source.letterSpacingMm,
+        source.letterSpacingRatio,
         source.lineSpacing,
         source.alignment,
         source.thicknessMm,
@@ -262,11 +262,15 @@ export function elementFromLegacySource(source) {
       text: source.text,
       font: { id: source.fontId, reference: source.fontFile },
       fontSizeMm: source.size,
-      letterSpacingMm: source.letterSpacing,
+      letterSpacingRatio: source.letterSpacing / source.size,
       lineSpacing: source.lineSpacing,
       alignment: source.align,
     },
   };
+}
+
+export function textLetterSpacingMm(source) {
+  return source.fontSizeMm * source.letterSpacingRatio;
 }
 
 function normalizeConversion(conversion) {

@@ -44,7 +44,7 @@ const designModel = new DesignModel({
         text: "CLAYSTER\nSTUDIO",
         font: { id: "sans-bold", reference: null },
         fontSizeMm: 7.5,
-        letterSpacingMm: 1,
+        letterSpacingRatio: 1 / 7.5,
         lineSpacing: 1.25,
         alignment: "center",
       },
@@ -479,11 +479,14 @@ function updateControls() {
   updateFontPicker(element);
   const textSizeMm = element.source.fontSizeMm * element.transform.scale;
   updateTextSizeControl(textSizeMm);
-  $("#letter-spacing").value = element.source.letterSpacingMm;
+  const letterSpacingPercent = round2(
+    element.source.letterSpacingRatio * 100,
+  );
+  $("#letter-spacing").value = letterSpacingPercent;
   $("#line-spacing").value = element.source.lineSpacing;
   $("#font-weight").value = element.source.thicknessMm;
 
-  $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
+  $("#letter-spacing-value").textContent = `${letterSpacingPercent}%`;
   $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
   $("#font-weight-value").textContent = thicknessLabel(
     element.source.thicknessMm,
@@ -796,7 +799,7 @@ $("#add-text").addEventListener("click", () => {
       text: "TEXT",
       font: { id: "sans-bold", reference: null },
       fontSizeMm: NEW_TEXT_SIZE_MM,
-      letterSpacingMm: 1,
+      letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
       lineSpacing: 1.25,
       alignment: "center",
     },
@@ -995,7 +998,9 @@ $("#font-size").addEventListener("input", (event) => {
 });
 
 $("#letter-spacing").addEventListener("input", (event) => {
-  updateSelectedText({ letterSpacingMm: Number(event.target.value) });
+  updateSelectedText({
+    letterSpacingRatio: Number(event.target.value) / 100,
+  });
 });
 
 $("#line-spacing").addEventListener("input", (event) => {
