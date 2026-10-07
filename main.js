@@ -17,6 +17,7 @@ import {
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
   shouldHandleElementArrowKey,
+  textResizePreview,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -70,6 +71,8 @@ let renderGeometry = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
 let overflowingIds = new Set();
+const resizePreviewTransforms = new Map();
+const committedResizePreviews = new Set();
 let lastScene = null;
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
@@ -109,6 +112,7 @@ pipeline.addEventListener("result", () => {
     (result.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
   );
   publishedLayout = result.layout ?? null;
+  clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: result.stamp, clay: result.clay });
@@ -129,6 +133,7 @@ pipeline.addEventListener("failed", () => {
     (result?.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
   );
   publishedLayout = result?.layout ?? null;
+  clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
@@ -138,6 +143,11 @@ pipeline.addEventListener("failed", () => {
 
 function selectedElement() {
   return editor.selectedElement();
+}
+
+function clearCommittedResizePreviews() {
+  committedResizePreviews.forEach((id) => resizePreviewTransforms.delete(id));
+  committedResizePreviews.clear();
 }
 
 function imageKind(file) {
@@ -241,7 +251,8 @@ function renderCanonicalArtwork() {
             id: element.id,
             kind: element.kind,
             canonical,
-            transform: element.transform,
+            transform:
+              resizePreviewTransforms.get(element.id) ?? element.transform,
           },
         ]
       : [];
@@ -429,6 +440,7 @@ function updateControls() {
   $("#image-controls").classList.toggle("d-none", !isImage);
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
   $("#transform-controls").classList.toggle("d-none", !element);
+  $("#element-scale-control").classList.toggle("d-none", !element || isText);
   $("#delete-element").disabled = !element;
 
   if (element) {
@@ -458,12 +470,12 @@ function updateControls() {
 
   $("#text-input").value = element.source.text;
   updateFontPicker(element);
-  $("#font-size").value = element.source.fontSizeMm;
+  const textSizeMm = element.source.fontSizeMm * element.transform.scale;
+  updateTextSizeControl(textSizeMm);
   $("#letter-spacing").value = element.source.letterSpacingMm;
   $("#line-spacing").value = element.source.lineSpacing;
   $("#font-weight").value = element.source.thicknessMm;
 
-  $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
   $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
   $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
   $("#font-weight-value").textContent = thicknessLabel(
@@ -475,6 +487,12 @@ function updateControls() {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
+}
+
+function updateTextSizeControl(fontSizeMm) {
+  const displayedSizeMm = round2(fontSizeMm);
+  $("#font-size").value = displayedSizeMm;
+  $("#font-size-value").textContent = `${displayedSizeMm} mm`;
 }
 
 function updatePNGSampleControls(element) {
@@ -671,6 +689,13 @@ function startResize(event, element, item) {
   );
   const startTransform = element.transform;
   const startScale = startTransform.scale;
+  const startTextSizeMm =
+    element.kind === "text" ? element.source.fontSizeMm : null;
+  let textPreview =
+    element.kind === "text"
+      ? textResizePreview(startTextSizeMm, startTransform, startScale)
+      : null;
+  let hasTextPreview = false;
   const handle = event.currentTarget;
 
   const resize = (moveEvent) => {
@@ -680,6 +705,20 @@ function startResize(event, element, item) {
     );
     const nextScale = startScale * (distance / Math.max(startDistance, 1));
 
+    if (element.kind === "text") {
+      textPreview = textResizePreview(
+        startTextSizeMm,
+        startTransform,
+        nextScale,
+      );
+      resizePreviewTransforms.set(element.id, textPreview.transform);
+      hasTextPreview = true;
+      renderCanonicalArtwork();
+      applyOverlayBounds(item, element);
+      updateTextSizeControl(textPreview.fontSizeMm);
+      return;
+    }
+
     const changed = editor.resize(
       element.id,
       canonical,
@@ -688,13 +727,29 @@ function startResize(event, element, item) {
     );
     renderCanonicalArtwork();
     applyOverlayBounds(item, changed);
+    updateControls();
   };
 
   const stop = () => {
-    interactionActive = false;
     handle.removeEventListener("pointermove", resize);
     handle.removeEventListener("pointerup", stop);
     handle.removeEventListener("pointercancel", stop);
+
+    if (element.kind === "text" && hasTextPreview) {
+      const currentSizeMm =
+        element.source.fontSizeMm * element.transform.scale;
+      const needsCommit =
+        textPreview.fontSizeMm !== currentSizeMm ||
+        element.transform.scale !== 1;
+      if (needsCommit) {
+        committedResizePreviews.add(element.id);
+        editor.setTextSize(element.id, textPreview.fontSizeMm);
+      } else {
+        resizePreviewTransforms.delete(element.id);
+      }
+    }
+
+    interactionActive = false;
     render();
   };
 
@@ -916,7 +971,11 @@ $("#font-options").addEventListener("click", (event) => {
 });
 
 $("#font-size").addEventListener("input", (event) => {
-  updateSelectedText({ fontSizeMm: Number(event.target.value) });
+  if (
+    designControls.updateSelectedTextSize(Number(event.target.value)) !== null
+  ) {
+    render();
+  }
 });
 
 $("#letter-spacing").addEventListener("input", (event) => {

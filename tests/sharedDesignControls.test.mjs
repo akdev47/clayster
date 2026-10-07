@@ -17,11 +17,12 @@ test("shared text controls update the same selected element in both views", () =
 
   controls.updateSelectedSource("text", { text: "Shared design" });
   editor.setView("3d");
-  controls.updateSelectedSource("text", { fontSizeMm: 24 });
+  controls.updateSelectedTextSize(24);
 
   const selected = model.getElement("text-1");
   assert.equal(selected.source.text, "Shared design");
   assert.equal(selected.source.fontSizeMm, 24);
+  assert.equal(selected.transform.scale, 1);
   assert.equal(editor.selectedId, "text-1");
 });
 

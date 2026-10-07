@@ -36,6 +36,31 @@ test("alignment icon buttons expose action names and pressed state", async () =>
   }
 });
 
+test("Text exposes one synchronized size control while images keep Scale", async () => {
+  const [html, main] = await Promise.all([
+    projectFile("index.html"),
+    projectFile("main.js"),
+  ]);
+
+  assert.match(html, /<label for="font-size">Text size \(mm\)<\/label>/);
+  assert.match(html, /id="element-scale-control"/);
+  assert.match(
+    main,
+    /#element-scale-control"\)\.classList\.toggle\("d-none", !element \|\| isText\)/,
+  );
+  const resizeHandler = main.match(
+    /function startResize[\s\S]*?function freeSpotForNewText/,
+  )?.[0];
+  assert.match(resizeHandler, /startTextSizeMm/);
+  assert.match(resizeHandler, /resizePreviewTransforms\.set/);
+  assert.match(resizeHandler, /updateTextSizeControl\(textPreview\.fontSizeMm\)/);
+  assert.match(resizeHandler, /editor\.setTextSize\(element\.id, textPreview\.fontSizeMm\)/);
+  assert.match(
+    main,
+    /element\.source\.fontSizeMm \* element\.transform\.scale/,
+  );
+});
+
 test("only the left alignment icon uses varied lines with one left edge", async () => {
   const html = await projectFile("index.html");
   const buttonContents = (alignment) =>

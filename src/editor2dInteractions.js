@@ -53,7 +53,35 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
 // scale field so both allow the same sizes.
 export const MIN_ELEMENT_SCALE = 0.2;
 export const MAX_ELEMENT_SCALE = 4;
+export const MIN_TEXT_SIZE_MM = 0.5;
+export const MAX_TEXT_SIZE_MM = 60;
+export const TEXT_SIZE_STEP_MM = 0.5;
 export const KEYBOARD_MOVE_STEP_MM = 0.5;
+
+export function textSizeFromScale(startSizeMm, scale) {
+  if (!(startSizeMm > 0) || !Number.isFinite(startSizeMm)) {
+    throw new RangeError("Starting text size must be positive.");
+  }
+  if (!(scale > 0) || !Number.isFinite(scale)) {
+    throw new RangeError("Text resize scale must be positive.");
+  }
+  const stepped = Math.round(
+    (startSizeMm * scale) / TEXT_SIZE_STEP_MM,
+  ) * TEXT_SIZE_STEP_MM;
+  return Math.min(MAX_TEXT_SIZE_MM, Math.max(MIN_TEXT_SIZE_MM, stepped));
+}
+
+/** Cheap view-only text resize used until the final font size is committed. */
+export function textResizePreview(startSizeMm, startTransform, scale) {
+  const fontSizeMm = textSizeFromScale(startSizeMm, scale);
+  return {
+    fontSizeMm,
+    transform: {
+      ...startTransform,
+      scale: fontSizeMm / startSizeMm,
+    },
+  };
+}
 
 const ARROW_MOVEMENT = Object.freeze({
   ArrowLeft: Object.freeze({ xMm: -1, yMm: 0 }),
@@ -264,6 +292,16 @@ export class DesignEditorController {
     const limited = Math.min(MAX_ELEMENT_SCALE, Math.max(MIN_ELEMENT_SCALE, scale));
     return this.model.updateElement(id, {
       transform: centeredScaleTransform(canonical, startTransform, limited),
+    });
+  }
+
+  setTextSize(id, fontSizeMm) {
+    const element = this.model.getElement(id);
+    if (element === null || element.kind !== "text") return null;
+    const size = textSizeFromScale(fontSizeMm, 1);
+    return this.model.updateElement(id, {
+      source: { fontSizeMm: size },
+      transform: { scale: 1 },
     });
   }
 

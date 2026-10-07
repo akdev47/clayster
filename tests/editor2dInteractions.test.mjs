@@ -7,10 +7,12 @@ import { bounds } from "../src/pipeline/canonical.js";
 import {
   DesignEditorController,
   KEYBOARD_MOVE_STEP_MM,
+  MAX_TEXT_SIZE_MM,
   arrowKeyDelta,
   canonicalOverlayBox,
   shouldHandleElementArrowKey,
   screenDeltaToMillimetres,
+  textResizePreview,
 } from "../src/editor2dInteractions.js";
 
 const square = [
@@ -26,6 +28,12 @@ const textElement = (transform = {}) => ({
   id: "text-1",
   kind: "text",
   source: { text: "CLAY" },
+  transform,
+});
+
+const svgElement = (transform = {}) => ({
+  id: "svg-1",
+  kind: "svg",
   transform,
 });
 
@@ -129,16 +137,16 @@ test("dragging follows the pointer through fitted and mirrored display space", (
 });
 
 test("resizing updates one uniform scale and preserves selection centre", () => {
-  const model = new DesignModel({ elements: [textElement({ xMm: 7, yMm: -2 })] });
+  const model = new DesignModel({ elements: [svgElement({ xMm: 7, yMm: -2 })] });
   const editor = new DesignEditorController(model);
-  const start = model.getElement("text-1").transform;
+  const start = model.getElement("svg-1").transform;
   const before = canonicalOverlayBox([square], start, {
     widthMm: 60,
     heightMm: 40,
   });
 
-  editor.resize("text-1", [square], start, 2);
-  const changed = model.getElement("text-1").transform;
+  editor.resize("svg-1", [square], start, 2);
+  const changed = model.getElement("svg-1").transform;
   const after = canonicalOverlayBox([square], changed, {
     widthMm: 60,
     heightMm: 40,
@@ -149,6 +157,74 @@ test("resizing updates one uniform scale and preserves selection centre", () => 
   assert.equal(changed.yMm, -4);
   assert.equal(before.leftPercent + before.widthPercent / 2, after.leftPercent + after.widthPercent / 2);
   assert.equal(before.topPercent + before.heightPercent / 2, after.topPercent + after.heightPercent / 2);
+});
+
+test("text resize previews are transient and commit one authoritative size change", async () => {
+  let conversions = 0;
+  const model = new DesignModel({
+    elements: [
+      {
+        ...textElement({ xMm: 7, yMm: -2 }),
+        source: { text: "CLAY", fontSizeMm: 10 },
+      },
+    ],
+  });
+  const editor = new DesignEditorController(model);
+  const history = new DesignHistory(model);
+  const start = model.getElement("text-1");
+  const composer = new ArtworkComposer(async () => {
+    conversions += 1;
+    return { canonical: [square], issues: [] };
+  });
+  let modelChanges = 0;
+  model.addEventListener("change", () => {
+    modelChanges += 1;
+  });
+
+  await composer.compose(model.elements);
+  const firstPreview = textResizePreview(
+    start.source.fontSizeMm,
+    start.transform,
+    1.2,
+  );
+  const finalPreview = textResizePreview(
+    start.source.fontSizeMm,
+    start.transform,
+    1.5,
+  );
+
+  assert.equal(firstPreview.fontSizeMm, 12);
+  assert.equal(finalPreview.fontSizeMm, 15);
+  assert.equal(finalPreview.transform.scale, 1.5);
+  assert.equal(finalPreview.transform.xMm, 7);
+  assert.equal(finalPreview.transform.yMm, -2);
+  assert.equal(model.getElement("text-1"), start);
+  assert.equal(modelChanges, 0);
+  assert.equal(history.canUndo, false);
+  assert.equal(conversions, 1);
+
+  editor.setTextSize("text-1", finalPreview.fontSizeMm);
+
+  const resized = model.getElement("text-1");
+  assert.equal(modelChanges, 1);
+  assert.equal(resized.source.fontSizeMm, 15);
+  assert.equal(resized.transform.scale, 1);
+  assert.equal(resized.transform.xMm, 7);
+  assert.equal(resized.transform.yMm, -2);
+  await composer.compose(model.elements);
+  assert.equal(conversions, 2);
+
+  history.undo();
+  assert.equal(model.getElement("text-1").source.fontSizeMm, 10);
+  history.redo();
+  assert.equal(model.getElement("text-1").source.fontSizeMm, 15);
+
+  const limitedPreview = textResizePreview(
+    resized.source.fontSizeMm,
+    resized.transform,
+    10,
+  );
+  assert.equal(limitedPreview.fontSizeMm, MAX_TEXT_SIZE_MM);
 });
 
 test("deletion removes the selected shared element", () => {
@@ -184,7 +260,7 @@ test("text editing updates the selected text source", () => {
 
 test("transform-only edits reuse the element conversion cache", async () => {
   let conversions = 0;
-  const model = new DesignModel({ elements: [textElement()] });
+  const model = new DesignModel({ elements: [svgElement()] });
   const editor = new DesignEditorController(model);
   const composer = new ArtworkComposer(async () => {
     conversions += 1;
@@ -192,11 +268,11 @@ test("transform-only edits reuse the element conversion cache", async () => {
   });
 
   await composer.compose(model.elements);
-  editor.moveFromArrowKey("text-1", "ArrowRight");
+  editor.moveFromArrowKey("svg-1", "ArrowRight");
   editor.resize(
-    "text-1",
+    "svg-1",
     [square],
-    model.getElement("text-1").transform,
+    model.getElement("svg-1").transform,
     1.5,
   );
   const result = await composer.compose(model.elements);

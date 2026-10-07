@@ -175,7 +175,7 @@
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="font-size">Text size</label>
+                    <label for="font-size">Text size (mm)</label>
                     <output id="font-size-value">7.5 mm</output>
                   </div>
                   <input
@@ -244,7 +244,20 @@
                     aria-label="Align text left"
                     aria-pressed="false"
                   >
-                    ≡
+                    <svg
+                      width="16"
+                      height="12"
+                      viewBox="0 0 16 12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <line x1="2" y1="2" x2="14" y2="2" />
+                      <line x1="2" y1="6" x2="11" y2="6" />
+                      <line x1="2" y1="10" x2="13" y2="10" />
+                    </svg>
                   </button>
                   <button
                     type="button"
@@ -365,7 +378,7 @@
                       <span>mm</span>
                     </span>
                   </label>
-                  <label class="control-label" for="element-scale">
+                  <label id="element-scale-control" class="control-label" for="element-scale">
                     Scale
                     <span class="pipeline-input-unit">
                       <input id="element-scale" class="form-control clay-input" type="number" min="0.2" max="4" step="0.05" />
