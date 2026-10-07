@@ -23,7 +23,7 @@
         </a>
 
         <div class="navbar-nav ms-auto">
-          <a class="nav-link" href="#">Account</a>
+          <a class="nav-link" href="#" hidden>Account</a> <!-- hidden until accounts exist -->
         </div>
       </div>
     </nav>
@@ -56,9 +56,20 @@
             <div id="editor-controls-shared" class="sidebar-mode">
             <section class="sidebar-section">
               <div class="section-heading">
-                <div>
+                <div class="heading-with-help">
                   <h2>Design Elements</h2>
+                  <button type="button" class="help-button" data-help="help-elements" aria-expanded="false" aria-controls="help-elements" aria-label="More information">?</button>
                 </div>
+                <div class="history-buttons" role="group" aria-label="Undo and redo">
+                  <button id="undo-button" class="history-button" type="button" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
+                  <button id="redo-button" class="history-button" type="button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>↷</button>
+                </div>
+              </div>
+              <div id="help-elements" class="help-text" hidden>
+                <p><strong>Text</strong> is anything you type yourself.</p>
+                <p><strong>SVG</strong> is a vector drawing, such as a logo or icon. It stays sharp at any size, so it is the best choice for logos.</p>
+                <p><strong>PNG</strong> is a picture made of pixels. It works best for simple, high-contrast images (black on white). Photos do not turn out well.</p>
+                <p>A stamp has one colour, so only the shape of an image is used. Its colours are ignored.</p>
               </div>
 
               <div class="row g-2">
@@ -143,9 +154,16 @@
                   </div>
                 </div>
 
-                <button id="upload-font" class="btn subtle-button w-100 mt-2">
-                  Upload custom font
-                </button>
+                <div class="d-flex gap-2 align-items-center mt-2">
+                  <button id="upload-font" class="btn subtle-button flex-grow-1">
+                    Upload custom font
+                  </button>
+                  <button type="button" class="help-button" data-help="help-font" aria-expanded="false" aria-controls="help-font" aria-label="More information">?</button>
+                </div>
+                <div id="help-font" class="help-text" hidden>
+                  <p>Use your own font by choosing a <strong>.ttf</strong> or <strong>.otf</strong> file from your computer.</p>
+                  <p>Only use fonts you have the right to use. Thick, simple fonts print best; very thin fonts and fine details may not survive in clay.</p>
+                </div>
 
                 <div class="range-control">
                   <div class="range-heading">
@@ -157,7 +175,7 @@
                     class="form-range clay-range"
                     type="range"
                     min="0.5"
-                    max="200"
+                    max="60"
                     step="0.5"
                   />
                 </div>
@@ -242,6 +260,7 @@
                       id="artwork-base-size"
                       class="form-control clay-input"
                       type="number"
+                      max="120"
                       min="0.5"
                       step="0.5"
                     />
@@ -252,7 +271,11 @@
                 <div id="png-options" class="range-control d-none">
                   <div class="range-heading">
                     <label for="png-smoothing">PNG smoothing</label>
+                    <button type="button" class="help-button" data-help="help-smoothing" aria-expanded="false" aria-controls="help-smoothing" aria-label="More information">?</button>
                     <output id="png-smoothing-value">2×</output>
+                  </div>
+                  <div id="help-smoothing" class="help-text" hidden>
+                    <p>Higher values smooth jagged edges but lose fine details. Lower values keep more detail.</p>
                   </div>
                   <input
                     id="png-smoothing"
@@ -285,7 +308,7 @@
                   <label class="control-label" for="element-scale">
                     Scale
                     <span class="pipeline-input-unit">
-                      <input id="element-scale" class="form-control clay-input" type="number" min="0.05" step="0.05" />
+                      <input id="element-scale" class="form-control clay-input" type="number" min="0.05" max="4" step="0.05" />
                       <span>×</span>
                     </span>
                   </label>
@@ -328,7 +351,14 @@
                   </div>
                 </div>
 
-                <label class="control-label">Face shape</label>
+                <div class="label-with-help">
+                  <label class="control-label">Face shape</label>
+                  <button type="button" class="help-button" data-help="help-shape" aria-expanded="false" aria-controls="help-shape" aria-label="More information">?</button>
+                </div>
+                <div id="help-shape" class="help-text" hidden>
+                  <p><strong>Round</strong> and <strong>Square</strong> give the stamp a fixed base shape.</p>
+                  <p><strong>Artwork</strong> makes the base follow the outline of your design.</p>
+                </div>
                 <div id="pipeline-face-shape" class="segmented-control pipeline-tabs">
                   <button class="segment active" type="button" data-shape="round">Round</button>
                   <button class="segment" type="button" data-shape="square">Square</button>
@@ -370,7 +400,8 @@
                         id="pipeline-face-size"
                         class="form-control clay-input"
                         type="number"
-                        min="1"
+                        max="120"
+                        min="10"
                         step="1"
                       />
                       <span>mm</span>
@@ -404,7 +435,14 @@
                   </label>
                 </div>
 
-                <label class="control-label mt-3">Relief</label>
+                <div class="label-with-help mt-3">
+                  <label class="control-label">Relief</label>
+                  <button type="button" class="help-button" data-help="help-relief" aria-expanded="false" aria-controls="help-relief" aria-label="More information">?</button>
+                </div>
+                <div id="help-relief" class="help-text" hidden>
+                  <p><strong>Raised</strong>: the letters stick out of the stamp, like a normal stamp.</p>
+                  <p><strong>Recessed</strong>: the letters are cut into the surface instead.</p>
+                </div>
                 <div id="pipeline-relief-mode" class="segmented-control pipeline-tabs">
                   <button class="segment active" type="button" data-mode="emboss">Raised</button>
                   <button class="segment" type="button" data-mode="deboss">Recessed</button>
@@ -427,8 +465,9 @@
 
                 <div class="setting-row">
                   <div>
-                    <span class="setting-label">Mirror design</span>
+                    <span class="setting-label">Mirror design</span> <button type="button" class="help-button" data-help="help-mirror" aria-expanded="false" aria-controls="help-mirror" aria-label="More information">?</button>
                     <small>Make the clay impression readable</small>
+                    <span id="help-mirror" class="help-text help-inline" hidden>A stamp prints the mirror image of what you see on it. Keep this on so the text reads correctly on the clay. The 2D view shows your design the right way round; the 3D view shows the real, mirrored stamp.</span>
                   </div>
                   <div class="form-check form-switch mb-0">
                     <input

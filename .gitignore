@@ -1,4 +1,7 @@
 node_modules/
+
+# Build output (created by `npm run build`)
+dist/
 CODEX.md
 
 # Devenv
@@ -11,5 +14,3 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
-
-package-lock.json

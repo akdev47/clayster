@@ -22,10 +22,16 @@ export function createPipelineControls(
     dom.faceSize.disabled = dom.faceSizeRange.disabled = dom.autoFace.checked;
     pipeline.setStamp({ autoFaceSize: dom.autoFace.checked });
   });
-  bindNumber(dom.faceSize, (faceSize) => {
-    dom.faceSizeRange.value = String(faceSize);
-    pipeline.setStamp({ faceSize });
-  }, 1);
+  bindNumber(
+    dom.faceSize,
+    (value) => {
+      const faceSize = Math.min(120, value);
+      if (faceSize !== value) dom.faceSize.value = String(faceSize);
+      dom.faceSizeRange.value = String(faceSize);
+      pipeline.setStamp({ faceSize });
+    },
+    10,
+  );
   dom.faceSizeRange.addEventListener("input", () => {
     const faceSize = Number(dom.faceSizeRange.value);
     dom.faceSize.value = String(faceSize);

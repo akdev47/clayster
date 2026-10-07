@@ -8,12 +8,15 @@ import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
 import { createReviewPage } from "./src/reviewPage.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
 import { createOrderPage } from "./src/orderPage.js";
+import { DesignHistory } from "./src/designHistory.js";
 import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
   cornerDragScale,
   fitsFace,
+  MAX_ELEMENT_SCALE,
+  MIN_ELEMENT_SCALE,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -34,6 +37,7 @@ const state = {
 const designModel = new DesignModel({ elements: [] });
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
+const designHistory = new DesignHistory(designModel);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
@@ -700,18 +704,68 @@ $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Backspace") return;
-
-  const target = event.target;
-  const isEditing =
+function isEditingField(target) {
+  return (
     target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+  );
+}
 
-  if (isEditing || !selectedElement()) return;
+// Only the Delete key removes the selected element: Backspace is what people
+// press to edit text, and it must never delete the design.
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Delete") {
+    if (isEditingField(event.target) || !selectedElement()) return;
+    event.preventDefault();
+    deleteSelectedElement();
+    return;
+  }
 
-  event.preventDefault();
-  deleteSelectedElement();
+  // Inside text fields the browser's own undo handles typing.
+  const modifier = event.ctrlKey || event.metaKey;
+  if (!modifier || isEditingField(event.target) || interactionActive) return;
+  const key = event.key.toLowerCase();
+  if (key === "z" && !event.shiftKey) {
+    event.preventDefault();
+    undoDesign();
+  } else if ((key === "z" && event.shiftKey) || key === "y") {
+    event.preventDefault();
+    redoDesign();
+  }
+});
+
+// Undo / redo of design elements.
+function afterHistoryJump() {
+  editor.ensureSelection();
+  render();
+}
+
+function undoDesign() {
+  if (designHistory.undo()) afterHistoryJump();
+}
+
+function redoDesign() {
+  if (designHistory.redo()) afterHistoryJump();
+}
+
+function updateHistoryButtons() {
+  $("#undo-button").disabled = !designHistory.canUndo;
+  $("#redo-button").disabled = !designHistory.canRedo;
+}
+
+$("#undo-button").addEventListener("click", undoDesign);
+$("#redo-button").addEventListener("click", redoDesign);
+designHistory.addEventListener("change", updateHistoryButtons);
+updateHistoryButtons();
+
+// "?" buttons show or hide the explanation they point to.
+document.addEventListener("click", (event) => {
+  const button = event.target.closest(".help-button");
+  if (button === null) return;
+  const text = document.getElementById(button.dataset.help);
+  const show = text.hidden;
+  text.hidden = !show;
+  button.setAttribute("aria-expanded", String(show));
 });
 
 $("#text-input").addEventListener("input", (event) => {
@@ -777,14 +831,23 @@ $("#png-smoothing").addEventListener("input", (event) => {
   }
 });
 
-function bindTransformNumber(selector, field, minimum = -Infinity) {
+function bindTransformNumber(
+  selector,
+  field,
+  minimum = -Infinity,
+  maximum = Infinity,
+) {
   $(selector).addEventListener("input", (event) => {
-    const value = Number(event.target.value);
+    let value = Number(event.target.value);
     if (
       event.target.value !== "" &&
       Number.isFinite(value) &&
       value >= minimum
     ) {
+      if (value > maximum) {
+        value = maximum;
+        event.target.value = String(maximum);
+      }
       designControls.updateSelectedTransform({ [field]: value });
       if (editor.selectedId !== null) editor.constrainElement(editor.selectedId);
       renderCanonicalArtwork();
@@ -795,7 +858,12 @@ function bindTransformNumber(selector, field, minimum = -Infinity) {
 
 bindTransformNumber("#element-x", "xMm");
 bindTransformNumber("#element-y", "yMm");
-bindTransformNumber("#element-scale", "scale", 0.05);
+bindTransformNumber(
+  "#element-scale",
+  "scale",
+  MIN_ELEMENT_SCALE,
+  MAX_ELEMENT_SCALE,
+);
 bindTransformNumber("#element-rotation", "rotationDeg");
 
 $("#element-mirror-x").addEventListener("change", (event) => {

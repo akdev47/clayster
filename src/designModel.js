@@ -183,6 +183,15 @@ export class DesignModel extends EventTarget {
     return removed;
   }
 
+  /**
+   * Swaps in a whole earlier element list (undo / redo). Elements are frozen
+   * and never edited in place, so a list can be kept and restored as-is.
+   */
+  replaceElements(elements) {
+    this.#elements = normalizeElements(elements);
+    this.#changed();
+  }
+
   #changed() {
     this.dispatchEvent(new Event("change"));
   }
