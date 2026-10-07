@@ -19,10 +19,12 @@ const ORDER_FIELDS = {
   notes: "notes",
 };
 const DELIVERY_FIELDS = [
-  "fullName",
+  "firstName",
+  "lastName",
   "email",
   "street",
   "houseNumber",
+  "houseNumberAddition",
   "postalCode",
   "city",
   "country",

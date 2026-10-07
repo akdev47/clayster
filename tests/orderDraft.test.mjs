@@ -14,10 +14,12 @@ import {
 
 const goodDelivery = {
   ...DEFAULT_DELIVERY,
-  fullName: "Anna Jansen",
+  firstName: "Anna",
+  lastName: "Jansen",
   email: "anna@example.com",
   street: "Kerkstraat",
-  houseNumber: "12a",
+  houseNumber: "12",
+  houseNumberAddition: "a",
   postalCode: "1234 AB",
   city: "Utrecht",
 };
@@ -53,7 +55,12 @@ test("payload is JSON-safe and keeps only file names for uploaded artwork", () =
   assert.equal(payload.order.title, "Bakery");
   assert.equal(payload.order.quantity, 3);
   assert.equal(payload.delivery.postalCode, "1234 AB");
-  assert.equal(payload.schemaVersion, 2);
+  assert.equal(payload.schemaVersion, 3);
+  assert.equal(payload.delivery.firstName, "Anna");
+  assert.equal(payload.delivery.lastName, "Jansen");
+  assert.equal(payload.delivery.houseNumber, "12");
+  assert.equal(payload.delivery.houseNumberAddition, "a");
+  assert.equal("fullName" in payload.delivery, false);
   assert.equal(payload.savedAt, "2026-01-02T03:04:05.000Z");
   assert.equal(payload.design[1].source.reference, "logo.svg");
   assert.equal(payload.design[2].source.reference, null);
@@ -90,10 +97,16 @@ test("validates delivery fields and country-specific postal codes", () => {
   assert.deepEqual(validateDelivery(goodDelivery), {});
 
   const empty = validateDelivery(DEFAULT_DELIVERY);
-  for (const field of ["fullName", "email", "street", "houseNumber", "postalCode", "city"]) {
+  for (const field of ["firstName", "lastName", "email", "street", "houseNumber", "postalCode", "city"]) {
     assert.ok(empty[field], field);
   }
   assert.equal("phone" in empty, false, "phone is optional");
+  assert.equal("houseNumberAddition" in empty, false, "addition is optional");
+
+  for (const houseNumber of ["12a", "0", "-3", "1 2", "123456"]) {
+    assert.ok(validateDelivery({ ...goodDelivery, houseNumber }).houseNumber, houseNumber);
+  }
+  assert.deepEqual(validateDelivery({ ...goodDelivery, houseNumberAddition: "" }), {});
 
   assert.ok(validateDelivery({ ...goodDelivery, email: "nope" }).email);
   assert.ok(validateDelivery({ ...goodDelivery, phone: "abc" }).phone);
