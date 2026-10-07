@@ -29,6 +29,7 @@ def checkout(request):
                 )
             
             order_item = OrderItem.objects.create(
+                name = product.name,
                 order = order,
                 product = product,
                 quantity = quantity,
