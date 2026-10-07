@@ -61,6 +61,17 @@ test("Text exposes one synchronized size control while images keep Scale", async
   );
 });
 
+test("the selected element controls expose a Duplicate action", async () => {
+  const [html, main] = await Promise.all([
+    projectFile("index.html"),
+    projectFile("main.js"),
+  ]);
+
+  assert.match(html, /<button id="duplicate-element"[^>]*>\s*Duplicate Element/);
+  assert.match(main, /#duplicate-element"\)\.disabled = !element/);
+  assert.match(main, /editor\.duplicateSelected\(\)/);
+});
+
 test("only the left alignment icon uses varied lines with one left edge", async () => {
   const html = await projectFile("index.html");
   const buttonContents = (alignment) =>

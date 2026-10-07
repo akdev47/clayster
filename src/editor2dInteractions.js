@@ -57,6 +57,7 @@ export const MIN_TEXT_SIZE_MM = 0.5;
 export const MAX_TEXT_SIZE_MM = 60;
 export const TEXT_SIZE_STEP_MM = 0.5;
 export const KEYBOARD_MOVE_STEP_MM = 0.5;
+export const DUPLICATE_OFFSET_MM = 2;
 
 export function textSizeFromScale(startSizeMm, scale) {
   if (!(startSizeMm > 0) || !Number.isFinite(startSizeMm)) {
@@ -415,6 +416,26 @@ export class DesignEditorController {
     const nextIndex = Math.min(index, this.model.elements.length - 1);
     this.selectedId = this.model.elements[nextIndex]?.id ?? null;
     return removed;
+  }
+
+  duplicateSelected(offsetMm = DUPLICATE_OFFSET_MM) {
+    const selected = this.selectedElement();
+    if (selected === null) return null;
+    if (!(offsetMm > 0) || !Number.isFinite(offsetMm)) {
+      throw new RangeError("Duplicate offset must be positive.");
+    }
+
+    const { id: _originalId, ...editable } = selected;
+    const duplicate = this.model.addElement({
+      ...editable,
+      transform: {
+        ...selected.transform,
+        xMm: selected.transform.xMm + offsetMm,
+        yMm: selected.transform.yMm - offsetMm,
+      },
+    });
+    this.select(duplicate.id);
+    return duplicate;
   }
 
   updateSelectedText(sourcePatch) {

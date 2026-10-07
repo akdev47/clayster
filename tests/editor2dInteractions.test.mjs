@@ -6,6 +6,7 @@ import { ArtworkComposer } from "../src/pipeline/artworkComposition.js";
 import { bounds, transform } from "../src/pipeline/canonical.js";
 import {
   DesignEditorController,
+  DUPLICATE_OFFSET_MM,
   KEYBOARD_MOVE_STEP_MM,
   MAX_TEXT_SIZE_MM,
   arrowKeyDelta,
@@ -313,6 +314,100 @@ test("deletion removes the selected shared element", () => {
   assert.equal(removed.id, "text-1");
   assert.equal(model.getElement("text-1"), null);
   assert.equal(editor.selectedId, "svg-1");
+});
+
+test("duplicating copies editable properties, offsets, selects, and supports undo/redo", () => {
+  const reference = { name: "art.png" };
+  const originalInput = {
+    id: "png-original",
+    kind: "png",
+    visible: false,
+    operation: "add",
+    source: {
+      reference,
+      baseSizeMm: 37,
+      tracing: {
+        smoothing: 3,
+        backgroundMode: "pick",
+        backgroundSamples: [{ x: 0.1, y: 0.2 }],
+        backgroundTolerance: 1.5,
+      },
+    },
+    transform: {
+      xMm: 8,
+      yMm: -4,
+      scale: 1.7,
+      rotationDeg: 23,
+      mirrorX: true,
+      mirrorY: true,
+      pivotX: 2,
+      pivotY: -1,
+    },
+  };
+  const model = new DesignModel({ elements: [originalInput] });
+  const editor = new DesignEditorController(model);
+  const history = new DesignHistory(model);
+  const original = model.getElement("png-original");
+
+  const duplicate = editor.duplicateSelected();
+
+  assert.equal(DUPLICATE_OFFSET_MM, 2);
+  assert.notEqual(duplicate.id, original.id);
+  assert.equal(model.elements.length, 2);
+  assert.equal(editor.selectedId, duplicate.id);
+  assert.equal(duplicate.kind, original.kind);
+  assert.equal(duplicate.visible, original.visible);
+  assert.equal(duplicate.operation, original.operation);
+  assert.deepEqual(duplicate.source, original.source);
+  assert.equal(duplicate.source.reference, reference);
+  assert.deepEqual(duplicate.transform, {
+    ...original.transform,
+    xMm: original.transform.xMm + DUPLICATE_OFFSET_MM,
+    yMm: original.transform.yMm - DUPLICATE_OFFSET_MM,
+  });
+
+  history.undo();
+  editor.ensureSelection();
+  assert.equal(model.elements.length, 1);
+  assert.equal(editor.selectedId, original.id);
+  history.redo();
+  assert.equal(model.elements.length, 2);
+  assert.equal(model.getElement(duplicate.id).id, duplicate.id);
+});
+
+test("duplicating Text, SVG, and PNG reuses resolved source conversion", async () => {
+  for (const element of [
+    {
+      id: "text-original",
+      kind: "text",
+      source: { text: "CLAY", fontSizeMm: 12 },
+    },
+    {
+      id: "svg-original",
+      kind: "svg",
+      source: { reference: { name: "art.svg" }, baseSizeMm: 25 },
+    },
+    {
+      id: "png-original",
+      kind: "png",
+      source: { reference: { name: "art.png" }, baseSizeMm: 25 },
+    },
+  ]) {
+    let conversions = 0;
+    const model = new DesignModel({ elements: [element] });
+    const editor = new DesignEditorController(model);
+    const composer = new ArtworkComposer(async () => {
+      conversions += 1;
+      return { canonical: [square], issues: [] };
+    });
+
+    await composer.compose(model.elements);
+    editor.duplicateSelected();
+    const result = await composer.compose(model.elements);
+
+    assert.equal(conversions, 1, `${element.kind} source converted again`);
+    assert.equal(result.renderElements.length, 2);
+  }
 });
 
 test("text editing updates the selected text source", () => {

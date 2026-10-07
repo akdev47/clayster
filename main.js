@@ -447,6 +447,7 @@ function updateControls() {
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
   $("#transform-controls").classList.toggle("d-none", !element);
   $("#element-scale-control").classList.toggle("d-none", !element || isText);
+  $("#duplicate-element").disabled = !element;
   $("#delete-element").disabled = !element;
 
   if (element) {
@@ -897,6 +898,15 @@ function deleteSelectedElement() {
   if (editor.deleteSelected() === null) return;
   render();
 }
+
+function duplicateSelectedElement() {
+  if (editor.duplicateSelected() === null) return;
+  render();
+}
+
+$("#duplicate-element").addEventListener("click", () => {
+  duplicateSelectedElement();
+});
 
 $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();

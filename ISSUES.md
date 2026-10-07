@@ -11,6 +11,8 @@ Last updated: 2026-10-05
 - [x] **[ux] PNG photos give poor results.** Help text explains it; a preview of the traced shape or a warning on very detailed images would be better.
 - [x] **[ux] Keyboard use.** Elements cannot be moved with the arrow keys, visible focus outlines are removed on design elements, and the alignment buttons are not labelled correctly.
 - [x] **[ux] Text alignment moved the whole element.** Alignment now positions the text lines inside the text box instead of moving the text around the stamp.
+- [x] **[ux] Two sizes for text.** The "Text size" slider (font size in mm) and the element scale (corner handles / scale field) both change how big text is. Dragging a handle does not move the slider.
+- [x] **[ux] Red (overflowing) elements have no quick fix.** Add a "Fit to stamp" button next to the warning.
 
 ## Open issues
 
@@ -21,9 +23,7 @@ Last updated: 2026-10-05
 - [ ] **[tech] No tests for the page code.** `orderPage.js`, the red overflow overlay and the 3D order preview were only checked through logic tests, never in a real browser.
 
 ### Editor
-- [ ] **[ux] Two sizes for text.** The "Text size" slider (font size in mm) and the element scale (corner handles / scale field) both change how big text is. Dragging a handle does not move the slider.
 - [ ] **[ux] Text shrinks silently.** Very long text is made smaller automatically, so the slider can show a larger size than what is used.
-- [ ] **[ux] Red (overflowing) elements have no quick fix.** Add a "Fit to stamp" button next to the warning.
 - [ ] **[ux] Hidden gesture.** Dragging the stamp in the 3D view resizes it, and nothing explains this.
 - [ ] **[ux] 2D view is shown unmirrored, 3D mirrored.** The "Mirror design" help text explains it, but the 2D view itself says nothing.
 - [ ] **[ux] "Add SVG" and "Add PNG" share the same icon.**

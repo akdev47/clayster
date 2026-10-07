@@ -134,8 +134,17 @@ export class ArtworkComposer {
     const cached = this.elementCache.get(element.id);
     if (cached?.key === sourceKey) return cached.value;
 
+    const reusable = [...this.elementCache.values()].find(
+      (entry) => entry.key === sourceKey && entry.resolved,
+    );
+    if (reusable !== undefined) {
+      const entry = { ...reusable };
+      this.elementCache.set(element.id, entry);
+      return entry.value;
+    }
+
     const pending = Promise.resolve().then(() => this.convertElement(element));
-    const entry = { key: sourceKey, value: pending };
+    const entry = { key: sourceKey, value: pending, resolved: false };
     this.elementCache.set(element.id, entry);
 
     try {
@@ -149,6 +158,7 @@ export class ArtworkComposer {
       }
 
       entry.value = converted;
+      entry.resolved = true;
       return converted;
     } catch (error) {
       if (this.elementCache.get(element.id) === entry) {
