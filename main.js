@@ -13,8 +13,10 @@ import {
   DesignEditorController,
   canonicalOverlayBox,
   fitsFace,
+  isEditingField,
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
+  shouldHandleElementArrowKey,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -178,6 +180,11 @@ function addResizeHandles(element) {
 }
 
 function renderArtboard() {
+  const focusedElementId = document.activeElement?.classList?.contains(
+    "design-element",
+  )
+    ? document.activeElement.dataset.elementId
+    : null;
   artboard.querySelectorAll(".design-element").forEach((item) => item.remove());
 
   designModel.elements.forEach((element) => {
@@ -206,6 +213,8 @@ function renderArtboard() {
     }
 
     item.addEventListener("pointerdown", startDrag);
+    item.addEventListener("focus", () => selectElement(element.id));
+    item.addEventListener("keydown", moveElementFromKeyboard);
     item.querySelectorAll(".resize-handle").forEach((handle) => {
       handle.addEventListener("pointerdown", (event) => {
         startResize(event, element, item);
@@ -214,6 +223,13 @@ function renderArtboard() {
     artboard.append(item);
     applyOverlayBounds(item, element);
   });
+
+  if (focusedElementId !== null) {
+    const focusedItem = [...artboard.querySelectorAll(".design-element")].find(
+      (item) => item.dataset.elementId === focusedElementId,
+    );
+    focusedItem?.focus({ preventScroll: true });
+  }
 }
 
 function renderCanonicalArtwork() {
@@ -455,10 +471,9 @@ function updateControls() {
   );
 
   $$(".alignment-button").forEach((button) => {
-    button.classList.toggle(
-      "active",
-      button.dataset.align === element.source.alignment,
-    );
+    const active = button.dataset.align === element.source.alignment;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
 }
 
@@ -616,6 +631,23 @@ function startDrag(event) {
   item.addEventListener("pointermove", move);
   item.addEventListener("pointerup", stop);
   item.addEventListener("pointercancel", stop);
+}
+
+function moveElementFromKeyboard(event) {
+  if (!shouldHandleElementArrowKey(event)) return;
+
+  event.preventDefault();
+  interactionActive = true;
+  try {
+    const item = event.currentTarget;
+    const changed = editor.moveFromArrowKey(item.dataset.elementId, event.key);
+    if (changed === null) return;
+    renderCanonicalArtwork();
+    applyOverlayBounds(item, changed);
+    updateControls();
+  } finally {
+    interactionActive = false;
+  }
 }
 
 function startResize(event, element, item) {
@@ -808,13 +840,6 @@ function deleteSelectedElement() {
 $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();
 });
-
-function isEditingField(target) {
-  return (
-    target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-  );
-}
 
 // Only the Delete key removes the selected element: Backspace is what people
 // press to edit text, and it must never delete the design.

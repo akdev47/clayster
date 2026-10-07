@@ -1,11 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DesignModel } from "../src/designModel.js";
+import { DesignHistory } from "../src/designHistory.js";
 import { ArtworkComposer } from "../src/pipeline/artworkComposition.js";
 import { bounds } from "../src/pipeline/canonical.js";
 import {
   DesignEditorController,
+  KEYBOARD_MOVE_STEP_MM,
+  arrowKeyDelta,
   canonicalOverlayBox,
+  shouldHandleElementArrowKey,
   screenDeltaToMillimetres,
 } from "../src/editor2dInteractions.js";
 
@@ -50,6 +54,60 @@ test("screen movement converts downward pixels to negative canonical Y", () => {
       { widthMm: 40, heightMm: 30 },
     ),
     { xMm: -10, yMm: -15 },
+  );
+});
+
+test("arrow keys move the selected element in authoritative millimetres", () => {
+  const model = new DesignModel({
+    elements: [
+      textElement({ xMm: 3, yMm: -2 }),
+      { id: "svg-1", kind: "svg" },
+    ],
+  });
+  const editor = new DesignEditorController(model, { selectedId: "svg-1" });
+
+  editor.moveFromArrowKey("text-1", "ArrowRight");
+  editor.moveFromArrowKey("text-1", "ArrowLeft");
+
+  assert.equal(KEYBOARD_MOVE_STEP_MM, 0.5);
+  assert.equal(model.getElement("text-1").transform.xMm, 3);
+  assert.equal(model.getElement("text-1").transform.yMm, -2);
+  assert.equal(editor.selectedId, "text-1");
+});
+
+test("arrow-up is positive canonical Y and arrow-down is negative", () => {
+  assert.deepEqual(arrowKeyDelta("ArrowUp"), { xMm: 0, yMm: 0.5 });
+  assert.deepEqual(arrowKeyDelta("ArrowDown"), { xMm: 0, yMm: -0.5 });
+
+  const model = new DesignModel({ elements: [textElement()] });
+  const editor = new DesignEditorController(model);
+  editor.moveFromArrowKey("text-1", "ArrowUp");
+  assert.equal(model.getElement("text-1").transform.yMm, 0.5);
+});
+
+test("element arrow handling ignores form fields and modifier shortcuts", () => {
+  const element = { tagName: "DIV", isContentEditable: false };
+  const input = { tagName: "INPUT", isContentEditable: false };
+  const event = (target, overrides = {}) => ({
+    key: "ArrowRight",
+    target,
+    currentTarget: target,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...overrides,
+  });
+
+  assert.equal(shouldHandleElementArrowKey(event(element)), true);
+  assert.equal(shouldHandleElementArrowKey(event(input)), false);
+  assert.equal(
+    shouldHandleElementArrowKey(event(element, { ctrlKey: true })),
+    false,
+  );
+  assert.equal(
+    shouldHandleElementArrowKey({ ...event(element), target: input }),
+    false,
   );
 });
 
@@ -134,13 +192,7 @@ test("transform-only edits reuse the element conversion cache", async () => {
   });
 
   await composer.compose(model.elements);
-  editor.moveFromScreenDelta(
-    "text-1",
-    model.getElement("text-1").transform,
-    { deltaX: 50, deltaY: 0 },
-    { width: 500, height: 300 },
-    { widthMm: 100, heightMm: 60 },
-  );
+  editor.moveFromArrowKey("text-1", "ArrowRight");
   editor.resize(
     "text-1",
     [square],
@@ -151,6 +203,24 @@ test("transform-only edits reuse the element conversion cache", async () => {
 
   assert.equal(conversions, 1);
   assert.ok(bounds(result.artwork).width > 4);
+});
+
+test("keyboard movement remains undoable, redoable and deletable", () => {
+  const model = new DesignModel({ elements: [textElement()] });
+  const editor = new DesignEditorController(model);
+  const history = new DesignHistory(model);
+
+  editor.moveFromArrowKey("text-1", "ArrowRight");
+  history.undo();
+  editor.ensureSelection();
+  assert.equal(model.getElement("text-1").transform.xMm, 0);
+  assert.equal(editor.selectedId, "text-1");
+
+  history.redo();
+  editor.ensureSelection();
+  assert.equal(model.getElement("text-1").transform.xMm, 0.5);
+  assert.equal(editor.deleteSelected().id, "text-1");
+  assert.equal(model.getElement("text-1"), null);
 });
 
 test("switching views preserves the same selected element state", () => {

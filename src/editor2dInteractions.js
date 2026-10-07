@@ -53,6 +53,45 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
 // scale field so both allow the same sizes.
 export const MIN_ELEMENT_SCALE = 0.2;
 export const MAX_ELEMENT_SCALE = 4;
+export const KEYBOARD_MOVE_STEP_MM = 0.5;
+
+const ARROW_MOVEMENT = Object.freeze({
+  ArrowLeft: Object.freeze({ xMm: -1, yMm: 0 }),
+  ArrowRight: Object.freeze({ xMm: 1, yMm: 0 }),
+  ArrowUp: Object.freeze({ xMm: 0, yMm: 1 }),
+  ArrowDown: Object.freeze({ xMm: 0, yMm: -1 }),
+});
+
+export function arrowKeyDelta(key, stepMm = KEYBOARD_MOVE_STEP_MM) {
+  const direction = ARROW_MOVEMENT[key];
+  if (direction === undefined) return null;
+  if (!(stepMm > 0) || !Number.isFinite(stepMm)) {
+    throw new RangeError("Keyboard movement step must be positive.");
+  }
+  return {
+    xMm: direction.xMm * stepMm,
+    yMm: direction.yMm * stepMm,
+  };
+}
+
+export function isEditingField(target) {
+  return Boolean(
+    target?.isContentEditable ||
+      ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName),
+  );
+}
+
+export function shouldHandleElementArrowKey(event) {
+  return (
+    event.target === event.currentTarget &&
+    !isEditingField(event.target) &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    arrowKeyDelta(event.key) !== null
+  );
+}
 
 const EPSILON = 1e-6;
 
@@ -189,6 +228,27 @@ export class DesignEditorController {
       ...startTransform,
       xMm: startTransform.xMm + movement.xMm,
       yMm: startTransform.yMm + movement.yMm,
+    };
+    const canonical = this.canonicalFor(id);
+    const allowed =
+      canonical === undefined
+        ? desired
+        : (constrainToFace(canonical, desired, this.faceLimit) ?? desired);
+    return this.model.updateElement(id, {
+      transform: { xMm: allowed.xMm, yMm: allowed.yMm },
+    });
+  }
+
+  moveFromArrowKey(id, key, stepMm = KEYBOARD_MOVE_STEP_MM) {
+    const movement = arrowKeyDelta(key, stepMm);
+    const element = this.model.getElement(id);
+    if (movement === null || element === null) return null;
+
+    this.select(id);
+    const desired = {
+      ...element.transform,
+      xMm: element.transform.xMm + movement.xMm,
+      yMm: element.transform.yMm + movement.yMm,
     };
     const canonical = this.canonicalFor(id);
     const allowed =

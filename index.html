@@ -236,17 +236,34 @@
                 <label class="control-label mt-3">Alignment</label>
 
                 <div class="alignment-control">
-                  <button class="alignment-button" data-align="left" title="Align left">
-                    ≡
-                  </button>
                   <button
-                    class="alignment-button active"
-                    data-align="center"
-                    title="Align center"
+                    type="button"
+                    class="alignment-button"
+                    data-align="left"
+                    title="Align left"
+                    aria-label="Align text left"
+                    aria-pressed="false"
                   >
                     ≡
                   </button>
-                  <button class="alignment-button align-right" data-align="right" title="Align right">
+                  <button
+                    type="button"
+                    class="alignment-button active"
+                    data-align="center"
+                    title="Align center"
+                    aria-label="Align text center"
+                    aria-pressed="true"
+                  >
+                    ≡
+                  </button>
+                  <button
+                    type="button"
+                    class="alignment-button align-right"
+                    data-align="right"
+                    title="Align right"
+                    aria-label="Align text right"
+                    aria-pressed="false"
+                  >
                     ≡
                   </button>
                 </div>
