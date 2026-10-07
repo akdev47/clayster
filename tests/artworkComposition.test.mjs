@@ -56,6 +56,12 @@ async function assertCombination(kinds) {
   );
 }
 
+test("an untouched design has no validation errors", async () => {
+  const result = await composerWith().compose([]);
+  assert.deepEqual(result.artwork, []);
+  assert.deepEqual(result.issues, []);
+});
+
 test("composes text and SVG elements", async () => {
   await assertCombination(["text", "svg"]);
 });

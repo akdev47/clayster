@@ -51,8 +51,27 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
 
 // Realistic range for an element's scale, shared by the corner handles and the
 // scale field so both allow the same sizes.
-export const MIN_ELEMENT_SCALE = 0.2;
+export const MIN_ELEMENT_SCALE = 0.05;
 export const MAX_ELEMENT_SCALE = 4;
+
+/** Scale a corner drag along its original direction from the selection centre. */
+export function cornerDragScale(
+  startPointer,
+  centre,
+  pointer,
+  startScale,
+  { minimum = 0.05, maximum = 20 } = {},
+) {
+  const startX = startPointer.x - centre.x;
+  const startY = startPointer.y - centre.y;
+  const lengthSquared = startX * startX + startY * startY;
+  if (lengthSquared < 1) return startScale;
+
+  const currentX = pointer.x - centre.x;
+  const currentY = pointer.y - centre.y;
+  const factor = (currentX * startX + currentY * startY) / lengthSquared;
+  return Math.min(maximum, Math.max(minimum, startScale * factor));
+}
 
 const EPSILON = 1e-6;
 
