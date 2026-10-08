@@ -65,6 +65,15 @@ export function createPipelineDiagnostics(
 
   const publish = (phase) => {
     state = createPipelineDiagnosticState(pipeline, phase);
+    // Failed stamp generation can still leave editable overflowing artwork.
+    // Offer the same recovery action for Text, SVG and PNG in that case.
+    if (phase === "failed" && getOverflowElementIds().length > 0) {
+      state.rows.push({
+        level: "warning",
+        code: "artwork-overflow",
+        message: "Some artwork extends beyond the usable stamp area.",
+      });
+    }
     renderState(state);
   };
 

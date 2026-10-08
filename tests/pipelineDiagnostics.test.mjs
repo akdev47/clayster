@@ -283,6 +283,19 @@ test("Fit to stamp buttons appear only on overflow warnings", () => {
       }],
     });
     assert.equal(buttons().length, 0);
+
+    // Overflow can make the stamp build fail before it publishes warning
+    // issues. Its editable SVG must still have the recovery action.
+    overflowingIds = ["wide-svg"];
+    pipeline.result = null;
+    pipeline.error = new Error("Stamp generation failed");
+    pipeline.dispatchEvent(new Event("failed"));
+    assert.equal(buttons().length, 1);
+    buttons()[0].click();
+    assert.equal(fittedId, "wide-svg");
+    overflowingIds = [];
+    pipeline.dispatchEvent(new Event("failed"));
+    assert.equal(buttons().length, 0);
   } finally {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;

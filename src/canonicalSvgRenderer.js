@@ -55,7 +55,40 @@ export function createCanonicalSvgRenderer(svg) {
     throw new TypeError("Canonical SVG renderer requires an SVG element.");
   }
 
+  const groups = new Map();
+  let faceGroup = null;
+  let faceKey = null;
   return {
+    // Keep source paths mounted during gestures; only their affine transform
+    // changes. Canonical geometry remains the authority for bounds and checks.
+    renderTransformed(elements, dimensions, { face = [] } = {}) {
+      svg.setAttribute("viewBox", canonicalViewBox(dimensions.widthMm, dimensions.heightMm, dimensions));
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      const nextFaceKey = JSON.stringify(face);
+      if (faceGroup === null || nextFaceKey !== faceKey) {
+        faceGroup = faceNode(face.map((polygon) => ({ d: canonicalPolygonPath(polygon), fillRule: "evenodd" })));
+        faceKey = nextFaceKey;
+      }
+      const active = new Set();
+      const nodes = [faceGroup];
+      for (const element of elements) {
+        active.add(element.id);
+        let entry = groups.get(element.id);
+        if (entry?.canonical !== element.canonical) {
+          entry = { canonical: element.canonical, node: groupNode({
+            id: element.id, kind: element.kind,
+            paths: element.canonical.map((polygon) => ({ d: canonicalPolygonPath(polygon), fillRule: "evenodd" })),
+          }) };
+          groups.set(element.id, entry);
+        }
+        entry.node.dataset.elementKind = element.kind;
+        entry.node.setAttribute("transform", (element.transforms ?? [element.transform]).slice().reverse().map(canonicalSvgTransform).join(" "));
+        nodes.push(entry.node);
+      }
+      for (const id of groups.keys()) if (!active.has(id)) groups.delete(id);
+      // Avoid detaching nodes (and reparsing paths) when only transforms change.
+      if (nodes.length !== svg.children.length || nodes.some((node, index) => svg.children[index] !== node)) svg.replaceChildren(...nodes);
+    },
     render(elements, dimensions, options = {}) {
       const scene = canonicalSvgScene(elements, dimensions, options);
       svg.setAttribute("viewBox", scene.viewBox);
@@ -77,6 +110,14 @@ export function createCanonicalSvgRenderer(svg) {
       svg.replaceChildren();
     },
   };
+}
+
+/** Affine canonical Y-up transform expressed in SVG Y-down coordinates. */
+export function canonicalSvgTransform(options = {}) {
+  const { scale = 1, rotationDeg = 0, mirrorX = false, mirrorY = false, pivotX = 0, pivotY = 0 } = options;
+  const x = options.xMm ?? options.offsetX ?? 0;
+  const y = options.yMm ?? options.offsetY ?? 0;
+  return `translate(${pivotX + x} ${-pivotY - y}) rotate(${-rotationDeg}) scale(${mirrorX ? -scale : scale} ${mirrorY ? -scale : scale}) translate(${-pivotX} ${pivotY})`;
 }
 
 function faceNode(paths) {

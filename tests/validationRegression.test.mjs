@@ -402,12 +402,9 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
     pipeline.stamp.mode = "deboss";
     pipeline.stamp.reliefDepth = pipeline.stamp.faceThickness;
     await rejectedRun(pipeline);
-    assert.ok(pipeline.result.artwork.length > 0);
-    assert.ok(pipeline.result.renderElements.length > 0);
-    assert.equal(pipeline.result.previewOnly, true);
-    assert.equal(pipeline.result.stamp, null);
-    assert.equal(pipeline.result.clay, null);
-    assert.equal(pipeline.result.info, null);
+    assert.equal(pipeline.result, null);
+    assert.ok(pipeline.artworkPreview.artwork.length > 0);
+    assert.ok(pipeline.artworkPreview.renderElements.length > 0);
     assert.equal(byId("pipeline-overall-status").textContent, "Build failed");
     assert.equal(byId("pipeline-export-status").textContent, "Unavailable");
     assert.ok(messages().some((message) => /Recess depth must be smaller/i.test(message)));
