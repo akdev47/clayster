@@ -65,6 +65,9 @@ export class Pipeline extends EventTarget {
     this.stamp = { ...DEFAULT_STAMP };
 
     this.result = null;
+    // The latest successfully converted artwork remains useful to the 2D
+    // editor even when a later stamp-generation or mesh-validation step fails.
+    this.artworkPreview = null;
     this.cache = {
       key: null,
       artwork: null,
@@ -149,10 +152,9 @@ export class Pipeline extends EventTarget {
     // still awaiting a font would otherwise overwrite it.
     const token = ++this.token;
     this.busy = true;
+    this.artworkPreview = null;
     this.resetDiagnostics();
     this.dispatchEvent(new Event("running"));
-    let validatedPreview = null;
-
     try {
       const {
         artwork,
@@ -164,6 +166,14 @@ export class Pipeline extends EventTarget {
       } = await this.artwork();
       if (token !== this.token) return;
 
+      this.artworkPreview = {
+        artwork,
+        issues: initialIssues,
+        sourceStats,
+        elementStats,
+        renderElements,
+      };
+
       let issues = initialIssues;
       this.recordValidation(sourceStats, elementStats, issues);
 
@@ -171,6 +181,7 @@ export class Pipeline extends EventTarget {
         const validationFailed = issues.some(
           ({ level }) => level === "error",
         );
+        if (this.designModel?.elements.length === 0) this.diagnostics = null;
         this.publish(
           {
             artwork,
@@ -185,21 +196,6 @@ export class Pipeline extends EventTarget {
           token,
         );
         return;
-      }
-
-      if (!issues.some(({ level }) => level === "error")) {
-        validatedPreview = {
-          artwork,
-          issues,
-          renderElements,
-          segmentations,
-          stamp: null,
-          clay: null,
-          info: null,
-          layout: null,
-          notes: [],
-          previewOnly: true,
-        };
       }
 
       this.setSVGStage("stamp preparation");
@@ -248,7 +244,7 @@ export class Pipeline extends EventTarget {
 
       console.error(error);
       this.failSVGDiagnostics(error);
-      this.result = validatedPreview;
+      this.result = null;
       this.busy = false;
       this.error = error;
       this.dispatchEvent(new Event("failed"));
@@ -370,7 +366,7 @@ export class Pipeline extends EventTarget {
     );
 
     // Rows are settled before anything is drawn: the wrap decides the
-    // breaks and the size, the layout sets what it is handed.
+    // breaks and the size, and the layout uses the same relative spacing.
     const wrapped = wrapText(font, {
       text: source.text,
       size: source.fontSizeMm,

@@ -16,6 +16,9 @@ Last updated: 2026-10-05
 
 ## Open issues
 
+## 3d render issue
+- [ ] the 3d render sometimes shows triangle at bottem of mug.
+
 ### Order flow
 - [ ] **[ux] "Finalize order" vs "Save order details".** Nothing is placed or sent yet, but the wording suggests a final order. *Decide* the end of the flow (confirmation step, order number), then rename the buttons.
 - [ ] **[ux] Order page is not a real route.** The URL never changes, so the browser back button and reload both return to the design page. The "Logo Here" placeholder is still in the navbar.

@@ -11,6 +11,7 @@ import {
   MAX_TEXT_SIZE_MM,
   arrowKeyDelta,
   canonicalOverlayBox,
+  cornerDragScale,
   fitElementTransform,
   fitsFace,
   shouldHandleElementArrowKey,
@@ -308,6 +309,22 @@ test("Fit to stamp uses Text size for text and transform scale for SVG and PNG",
     assert.ok(fitted.transform.scale < 2);
     assert.equal(fitsFace([oversized], fitted.transform, editor.faceLimit), true);
   }
+});
+
+test("corner dragging shrinks oversized text below its original size", () => {
+  const start = { x: 400, y: 110 };
+  const centre = { x: 200, y: 100 };
+  const scale = cornerDragScale(start, centre, { x: 220, y: 101 }, 1);
+  const model = new DesignModel({ elements: [textElement()] });
+  const editor = new DesignEditorController(model);
+  const startTransform = model.getElement("text-1").transform;
+  editor.resize("text-1", [square], startTransform, scale);
+
+  assert.ok(scale > 0.05 && scale < 0.11);
+  assert.ok(bounds(transform([square], model.getElement("text-1").transform)).width < 0.44);
+  assert.equal(cornerDragScale(start, centre, centre, 1), 0.05);
+  assert.equal(cornerDragScale(start, centre, { x: 0, y: 90 }, 1), 0.05);
+  assert.equal(cornerDragScale(start, centre, { x: 600, y: 120 }, 1), 2);
 });
 
 test("deletion removes the selected shared element", () => {

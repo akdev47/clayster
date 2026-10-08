@@ -38,6 +38,12 @@ const LEVELS = {
     iconClass: "warning-icon",
     badgeClass: "warning-badge",
   },
+  idle: {
+    mark: "+",
+    badge: "Start",
+    iconClass: "idle-icon",
+    badgeClass: "idle-badge",
+  },
 };
 
 export function createPipelineDiagnostics(
@@ -113,6 +119,15 @@ export function createPipelineDiagnosticState(pipeline, phase) {
   const result = pipeline.result;
   if (result === null || result === undefined) {
     throw new Error("A pipeline result event requires a current result.");
+  }
+
+  if (result.artwork?.length === 0 && result.issues?.length === 0) {
+    return {
+      overall: { message: "Add artwork to begin", level: "idle" },
+      rows: [{ level: "idle", message: "Add text, SVG, or PNG to start your design." }],
+      info: null,
+      export: { label: "No design yet", level: "idle", ready: false },
+    };
   }
 
   const issues = result.issues ?? [];

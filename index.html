@@ -15,34 +15,26 @@
   </head>
 
   <body>
-    <nav class="navbar navbar-expand-md clayster-navbar">
+    <nav class="navbar clayster-navbar">
       <div class="container-fluid px-3 px-lg-5">
         <a class="navbar-brand clayster-logo" href="#">
           <span class="logo-text">Logo Here</span>
           <span>Clayster</span>
         </a>
 
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#main-navigation"
-          aria-controls="main-navigation"
-          aria-expanded="false"
-          aria-label="Open navigation"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div id="main-navigation" class="collapse navbar-collapse">
-          <div class="navbar-nav ms-auto gap-md-2">
-            <a id="nav-design" class="nav-link active" href="#">Design</a>
-            <a id="nav-order" class="nav-link" href="#order">Order details</a>
-            <a class="nav-link" href="#" hidden>Account</a> <!-- hidden until accounts exist -->
-          </div>
+        <div class="navbar-nav ms-auto">
+          <a class="nav-link" href="#" hidden>Account</a> <!-- hidden until accounts exist -->
         </div>
       </div>
     </nav>
+
+    <div class="workflow-progress-wrap container-fluid px-3 px-lg-5">
+      <ol class="workflow-progress" aria-label="Order progress">
+        <li data-workflow-step="design" class="current" aria-current="step"><span class="workflow-step-number">1</span>Design</li>
+        <li data-workflow-step="review"><span class="workflow-step-number">2</span>Review</li>
+        <li data-workflow-step="order"><span class="workflow-step-number">3</span>Order details</li>
+      </ol>
+    </div>
 
     <main id="design-page" class="container-fluid page-container px-3 px-lg-5">
       <div class="workspace-shell">
@@ -104,7 +96,7 @@
               </div>
             </section>
 
-            <section class="sidebar-section">
+            <section id="selected-element-section" class="sidebar-section" hidden>
               <div class="section-heading">
                 <div>
                   <h2>Selected Element</h2>
@@ -381,7 +373,7 @@
                   <label id="element-scale-control" class="control-label" for="element-scale">
                     Scale
                     <span class="pipeline-input-unit">
-                      <input id="element-scale" class="form-control clay-input" type="number" min="0.2" max="4" step="0.05" />
+                      <input id="element-scale" class="form-control clay-input" type="number" min="0.05" max="4" step="0.05" />
                       <span>×</span>
                     </span>
                   </label>
@@ -710,13 +702,94 @@
                   Wait for the stamp to finish building.
                 </p>
                 <button id="continue-button" class="btn primary-button w-100" type="button" disabled>
-                  Finalize order
+                  Continue to review
                   <span>→</span>
                 </button>
               </div>
             </div>
           </aside>
         </div>
+      </div>
+    </main>
+
+    <main id="review-page" class="container-fluid page-container px-3 px-lg-5" hidden>
+      <div class="workspace-shell review-shell">
+        <header class="review-heading">
+          <div>
+            <h1>Review your stamp</h1>
+            <p>Check your design, dimensions and printability before continuing.</p>
+          </div>
+        </header>
+
+        <div class="review-grid">
+          <section class="review-preview-column" aria-label="Final design preview">
+            <div class="review-preview-toolbar">
+              <p class="review-preview-label">Final preview</p>
+              <div class="review-preview-switches">
+                <div id="review-surface-toggle" class="segmented-control" aria-label="Preview surface" hidden>
+                  <button class="segment active" type="button" data-review-surface="stamp">Stamp</button>
+                  <button class="segment" type="button" data-review-surface="clay">On Clay</button>
+                </div>
+                <div id="review-view-toggle" class="segmented-control" aria-label="Preview dimension">
+                  <button class="segment active" type="button" data-review-view="2d">2D</button>
+                  <button class="segment" type="button" data-review-view="3d">3D</button>
+                </div>
+              </div>
+            </div>
+            <div id="review-preview-frame" class="review-preview-frame" data-view="2d">
+              <svg id="review-stamp-preview" class="review-stamp-preview" role="img" aria-label="Read-only 2D preview of your stamp"></svg>
+              <div id="review-stamp-3d" class="review-stamp-3d" hidden></div>
+              <p id="review-stamp-empty" class="review-empty" hidden>No preview is available yet. Return to the editor to check your design.</p>
+            </div>
+            <div class="review-preview-footer">
+              <span>Final preview only — return to the editor to make changes</span>
+              <div class="dimension-pill">
+                <span>Stamp dimensions</span>
+                <strong id="review-dimension-text">—</strong>
+              </div>
+            </div>
+          </section>
+
+          <aside class="review-details-column">
+            <section class="review-detail-section">
+              <div class="review-section-top">
+                <h2>Printability</h2>
+                <span id="review-check-badge" class="review-check-badge">Checking…</span>
+              </div>
+              <p id="review-check-status" class="overall-status pipeline-overall-working" role="status">Waiting for build…</p>
+              <div id="review-check-list" class="validation-list review-check-list" aria-label="Printability results"></div>
+            </section>
+
+            <section class="review-detail-section">
+              <div class="review-section-top">
+                <h2>Design summary</h2>
+                <div class="review-summary-actions">
+                  <button id="review-summary-toggle" class="btn subtle-button" type="button" aria-expanded="true" aria-controls="review-summary-extra"><span id="review-summary-toggle-label">Hide details</span> <span id="review-summary-toggle-icon" aria-hidden="true">⌃</span></button>
+                  <button id="review-edit" class="btn subtle-button" type="button">Edit design</button>
+                </div>
+              </div>
+              <div id="review-summary-extra" class="review-summary-extra">
+                <dl id="review-summary" class="review-summary"></dl>
+                <div class="review-extra-block">
+                  <h3>Handle</h3>
+                  <p id="review-handle" class="review-handle"></p>
+                </div>
+                <div class="review-extra-block">
+                  <h3>What happens next?</h3>
+                  <p>You’ll enter your contact and delivery details. Ordering currently saves a draft on this device; it does not submit to a server yet.</p>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <footer class="review-actions">
+          <button id="review-back" class="btn subtle-button" type="button">← Back to editor</button>
+          <div class="review-actions-next">
+            <p id="review-continue-hint" class="pipeline-note" role="status"></p>
+            <button id="review-confirm" class="btn primary-button" type="button" disabled>Confirm design &amp; continue <span>→</span></button>
+          </div>
+        </footer>
       </div>
     </main>
 
@@ -733,7 +806,7 @@
                       These details are saved on this device and sent with your stamp once ordering is available.
                     </p>
                   </div>
-                  <button id="order-back" class="btn subtle-button" type="button">← Back to design</button>
+                  <button id="order-back" class="btn subtle-button" type="button">← Back to review</button>
                 </div>
 
                 <label class="control-label" for="order-title">Name</label>

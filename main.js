@@ -5,6 +5,7 @@ import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
+import { createReviewPage } from "./src/reviewPage.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
 import { createOrderPage } from "./src/orderPage.js";
 import { DesignHistory } from "./src/designHistory.js";
@@ -12,6 +13,7 @@ import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  cornerDragScale,
   fitsFace,
   isEditingField,
   MAX_ELEMENT_SCALE,
@@ -99,17 +101,17 @@ createPipelineControls(viewer, pipeline, { designControls });
 
 pipeline.addEventListener("running", () => {
   publishedLayout = null;
-  renderCanonicalArtwork();
-  if (!interactionActive) renderArtboard();
+  if (!interactionActive) {
+    renderCanonicalArtwork();
+    renderArtboard();
+  }
   previewStatus.hidden = false;
   previewStatus.textContent = "Building 3D preview…";
 });
 
 pipeline.addEventListener("result", () => {
   const result = pipeline.result;
-  renderGeometry = new Map(
-    (result.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
-  );
+  setRenderGeometry(result.renderElements);
   publishedLayout = result.layout ?? null;
   clearCommittedResizePreviews();
   renderCanonicalArtwork();
@@ -127,11 +129,11 @@ pipeline.addEventListener("result", () => {
 });
 
 pipeline.addEventListener("failed", () => {
-  const result = pipeline.result;
-  renderGeometry = new Map(
-    (result?.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
-  );
-  publishedLayout = result?.layout ?? null;
+  // Stamp generation can fail after the artwork itself was converted (for
+  // example when enlarged text sits outside the backing). Keep that artwork
+  // editable so the user can shrink or move it and trigger a successful run.
+  setRenderGeometry(pipeline.artworkPreview?.renderElements);
+  publishedLayout = null;
   clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
@@ -140,12 +142,19 @@ pipeline.addEventListener("failed", () => {
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
 });
 
-createPipelineDiagnostics(pipeline, {
+const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
   getOverflowElementIds: () => [...overflowingIds],
   onFitToStamp: (elementId) => {
     if (editor.fitToStamp(elementId) !== null) render();
   },
 });
+
+function setRenderGeometry(renderElements) {
+  renderGeometry = new Map(
+    (renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  if (renderGeometry.size === 0) displayGeometry = new Map();
+}
 
 function selectedElement() {
   return editor.selectedElement();
@@ -311,17 +320,12 @@ function renderCanonicalArtwork() {
     },
   };
 
-  canonicalRenderer.render(
-    display.artwork.length === 0
-      ? []
-      : [
-          { id: "combined-artwork", kind: "design", canonical: display.artwork },
-          ...overflowing.map(({ id, canonical }) => ({
-            id: `overflow-${id}`,
-            kind: "overflow",
-            canonical,
-          })),
-        ],
+  canonicalRenderer.renderTransformed(
+    sourceElements.map((element) => ({
+      ...element,
+      kind: overflowingIds.has(element.id) ? "overflow" : element.kind,
+      transforms: [element.transform, { ...layout.artworkTransform, mirrorX: false }],
+    })),
     {
       widthMm: state.width,
       heightMm: state.height,
@@ -442,6 +446,7 @@ function updateControls() {
   const isText = element?.kind === "text";
   const isImage = element?.kind === "svg" || element?.kind === "png";
 
+  $("#selected-element-section").hidden = !element;
   $("#text-controls").classList.toggle("d-none", !isText);
   $("#image-controls").classList.toggle("d-none", !isImage);
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
@@ -691,12 +696,11 @@ function startResize(event, element, item) {
   event.currentTarget.setPointerCapture(event.pointerId);
 
   const itemBounds = item.getBoundingClientRect();
-  const centerX = itemBounds.left + itemBounds.width / 2;
-  const centerY = itemBounds.top + itemBounds.height / 2;
-  const startDistance = Math.hypot(
-    event.clientX - centerX,
-    event.clientY - centerY,
-  );
+  const centre = {
+    x: itemBounds.left + itemBounds.width / 2,
+    y: itemBounds.top + itemBounds.height / 2,
+  };
+  const startPointer = { x: event.clientX, y: event.clientY };
   const startTransform = element.transform;
   const startScale = startTransform.scale;
   const startTextSizeMm =
@@ -709,11 +713,12 @@ function startResize(event, element, item) {
   const handle = event.currentTarget;
 
   const resize = (moveEvent) => {
-    const distance = Math.hypot(
-      moveEvent.clientX - centerX,
-      moveEvent.clientY - centerY,
+    const nextScale = cornerDragScale(
+      startPointer,
+      centre,
+      { x: moveEvent.clientX, y: moveEvent.clientY },
+      startTransform.scale,
     );
-    const nextScale = startScale * (distance / Math.max(startDistance, 1));
 
     if (element.kind === "text") {
       textPreview = textResizePreview(
@@ -1204,54 +1209,62 @@ function renderOrderPreview(svg, dimensionLabel) {
   return { widthMm: scene.dimensions.widthMm };
 }
 
-// Design <-> order details pages.
+// Editor -> review -> order details. The review remains read-only; returning
+// to the editor keeps the same authoritative model and pipeline settings.
 const designPage = $("#design-page");
+const reviewPageElement = $("#review-page");
 const orderPageElement = $("#order-page");
+const reviewPage = createReviewPage({
+  designModel,
+  pipeline,
+  diagnostics: pipelineDiagnostics,
+  onBack: () => showPage("design"),
+  onContinue: () => showPage("order"),
+  renderPreview: renderOrderPreview,
+});
 const orderPage = createOrderPage({
   designModel,
   pipeline,
-  onBack: () => showPage("design"),
+  onBack: () => showPage("review"),
   renderPreview: renderOrderPreview,
 });
 
 function showPage(name) {
+  const review = name === "review";
   const order = name === "order";
-  designPage.hidden = order;
+  reviewPage.hide();
+  orderPage.hide();
+  designPage.hidden = review || order;
+  reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  $("#nav-design").classList.toggle("active", !order);
-  $("#nav-order").classList.toggle("active", order);
+  const steps = ["design", "review", "order"];
+  const currentIndex = steps.indexOf(name);
+  $$('[data-workflow-step]').forEach((step) => {
+    const index = steps.indexOf(step.dataset.workflowStep);
+    step.classList.toggle("current", index === currentIndex);
+    step.classList.toggle("complete", index < currentIndex);
+    if (index === currentIndex) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
+  if (review) reviewPage.show();
   if (order) orderPage.show();
-  else orderPage.hide();
   window.scrollTo({ top: 0 });
 }
 
-$("#nav-design").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("design");
-});
-let canFinalize = false;
+$("#continue-button").addEventListener("click", () => showPage("review"));
 
-$("#nav-order").addEventListener("click", (event) => {
-  event.preventDefault();
-  if (canFinalize) showPage("order");
-});
-$("#continue-button").addEventListener("click", () => showPage("order"));
-
-// Finalizing needs a built stamp; warnings are allowed, errors are not.
+// Review needs a built stamp; warnings are allowed, errors are not.
 function updateFinalizeButton() {
   const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
   const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
-  canFinalize = ready && !blocked;
-  $("#continue-button").disabled = !canFinalize;
-  $("#nav-order").setAttribute("aria-disabled", String(!canFinalize));
-  $("#nav-order").title = canFinalize
-    ? ""
-    : "Available once the stamp is built without errors";
-  $("#finalize-hint").textContent = !ready
+  $("#continue-button").disabled = !ready || Boolean(blocked);
+  $("#finalize-hint").textContent = designModel.elements.length === 0
+    ? "Add text or artwork to continue."
+    : !ready
     ? "Wait for the stamp to finish building."
     : blocked
-      ? "Fix the errors above before finalizing."
-      : "Next: add the order details.";
+      ? "Fix the errors above before reviewing."
+      : "Next: review your design.";
 }
 for (const type of ["running", "result", "failed"]) {
   pipeline.addEventListener(type, updateFinalizeButton);
