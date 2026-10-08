@@ -68,7 +68,7 @@
               <div id="help-elements" class="help-text" hidden>
                 <p><strong>Text</strong> is anything you type yourself.</p>
                 <p><strong>SVG</strong> is a vector drawing, such as a logo or icon. It stays sharp at any size, so it is the best choice for logos.</p>
-                <p><strong>PNG</strong> is a picture made of pixels. It works best for simple, high-contrast images (black on white). Photos do not turn out well.</p>
+                <p><strong>PNG</strong> is a picture made of pixels. Auto works best for simple backgrounds; use Pick background to mark trusted background areas when a gradient or vignette needs help.</p>
                 <p>A stamp has one colour, so only the shape of an image is used. Its colours are ignored.</p>
               </div>
 
@@ -167,7 +167,7 @@
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="font-size">Text size</label>
+                    <label for="font-size">Text size (mm)</label>
                     <output id="font-size-value">7.5 mm</output>
                   </div>
                   <input
@@ -183,15 +183,15 @@
                 <div class="range-control">
                   <div class="range-heading">
                     <label for="letter-spacing">Letter spacing</label>
-                    <output id="letter-spacing-value">1 mm</output>
+                    <output id="letter-spacing-value">13.33%</output>
                   </div>
                   <input
                     id="letter-spacing"
                     class="form-range clay-range"
                     type="range"
-                    min="-2"
-                    max="12"
-                    step="0.1"
+                    min="-25"
+                    max="150"
+                    step="1"
                   />
                 </div>
 
@@ -228,17 +228,47 @@
                 <label class="control-label mt-3">Alignment</label>
 
                 <div class="alignment-control">
-                  <button class="alignment-button" data-align="left" title="Align left">
-                    ≡
+                  <button
+                    type="button"
+                    class="alignment-button"
+                    data-align="left"
+                    title="Align left"
+                    aria-label="Align text left"
+                    aria-pressed="false"
+                  >
+                    <svg
+                      width="16"
+                      height="12"
+                      viewBox="0 0 16 12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <line x1="2" y1="2" x2="14" y2="2" />
+                      <line x1="2" y1="6" x2="11" y2="6" />
+                      <line x1="2" y1="10" x2="13" y2="10" />
+                    </svg>
                   </button>
                   <button
+                    type="button"
                     class="alignment-button active"
                     data-align="center"
                     title="Align center"
+                    aria-label="Align text center"
+                    aria-pressed="true"
                   >
                     ≡
                   </button>
-                  <button class="alignment-button align-right" data-align="right" title="Align right">
+                  <button
+                    type="button"
+                    class="alignment-button align-right"
+                    data-align="right"
+                    title="Align right"
+                    aria-label="Align text right"
+                    aria-pressed="false"
+                  >
                     ≡
                   </button>
                 </div>
@@ -269,6 +299,41 @@
                 </label>
 
                 <div id="png-options" class="range-control d-none">
+                  <label class="control-label" for="png-background">Background</label>
+                  <select id="png-background" class="form-select clay-input">
+                    <option value="auto">Auto</option>
+                    <option value="light">Light background</option>
+                    <option value="dark">Dark background</option>
+                    <option value="pick">Pick background</option>
+                    <option value="original">Original processing</option>
+                  </select>
+                  <div id="png-sample-controls" class="png-sample-controls" hidden>
+                    <p class="pipeline-note">
+                      Click trusted background areas in the original image. Spread samples across bright and dark regions.
+                    </p>
+                    <div id="png-sample-editor" class="png-sample-editor">
+                      <img id="png-sample-image" alt="Original PNG for choosing background samples" />
+                      <div id="png-sample-markers" class="png-sample-markers"></div>
+                    </div>
+                    <div class="range-heading mt-2">
+                      <label for="png-background-tolerance">Background tolerance</label>
+                      <output id="png-background-tolerance-value">1×</output>
+                    </div>
+                    <input
+                      id="png-background-tolerance"
+                      class="form-range clay-range"
+                      type="range"
+                      min="0.5"
+                      max="1.5"
+                      step="0.05"
+                    />
+                    <div class="png-sample-actions">
+                      <span id="png-sample-count">0 samples</span>
+                      <button id="png-clear-samples" type="button" class="btn subtle-button">
+                        Clear samples
+                      </button>
+                    </div>
+                  </div>
                   <div class="range-heading">
                     <label for="png-smoothing">PNG smoothing</label>
                     <button type="button" class="help-button" data-help="help-smoothing" aria-expanded="false" aria-controls="help-smoothing" aria-label="More information">?</button>
@@ -305,7 +370,7 @@
                       <span>mm</span>
                     </span>
                   </label>
-                  <label class="control-label" for="element-scale">
+                  <label id="element-scale-control" class="control-label" for="element-scale">
                     Scale
                     <span class="pipeline-input-unit">
                       <input id="element-scale" class="form-control clay-input" type="number" min="0.05" max="4" step="0.05" />
@@ -335,7 +400,10 @@
                 </div>
               </div>
 
-              <button id="delete-element" class="btn delete-button w-100 mt-3">
+              <button id="duplicate-element" type="button" class="btn subtle-button w-100 mt-3">
+                Duplicate Element
+              </button>
+              <button id="delete-element" type="button" class="btn delete-button w-100 mt-2">
                 Delete Element
               </button>
             </section>

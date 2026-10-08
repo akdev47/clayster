@@ -111,6 +111,7 @@ export function createViewer(container) {
 
   // Redraw the view continuously; stamp geometry is rebuilt only when inputs change.
   renderer.setAnimationLoop(() => {
+    if (container.clientWidth === 0 || container.clientHeight === 0) return;
     orbit.update();
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);

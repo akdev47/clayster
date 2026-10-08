@@ -4,7 +4,10 @@ import {
   canonicalPolygonPath,
   canonicalSvgScene,
   canonicalViewBox,
+  canonicalSvgTransform,
+  createCanonicalSvgRenderer,
 } from "../src/canonicalSvgRenderer.js";
+import { transform } from "../src/pipeline/canonical.js";
 
 const square = [
   [
@@ -120,4 +123,66 @@ test("renders uniform element scale in physical coordinates", () => {
   ]).groups[0].paths[0].d;
 
   assert.equal(path, "M 0 0 L 4 0 L 4 -4 L 0 -4 Z");
+});
+
+test("SVG gesture transforms match physical transforms with rotation, mirrors and pivots", () => {
+  const options = { xMm: 4, yMm: -3, scale: 2, rotationDeg: 37, mirrorX: true, mirrorY: false, pivotX: 3, pivotY: 1 };
+  const operations = [...canonicalSvgTransform(options).matchAll(/(translate|rotate|scale)\(([^)]+)\)/g)];
+  const input = [5, 2];
+  let point = [input[0], -input[1]];
+  for (const [, type, values] of operations.reverse()) {
+    const [a, b] = values.split(" ").map(Number);
+    if (type === "translate") point = [point[0] + a, point[1] + b];
+    if (type === "scale") point = [point[0] * a, point[1] * b];
+    if (type === "rotate") {
+      const angle = a * Math.PI / 180;
+      point = [point[0] * Math.cos(angle) - point[1] * Math.sin(angle), point[0] * Math.sin(angle) + point[1] * Math.cos(angle)];
+    }
+  }
+  const expected = transform([[[input]]], options)[0][0][0];
+  assert.ok(Math.abs(point[0] - expected[0]) < 1e-9);
+  assert.ok(Math.abs(point[1] + expected[1]) < 1e-9);
+});
+
+test("gesture redraws retain SVG paths and replace them only when source geometry changes", () => {
+  class Node {
+    constructor() { this.children = []; this.dataset = {}; this.attributes = {}; this.replacements = 0; }
+    setAttribute(key, value) { this.attributes[key] = value; }
+    replaceChildren(...children) { this.children = children; this.replacements++; }
+  }
+  const previousDocument = globalThis.document;
+  const previousSVG = globalThis.SVGElement;
+  globalThis.document = { createElementNS: () => new Node() };
+  globalThis.SVGElement = Node;
+  try {
+    const svg = new Node();
+    const renderer = createCanonicalSvgRenderer(svg);
+    const canonical = [square];
+    const dimensions = { widthMm: 60, heightMm: 45 };
+    const draw = (geometry, scale, kind = "text") => renderer.renderTransformed([
+      { id: "text-1", kind, canonical: geometry, transforms: [{ scale, xMm: 5, yMm: 3 }, { scale: 1 }] },
+    ], dimensions);
+    draw(canonical, 1);
+    const group = svg.children[1];
+    const path = group.children[0];
+    const originalPath = path.attributes.d;
+    for (let i = 1; i <= 100; i++) draw(canonical, 1 + i / 100);
+    assert.equal(svg.children[1], group);
+    assert.equal(group.children[0], path);
+    assert.equal(path.attributes.d, originalPath);
+    assert.equal(svg.replacements, 1);
+    assert.match(group.attributes.transform, /scale\(2 2\)/);
+    draw(canonical, 2, "overflow");
+    assert.equal(svg.children[1], group);
+    assert.equal(group.dataset.elementKind, "overflow");
+    draw(transform(canonical, { scale: 2 }), 1);
+    assert.notEqual(svg.children[1], group);
+    renderer.renderTransformed([], dimensions);
+    assert.equal(svg.children.length, 1);
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousSVG === undefined) delete globalThis.SVGElement;
+    else globalThis.SVGElement = previousSVG;
+  }
 });

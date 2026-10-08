@@ -15,8 +15,11 @@ import {
   canonicalOverlayBox,
   cornerDragScale,
   fitsFace,
+  isEditingField,
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
+  shouldHandleElementArrowKey,
+  textResizePreview,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -34,7 +37,22 @@ const state = {
   minY: -22.5,
 };
 
-const designModel = new DesignModel({ elements: [] });
+const designModel = new DesignModel({
+  elements: [
+    {
+      id: "text-1",
+      kind: "text",
+      source: {
+        text: "CLAYSTER\nSTUDIO",
+        font: { id: "sans-bold", reference: null },
+        fontSizeMm: 7.5,
+        letterSpacingRatio: 1 / 7.5,
+        lineSpacing: 1.25,
+        alignment: "center",
+      },
+    },
+  ],
+});
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
 const designHistory = new DesignHistory(designModel);
@@ -55,10 +73,14 @@ let renderGeometry = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
 let overflowingIds = new Set();
+const resizePreviewTransforms = new Map();
+const committedResizePreviews = new Set();
 let lastScene = null;
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
+let samplePreviewReference = null;
+let samplePreviewObjectUrl = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
@@ -76,12 +98,13 @@ Object.defineProperty(editor, "faceLimit", {
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
-const pipelineDiagnostics = createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
   publishedLayout = null;
-  renderCanonicalArtwork();
-  if (!interactionActive) renderArtboard();
+  if (!interactionActive) {
+    renderCanonicalArtwork();
+    renderArtboard();
+  }
   previewStatus.hidden = false;
   previewStatus.textContent = "Building 3D preview…";
 });
@@ -90,6 +113,7 @@ pipeline.addEventListener("result", () => {
   const result = pipeline.result;
   setRenderGeometry(result.renderElements);
   publishedLayout = result.layout ?? null;
+  clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: result.stamp, clay: result.clay });
@@ -110,11 +134,19 @@ pipeline.addEventListener("failed", () => {
   // editable so the user can shrink or move it and trigger a successful run.
   setRenderGeometry(pipeline.artworkPreview?.renderElements);
   publishedLayout = null;
+  clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
   previewStatus.hidden = false;
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
+});
+
+const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
+  getOverflowElementIds: () => [...overflowingIds],
+  onFitToStamp: (elementId) => {
+    if (editor.fitToStamp(elementId) !== null) render();
+  },
 });
 
 function setRenderGeometry(renderElements) {
@@ -128,6 +160,11 @@ function selectedElement() {
   return editor.selectedElement();
 }
 
+function clearCommittedResizePreviews() {
+  committedResizePreviews.forEach((id) => resizePreviewTransforms.delete(id));
+  committedResizePreviews.clear();
+}
+
 function imageKind(file) {
   const name = file.name.toLowerCase();
   if (file.type === "image/svg+xml" || name.endsWith(".svg")) return "svg";
@@ -137,7 +174,16 @@ function imageKind(file) {
 
 function imageSource(kind, file) {
   return kind === "png"
-    ? { reference: file, baseSizeMm: 30, tracing: { smoothing: 2 } }
+    ? {
+        reference: file,
+        baseSizeMm: 30,
+        tracing: {
+          smoothing: 2,
+          backgroundMode: "auto",
+          backgroundSamples: [],
+          backgroundTolerance: 1,
+        },
+      }
     : { reference: file, baseSizeMm: 30 };
 }
 
@@ -159,6 +205,11 @@ function addResizeHandles(element) {
 }
 
 function renderArtboard() {
+  const focusedElementId = document.activeElement?.classList?.contains(
+    "design-element",
+  )
+    ? document.activeElement.dataset.elementId
+    : null;
   artboard.querySelectorAll(".design-element").forEach((item) => item.remove());
 
   designModel.elements.forEach((element) => {
@@ -187,6 +238,8 @@ function renderArtboard() {
     }
 
     item.addEventListener("pointerdown", startDrag);
+    item.addEventListener("focus", () => selectElement(element.id));
+    item.addEventListener("keydown", moveElementFromKeyboard);
     item.querySelectorAll(".resize-handle").forEach((handle) => {
       handle.addEventListener("pointerdown", (event) => {
         startResize(event, element, item);
@@ -195,6 +248,13 @@ function renderArtboard() {
     artboard.append(item);
     applyOverlayBounds(item, element);
   });
+
+  if (focusedElementId !== null) {
+    const focusedItem = [...artboard.querySelectorAll(".design-element")].find(
+      (item) => item.dataset.elementId === focusedElementId,
+    );
+    focusedItem?.focus({ preventScroll: true });
+  }
 }
 
 function renderCanonicalArtwork() {
@@ -206,7 +266,8 @@ function renderCanonicalArtwork() {
             id: element.id,
             kind: element.kind,
             canonical,
-            transform: element.transform,
+            transform:
+              resizePreviewTransforms.get(element.id) ?? element.transform,
           },
         ]
       : [];
@@ -259,17 +320,12 @@ function renderCanonicalArtwork() {
     },
   };
 
-  canonicalRenderer.render(
-    display.artwork.length === 0
-      ? []
-      : [
-          { id: "combined-artwork", kind: "design", canonical: display.artwork },
-          ...overflowing.map(({ id, canonical }) => ({
-            id: `overflow-${id}`,
-            kind: "overflow",
-            canonical,
-          })),
-        ],
+  canonicalRenderer.renderTransformed(
+    sourceElements.map((element) => ({
+      ...element,
+      kind: overflowingIds.has(element.id) ? "overflow" : element.kind,
+      transforms: [element.transform, { ...layout.artworkTransform, mirrorX: false }],
+    })),
     {
       widthMm: state.width,
       heightMm: state.height,
@@ -395,6 +451,8 @@ function updateControls() {
   $("#image-controls").classList.toggle("d-none", !isImage);
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
   $("#transform-controls").classList.toggle("d-none", !element);
+  $("#element-scale-control").classList.toggle("d-none", !element || isText);
+  $("#duplicate-element").disabled = !element;
   $("#delete-element").disabled = !element;
 
   if (element) {
@@ -411,34 +469,117 @@ function updateControls() {
     $("#image-message").textContent = `${element.kind.toUpperCase()} source: ${sourceName(element.source.reference)}`;
     if (element.kind === "png") {
       const smoothing = element.source.tracing.smoothing;
+      $("#png-background").value = element.source.tracing.backgroundMode;
       $("#png-smoothing").value = smoothing;
       $("#png-smoothing-value").textContent =
         smoothing === 0 ? "Off" : `${smoothing}×`;
     }
   }
 
+  updatePNGSampleControls(element);
+
   if (!isText) return;
 
   $("#text-input").value = element.source.text;
   updateFontPicker(element);
-  $("#font-size").value = element.source.fontSizeMm;
-  $("#letter-spacing").value = element.source.letterSpacingMm;
+  const textSizeMm = element.source.fontSizeMm * element.transform.scale;
+  updateTextSizeControl(textSizeMm);
+  const letterSpacingPercent = round2(
+    element.source.letterSpacingRatio * 100,
+  );
+  $("#letter-spacing").value = letterSpacingPercent;
   $("#line-spacing").value = element.source.lineSpacing;
   $("#font-weight").value = element.source.thicknessMm;
 
-  $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
-  $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
+  $("#letter-spacing-value").textContent = `${letterSpacingPercent}%`;
   $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
   $("#font-weight-value").textContent = thicknessLabel(
     element.source.thicknessMm,
   );
 
   $$(".alignment-button").forEach((button) => {
-    button.classList.toggle(
-      "active",
-      button.dataset.align === element.source.alignment,
-    );
+    const active = button.dataset.align === element.source.alignment;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
+}
+
+function updateTextSizeControl(fontSizeMm) {
+  const displayedSizeMm = round2(fontSizeMm);
+  $("#font-size").value = displayedSizeMm;
+  $("#font-size-value").textContent = `${displayedSizeMm} mm`;
+}
+
+function updatePNGSampleControls(element) {
+  const controls = $("#png-sample-controls");
+  const picking =
+    element?.kind === "png" &&
+    element.source.tracing.backgroundMode === "pick";
+  controls.hidden = !picking;
+  if (!picking) return;
+
+  setPNGSamplePreview(element.source.reference);
+  const { backgroundSamples, backgroundTolerance } = element.source.tracing;
+  $("#png-background-tolerance").value = backgroundTolerance;
+  $("#png-background-tolerance-value").textContent = `${backgroundTolerance}×`;
+  $("#png-sample-count").textContent = `${backgroundSamples.length} ${
+    backgroundSamples.length === 1 ? "sample" : "samples"
+  }`;
+  $("#png-clear-samples").disabled = backgroundSamples.length === 0;
+
+  const markers = $("#png-sample-markers");
+  markers.replaceChildren(
+    ...backgroundSamples.map(({ x, y }, index) => {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "png-sample-marker";
+      marker.style.left = `${x * 100}%`;
+      marker.style.top = `${y * 100}%`;
+      marker.textContent = "×";
+      marker.setAttribute(
+        "aria-label",
+        `Remove background sample ${index + 1}`,
+      );
+      marker.addEventListener("click", (event) => {
+        event.stopPropagation();
+        updatePNGTracing({
+          backgroundSamples: backgroundSamples.filter(
+            (_sample, sampleIndex) => sampleIndex !== index,
+          ),
+        });
+      });
+      return marker;
+    }),
+  );
+}
+
+function setPNGSamplePreview(reference) {
+  if (reference === samplePreviewReference) return;
+  if (samplePreviewObjectUrl !== null) {
+    URL.revokeObjectURL(samplePreviewObjectUrl);
+    samplePreviewObjectUrl = null;
+  }
+  samplePreviewReference = reference;
+
+  const image = $("#png-sample-image");
+  if (reference instanceof Blob) {
+    samplePreviewObjectUrl = URL.createObjectURL(reference);
+    image.src = samplePreviewObjectUrl;
+  } else if (typeof reference === "string") {
+    image.src = reference;
+  } else {
+    image.removeAttribute("src");
+  }
+}
+
+function updatePNGTracing(tracingPatch) {
+  const selected = selectedElement();
+  if (selected?.kind !== "png") return null;
+  const changed = designControls.updateSelectedSource("png", {
+    tracing: { ...selected.source.tracing, ...tracingPatch },
+  });
+  if (changed !== null) render();
+  return changed;
 }
 
 function sourceName(reference) {
@@ -525,6 +666,23 @@ function startDrag(event) {
   item.addEventListener("pointercancel", stop);
 }
 
+function moveElementFromKeyboard(event) {
+  if (!shouldHandleElementArrowKey(event)) return;
+
+  event.preventDefault();
+  interactionActive = true;
+  try {
+    const item = event.currentTarget;
+    const changed = editor.moveFromArrowKey(item.dataset.elementId, event.key);
+    if (changed === null) return;
+    renderCanonicalArtwork();
+    applyOverlayBounds(item, changed);
+    updateControls();
+  } finally {
+    interactionActive = false;
+  }
+}
+
 function startResize(event, element, item) {
   event.preventDefault();
   event.stopPropagation();
@@ -544,6 +702,14 @@ function startResize(event, element, item) {
   };
   const startPointer = { x: event.clientX, y: event.clientY };
   const startTransform = element.transform;
+  const startScale = startTransform.scale;
+  const startTextSizeMm =
+    element.kind === "text" ? element.source.fontSizeMm : null;
+  let textPreview =
+    element.kind === "text"
+      ? textResizePreview(startTextSizeMm, startTransform, startScale)
+      : null;
+  let hasTextPreview = false;
   const handle = event.currentTarget;
 
   const resize = (moveEvent) => {
@@ -554,6 +720,20 @@ function startResize(event, element, item) {
       startTransform.scale,
     );
 
+    if (element.kind === "text") {
+      textPreview = textResizePreview(
+        startTextSizeMm,
+        startTransform,
+        nextScale,
+      );
+      resizePreviewTransforms.set(element.id, textPreview.transform);
+      hasTextPreview = true;
+      renderCanonicalArtwork();
+      applyOverlayBounds(item, element);
+      updateTextSizeControl(textPreview.fontSizeMm);
+      return;
+    }
+
     const changed = editor.resize(
       element.id,
       canonical,
@@ -562,13 +742,29 @@ function startResize(event, element, item) {
     );
     renderCanonicalArtwork();
     applyOverlayBounds(item, changed);
+    updateControls();
   };
 
   const stop = () => {
-    interactionActive = false;
     handle.removeEventListener("pointermove", resize);
     handle.removeEventListener("pointerup", stop);
     handle.removeEventListener("pointercancel", stop);
+
+    if (element.kind === "text" && hasTextPreview) {
+      const currentSizeMm =
+        element.source.fontSizeMm * element.transform.scale;
+      const needsCommit =
+        textPreview.fontSizeMm !== currentSizeMm ||
+        element.transform.scale !== 1;
+      if (needsCommit) {
+        committedResizePreviews.add(element.id);
+        editor.setTextSize(element.id, textPreview.fontSizeMm);
+      } else {
+        resizePreviewTransforms.delete(element.id);
+      }
+    }
+
+    interactionActive = false;
     render();
   };
 
@@ -608,7 +804,7 @@ $("#add-text").addEventListener("click", () => {
       text: "TEXT",
       font: { id: "sans-bold", reference: null },
       fontSizeMm: NEW_TEXT_SIZE_MM,
-      letterSpacingMm: 1,
+      letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
       lineSpacing: 1.25,
       alignment: "center",
     },
@@ -653,7 +849,18 @@ $("#image-upload").addEventListener("change", (event) => {
   }
 
   if (request.action === "replace") {
-    designControls.replaceSelectedReference(kind, file);
+    const selected = selectedElement();
+    if (kind === "png" && selected?.kind === "png") {
+      designControls.updateSelectedSource("png", {
+        reference: file,
+        tracing: {
+          ...selected.source.tracing,
+          backgroundSamples: [],
+        },
+      });
+    } else {
+      designControls.replaceSelectedReference(kind, file);
+    }
   } else {
     designControls.addElement(kind, imageSource(kind, file));
   }
@@ -700,16 +907,18 @@ function deleteSelectedElement() {
   render();
 }
 
+function duplicateSelectedElement() {
+  if (editor.duplicateSelected() === null) return;
+  render();
+}
+
+$("#duplicate-element").addEventListener("click", () => {
+  duplicateSelectedElement();
+});
+
 $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();
 });
-
-function isEditingField(target) {
-  return (
-    target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-  );
-}
 
 // Only the Delete key removes the selected element: Backspace is what people
 // press to edit text, and it must never delete the design.
@@ -786,11 +995,17 @@ $("#font-options").addEventListener("click", (event) => {
 });
 
 $("#font-size").addEventListener("input", (event) => {
-  updateSelectedText({ fontSizeMm: Number(event.target.value) });
+  if (
+    designControls.updateSelectedTextSize(Number(event.target.value)) !== null
+  ) {
+    render();
+  }
 });
 
 $("#letter-spacing").addEventListener("input", (event) => {
-  updateSelectedText({ letterSpacingMm: Number(event.target.value) });
+  updateSelectedText({
+    letterSpacingRatio: Number(event.target.value) / 100,
+  });
 });
 
 $("#line-spacing").addEventListener("input", (event) => {
@@ -828,6 +1043,51 @@ $("#png-smoothing").addEventListener("input", (event) => {
   }) !== null) {
     $("#png-smoothing-value").textContent =
       smoothing === 0 ? "Off" : `${smoothing}×`;
+  }
+});
+
+$("#png-background").addEventListener("change", (event) => {
+  updatePNGTracing({ backgroundMode: event.target.value });
+});
+
+$("#png-background-tolerance").addEventListener("input", (event) => {
+  updatePNGTracing({ backgroundTolerance: Number(event.target.value) });
+});
+
+$("#png-sample-editor").addEventListener("click", (event) => {
+  if (event.target.closest(".png-sample-marker") !== null) return;
+  const selected = selectedElement();
+  if (
+    selected?.kind !== "png" ||
+    selected.source.tracing.backgroundMode !== "pick"
+  ) {
+    return;
+  }
+
+  const image = $("#png-sample-image");
+  if (!image.complete || image.naturalWidth === 0) return;
+  const rect = image.getBoundingClientRect();
+  if (!(rect.width > 0) || !(rect.height > 0)) return;
+  const x = (event.clientX - rect.left) / rect.width;
+  const y = (event.clientY - rect.top) / rect.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  if (selected.source.tracing.backgroundSamples.length >= 32) return;
+
+  updatePNGTracing({
+    backgroundSamples: [
+      ...selected.source.tracing.backgroundSamples,
+      { x: round2(x), y: round2(y) },
+    ],
+  });
+});
+
+$("#png-clear-samples").addEventListener("click", () => {
+  updatePNGTracing({ backgroundSamples: [] });
+});
+
+window.addEventListener("beforeunload", () => {
+  if (samplePreviewObjectUrl !== null) {
+    URL.revokeObjectURL(samplePreviewObjectUrl);
   }
 });
 

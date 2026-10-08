@@ -164,6 +164,25 @@ test("solid union joins overlapping volumes without unmatched edges", () => {
   [a, b, joined, checked].forEach((g) => g.dispose());
 });
 
+test("solid conversion identifies the non-manifold operand", () => {
+  const base = new THREE.BoxGeometry(10, 10, 4);
+  const openRelief = new THREE.BufferGeometry();
+  openRelief.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([0, 0, 0, 2, 0, 0, 0, 2, 0], 3),
+  );
+
+  assert.throws(
+    () =>
+      solidBoolean(base, openRelief, "union", {
+        firstLabel: "stamp base",
+        secondLabel: "relief mesh",
+      }),
+    /Relief mesh is not a closed manifold solid: Not manifold/i,
+  );
+  [base, openRelief].forEach((geometry) => geometry.dispose());
+});
+
 test("3MF archive preserves units, dimensions, closed triangles, and escaped names", async () => {
   const built = buildStamp(artwork("BOA8"), { faceShape: "square" });
   const blob = create3MF([

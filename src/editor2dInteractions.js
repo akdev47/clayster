@@ -53,6 +53,118 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
 // scale field so both allow the same sizes.
 export const MIN_ELEMENT_SCALE = 0.05;
 export const MAX_ELEMENT_SCALE = 4;
+export const MIN_TEXT_SIZE_MM = 0.5;
+export const MAX_TEXT_SIZE_MM = 60;
+export const TEXT_SIZE_STEP_MM = 0.5;
+export const KEYBOARD_MOVE_STEP_MM = 0.5;
+export const DUPLICATE_OFFSET_MM = 2;
+
+export function textSizeFromScale(startSizeMm, scale) {
+  if (!(startSizeMm > 0) || !Number.isFinite(startSizeMm)) {
+    throw new RangeError("Starting text size must be positive.");
+  }
+  if (!(scale > 0) || !Number.isFinite(scale)) {
+    throw new RangeError("Text resize scale must be positive.");
+  }
+  const stepped = Math.round(
+    (startSizeMm * scale) / TEXT_SIZE_STEP_MM,
+  ) * TEXT_SIZE_STEP_MM;
+  return Math.min(MAX_TEXT_SIZE_MM, Math.max(MIN_TEXT_SIZE_MM, stepped));
+}
+
+/** Cheap view-only text resize used until the final font size is committed. */
+export function textResizePreview(startSizeMm, startTransform, scale) {
+  const fontSizeMm = textSizeFromScale(startSizeMm, scale);
+  return {
+    fontSizeMm,
+    transform: {
+      ...startTransform,
+      scale: fontSizeMm / startSizeMm,
+    },
+  };
+}
+
+function centeredTransform(canonical, elementTransform) {
+  const unpositioned = transform(canonical, {
+    ...elementTransform,
+    xMm: 0,
+    yMm: 0,
+  });
+  const box = bounds(unpositioned);
+  return {
+    ...elementTransform,
+    xMm: -(box.minX + box.maxX) / 2,
+    yMm: -(box.minY + box.maxY) / 2,
+  };
+}
+
+/** Uniformly shrinks and recentres one element inside the usable face. */
+export function fitElementTransform(canonical, startTransform, limit) {
+  if (limit === null || limit === undefined || canonical.length === 0) {
+    return null;
+  }
+
+  const unitTransform = centeredTransform(canonical, {
+    ...startTransform,
+    scale: 1,
+  });
+  const unitGeometry = transform(canonical, unitTransform);
+  const unitBounds = bounds(unitGeometry);
+  const maximumScale =
+    limit.shape === "round"
+      ? limit.halfExtent /
+        Math.max(
+          ...unitGeometry.flatMap((polygon) =>
+            polygon.flatMap((ring) =>
+              ring.map(([x, y]) => Math.hypot(x, y)),
+            ),
+          ),
+        )
+      : Math.min(
+          (limit.halfExtent * 2) / unitBounds.width,
+          (limit.halfExtent * 2) / unitBounds.height,
+        );
+  const scale = Math.min(startTransform.scale, maximumScale);
+  return centeredTransform(canonical, { ...startTransform, scale });
+}
+
+const ARROW_MOVEMENT = Object.freeze({
+  ArrowLeft: Object.freeze({ xMm: -1, yMm: 0 }),
+  ArrowRight: Object.freeze({ xMm: 1, yMm: 0 }),
+  ArrowUp: Object.freeze({ xMm: 0, yMm: 1 }),
+  ArrowDown: Object.freeze({ xMm: 0, yMm: -1 }),
+});
+
+export function arrowKeyDelta(key, stepMm = KEYBOARD_MOVE_STEP_MM) {
+  const direction = ARROW_MOVEMENT[key];
+  if (direction === undefined) return null;
+  if (!(stepMm > 0) || !Number.isFinite(stepMm)) {
+    throw new RangeError("Keyboard movement step must be positive.");
+  }
+  return {
+    xMm: direction.xMm * stepMm,
+    yMm: direction.yMm * stepMm,
+  };
+}
+
+export function isEditingField(target) {
+  return Boolean(
+    target?.isContentEditable ||
+      ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName),
+  );
+}
+
+export function shouldHandleElementArrowKey(event) {
+  return (
+    event.target === event.currentTarget &&
+    !isEditingField(event.target) &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    arrowKeyDelta(event.key) !== null
+  );
+}
 
 /** Scale a corner drag along its original direction from the selection centre. */
 export function cornerDragScale(
@@ -219,10 +331,75 @@ export class DesignEditorController {
     });
   }
 
+  moveFromArrowKey(id, key, stepMm = KEYBOARD_MOVE_STEP_MM) {
+    const movement = arrowKeyDelta(key, stepMm);
+    const element = this.model.getElement(id);
+    if (movement === null || element === null) return null;
+
+    this.select(id);
+    const desired = {
+      ...element.transform,
+      xMm: element.transform.xMm + movement.xMm,
+      yMm: element.transform.yMm + movement.yMm,
+    };
+    const canonical = this.canonicalFor(id);
+    const allowed =
+      canonical === undefined
+        ? desired
+        : (constrainToFace(canonical, desired, this.faceLimit) ?? desired);
+    return this.model.updateElement(id, {
+      transform: { xMm: allowed.xMm, yMm: allowed.yMm },
+    });
+  }
+
   resize(id, canonical, startTransform, scale) {
     const limited = Math.min(MAX_ELEMENT_SCALE, Math.max(MIN_ELEMENT_SCALE, scale));
     return this.model.updateElement(id, {
       transform: centeredScaleTransform(canonical, startTransform, limited),
+    });
+  }
+
+  setTextSize(id, fontSizeMm, transformPatch = {}) {
+    const element = this.model.getElement(id);
+    if (element === null || element.kind !== "text") return null;
+    const size = textSizeFromScale(fontSizeMm, 1);
+    return this.model.updateElement(id, {
+      source: { fontSizeMm: size },
+      transform: { ...transformPatch, scale: 1 },
+    });
+  }
+
+  fitToStamp(id) {
+    const element = this.model.getElement(id);
+    const canonical = this.canonicalFor(id);
+    if (element === null || canonical === undefined) return null;
+
+    const fitted = fitElementTransform(
+      canonical,
+      element.transform,
+      this.faceLimit,
+    );
+    if (fitted === null) return null;
+    this.select(id);
+
+    if (element.kind !== "text") {
+      return this.model.updateElement(id, { transform: fitted });
+    }
+
+    let fontSizeMm = textSizeFromScale(
+      element.source.fontSizeMm,
+      fitted.scale,
+    );
+    if (fontSizeMm / element.source.fontSizeMm > fitted.scale + EPSILON) {
+      fontSizeMm = Math.max(MIN_TEXT_SIZE_MM, fontSizeMm - TEXT_SIZE_STEP_MM);
+    }
+    const previewTransform = centeredTransform(canonical, {
+      ...element.transform,
+      scale: fontSizeMm / element.source.fontSizeMm,
+    });
+    return this.setTextSize(id, fontSizeMm, {
+      xMm: previewTransform.xMm,
+      yMm: previewTransform.yMm,
     });
   }
 
@@ -258,6 +435,26 @@ export class DesignEditorController {
     const nextIndex = Math.min(index, this.model.elements.length - 1);
     this.selectedId = this.model.elements[nextIndex]?.id ?? null;
     return removed;
+  }
+
+  duplicateSelected(offsetMm = DUPLICATE_OFFSET_MM) {
+    const selected = this.selectedElement();
+    if (selected === null) return null;
+    if (!(offsetMm > 0) || !Number.isFinite(offsetMm)) {
+      throw new RangeError("Duplicate offset must be positive.");
+    }
+
+    const { id: _originalId, ...editable } = selected;
+    const duplicate = this.model.addElement({
+      ...editable,
+      transform: {
+        ...selected.transform,
+        xMm: selected.transform.xMm + offsetMm,
+        yMm: selected.transform.yMm - offsetMm,
+      },
+    });
+    this.select(duplicate.id);
+    return duplicate;
   }
 
   updateSelectedText(sourcePatch) {

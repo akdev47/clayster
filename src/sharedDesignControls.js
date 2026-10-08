@@ -30,6 +30,12 @@ export class SharedDesignControls {
     return this.model.updateElement(selected.id, { transform: transformPatch });
   }
 
+  updateSelectedTextSize(fontSizeMm) {
+    const selected = this.selectedElement();
+    if (selected === null || selected.kind !== "text") return null;
+    return this.editor.setTextSize(selected.id, fontSizeMm);
+  }
+
   replaceSelectedReference(kind, reference) {
     return this.updateSelectedSource(kind, { reference });
   }
