@@ -4,13 +4,16 @@
 
 - Node.js 22 or newer
 - npm
+- Python 3.12 or newer
 
-Check whether Node.js and npm are installed:
+Check whether Node.js, npm and Python are installed:
 
     node --version
     npm --version
+    python3 --version
 
-This project requires Node.js 22 or newer.
+This project requires Node.js 22 or newer (npm only fetches the browser
+libraries and runs the tests) and Python 3.12 or newer (Django 6.1).
 
 If Node.js is not installed, we recommend using NVM:
 
@@ -37,22 +40,40 @@ This installs all dependencies defined in package.json:
   stamp and press the stamp into the clay
 - `three-mesh-bvh` — required by three-bvh-csg
 - `manifold-3d` — closed-solid operations for the printable stamp; three-bvh-csg remains in use for the clay preview
-- `vite` — the dev server and build (dev dependency)
+- `bootstrap` — its JavaScript is loaded by the Django pages
 
 The 3MF exporter is part of this project; it uses the `fflate` zip
 library that already ships inside three's addons.
 
-Fonts live in `fonts/`: Noto Sans and Noto Serif, subset to Latin so
-four faces cost under 200 KB. They are licensed under the SIL Open Font
-License; see `fonts/OFL.txt`. Any other `.ttf` or `.otf` can be uploaded
-in the app.
+There is no bundler. `npm install` also runs `npm run vendor`, which copies
+the browser files of these packages (and what they import) into
+`src/static/vendor/`, so Django serves all JavaScript as plain static files.
+That folder is generated and not committed; run `npm run vendor` again after
+changing a dependency. The page lists the packages in an import map built from
+`src/stamp_generator/importmap.json`; add a package there before importing
+it from the stamp generator's code.
+
+Fonts live in `src/stamp_generator/static/stamp_generator/fonts/`: Noto Sans
+and Noto Serif, subset to Latin so four faces cost under 200 KB. They are
+licensed under the SIL Open Font License; see `OFL.txt` in the same folder.
+Any other `.ttf` or `.otf` can be uploaded in the app.
 
 ## Run the project
 
-    npx vite
+Create a Python environment once and install the Django dependencies:
 
-Vite will display the local URL where the application is running,
-usually http://localhost:5173.
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+
+Then start Django from the `src` folder:
+
+    cd src
+    python manage.py migrate
+    python manage.py runserver
+
+The stamp generator is at http://localhost:8000/ and the shop pages are at
+`/dashboard/`, `/products/`, `/orders/` and `/production/`.
 
 ## How the app works
 
@@ -77,9 +98,13 @@ duplicate triangles, disconnected outward shells, and non-positive volume.
 STL bytes are loaded back and checked again before download. These are surface
 checks, not a guarantee of printer compatibility or minimum feature thickness.
 
-Run the export regression checks with:
+Run the JavaScript checks and the Django tests with:
 
-    node --test tests/export.test.mjs
+    node --test tests/*.mjs
+    cd src && python manage.py test
+
+`tests/importMap.test.mjs` and `tests/browserModules.test.mjs` check that every
+import in the stamp generator resolves the way the browser resolves it.
 
 # [recommended] Installation guide (devenv)
 
@@ -106,13 +131,48 @@ Manually enter the shell
 
     devenv shell
 
-## Run the project
-
-    devenv up
-
-Vite will display the local URL where the application is running,
-usually http://localhost:5173.
-
 ## Run Django
 
+    cd src
     python manage.py runserver (or python3 manage.py runserver)
+
+The stamp generator is at http://localhost:8000/.
+
+# Docker deployment
+
+One image holds everything: Django runs under gunicorn and WhiteNoise serves
+the static files, which include all JavaScript. The image build runs
+`npm run vendor` in a Node stage; Node is not part of the final image. The
+stamp generator is served at `/`; the rest of Django lives at `/admin/`,
+`/dashboard/`, `/products/`, `/orders/` and `/production/`.
+
+## Requirements
+
+- Docker with the Compose plugin
+
+## Run with Docker Compose
+
+    cp .env.example .env
+
+Fill in `DJANGO_SECRET_KEY` (the file shows how to generate one), then:
+
+    docker compose up --build
+
+The site is available at http://localhost:8000 (set `WEB_PORT` in `.env` to
+use another port). Rebuild with `docker compose up --build -d` after changing
+code, because static files are collected when the image is built. The database migrates
+itself on start. Create the first admin user with:
+
+    docker compose exec web python manage.py createsuperuser
+
+The SQLite database and uploaded files live in the `clayster-data`
+volume (`/data` in the container). `docker compose down` keeps it;
+`docker compose down -v` deletes it.
+
+## Settings
+
+All deployment settings are environment variables; see `.env.example`.
+Without them `src/config/settings.py` behaves like local development
+(`DEBUG` on, SQLite next to the project), so `python manage.py runserver`
+still works. Python dependencies are in `requirements.txt` (Python 3.12
+or newer).
