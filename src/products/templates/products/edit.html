@@ -4,11 +4,19 @@
 
 {% block content %}
 
-<div class="mb-4">
-  <h1 class="h3 fw-semibold mb-1">Edit product</h1>
-  <p class="text-secondary mb-0">
-    Update {{ product.name }}.
-  </p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-semibold mb-1">Edit product</h1>
+    <p class="text-secondary mb-0">
+      Update {{ product.name }}.
+    </p>
+  </div>
+
+  <a href="{% url 'products:product' product.id %}"
+     class="back-link text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>
+    Back to Product
+  </a>
 </div>
 
 

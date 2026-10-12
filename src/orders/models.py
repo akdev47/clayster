@@ -6,6 +6,7 @@ class Order(models.Model):
             PROCESSING = "PR", _("Processing")
             READY = "RE", _("Ready")
             SHIPPED = "SH", _("Shipped")
+            COMPLETED = "CO", _("Completed")
             CANCELLED = "CA", _("Cancelled")
 
     customer = models.ForeignKey(
@@ -26,6 +27,13 @@ class Order(models.Model):
     subtotal_price = models.DecimalField(max_digits=10, decimal_places=2)
     shipping_costs = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+    def all_items_ready(self):
+        return (
+            self.items.exists()
+            and not self.items.filter(is_ready=False).exists()
+        )
 
     def __str__(self):
         return f"Order #{self.pk}"
@@ -68,7 +76,29 @@ class OrderItem(models.Model):
         upload_to="stl/",
         blank=True,
     )
-    # stl_file = models.URLField(blank=True) if we are using URLs
+    is_ready = models.BooleanField(default=False)
+    
+    @property
+    def line_total(self):
+        return self.quantity * self.unit_price
+
+    @property
+    def available_stock(self):
+        if self.product.product_type == self.product.ProductType.CUSTOM_STAMP:
+            return None
+
+        return self.product.stock
+
+
+    @property
+    def quantity_to_produce(self):
+        if self.is_ready:
+            return 0
+
+        if self.product.product_type == self.product.ProductType.CUSTOM_STAMP:
+            return self.quantity
+
+        return max(0, self.quantity - self.product.stock)
 
     def __str__(self):
         return f"{self.quantity}x {self.product} (Order #{self.order_id})"

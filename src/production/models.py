@@ -14,6 +14,15 @@ class ProductionJob(models.Model):
              on_delete=models.PROTECT,
              related_name="production_jobs"
         )
+
+    order_item = models.ForeignKey(
+        "orders.OrderItem",
+        on_delete=models.PROTECT,
+        related_name="production_jobs",
+        null=True,
+        blank=True,
+    )
+    
     quantity = models.PositiveIntegerField(default=1)
     status = models.CharField(
             max_length=2,

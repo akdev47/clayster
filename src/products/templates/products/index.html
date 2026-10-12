@@ -1,11 +1,15 @@
-{% extends "base.html" %} {% block title %} Products | Clayster {% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Products | Clayster{% endblock %}
+
 {% block content %}
 
+<!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h1 class="fw-semibold mb-1">Products</h1>
     <p class="text-secondary mb-0">
-      Manage the products available in your webshop.
+      Manage your product catalog and inventory.
     </p>
   </div>
 
@@ -15,15 +19,109 @@
   </a>
 </div>
 
+
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="card-body">
+
+    <form method="get" class="row g-3 align-items-end">
+
+      <!-- Search -->
+      <div class="col-md-5">
+        <label for="search" class="form-label">
+          Search
+        </label>
+
+        <input
+          type="search"
+          id="search"
+          name="search"
+          class="form-control"
+          placeholder="Search products..."
+          value="{{ search }}"
+        >
+      </div>
+
+      <!-- Product type -->
+      <div class="col-md-3">
+        <label for="type" class="form-label">
+          Product type
+        </label>
+
+        <select
+          id="type"
+          name="type"
+          class="form-select"
+        >
+          <option value="">All types</option>
+
+          {% for value, label in product_types %}
+            <option
+              value="{{ value }}"
+              {% if selected_type == value %}selected{% endif %}
+            >
+              {{ label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Website visibility -->
+      <div class="col-md-2">
+        <label for="visibility" class="form-label">
+          Visibility
+        </label>
+
+        <select
+          id="visibility"
+          name="visibility"
+          class="form-select"
+        >
+          <option value="">All</option>
+
+          <option
+            value="visible"
+            {% if selected_visibility == "visible" %}selected{% endif %}
+          >
+            Visible
+          </option>
+
+          <option
+            value="hidden"
+            {% if selected_visibility == "hidden" %}selected{% endif %}
+          >
+            Hidden
+          </option>
+        </select>
+      </div>
+
+      <!-- Submit -->
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-funnel me-1"></i>
+          Filter
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+
+<!-- Products table -->
 <div class="card overflow-hidden">
   <div class="card-body p-0">
+
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
+
         <thead>
           <tr>
             <th>Name</th>
-            <th>Description</th>
-            <th>In stock</th>
+            <th>Type</th>
+            <th>Available</th>
+            <th>In production</th>
             <th>Price</th>
             <th>On website</th>
             <th></th>
@@ -31,15 +129,18 @@
         </thead>
 
         <tbody>
+
           {% for product in products %}
           <tr>
-            <td class="fw-medium">
-              {{ product.name }}
-            </td>
 
+            <!-- Product name -->
             <td>
+              <div class="fw-medium">
+                {{ product.name }}
+              </div>
+
               <div
-                class="text-secondary text-truncate"
+                class="text-secondary small text-truncate"
                 style="max-width: 300px;"
                 title="{{ product.short_description }}"
               >
@@ -47,14 +148,46 @@
               </div>
             </td>
 
+            <!-- Product type -->
             <td>
-              {{ product.stock }}
+              {% if product.product_type == "ST" %}
+                <span class="badge text-bg-light border">
+                  Standard
+                </span>
+              {% else %}
+                <span class="badge text-bg-info">
+                  Custom
+                </span>
+              {% endif %}
             </td>
 
+            <!-- Available stock -->
+            <td>
+              {% if product.product_type == "ST" %}
+                {{ product.stock }}
+              {% else %}
+                <span class="text-secondary">—</span>
+              {% endif %}
+            </td>
+
+            <!-- In production -->
+            <td>
+              {% if product.in_production > 0 %}
+                <span class="badge text-bg-primary">
+                  <i class="bi bi-printer me-1"></i>
+                  {{ product.in_production }}
+                </span>
+              {% else %}
+                <span class="text-secondary">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Price -->
             <td class="text-nowrap">
               €{{ product.price }}
             </td>
 
+            <!-- Website visibility -->
             <td>
               {% if product.on_website %}
                 <span class="badge rounded-pill text-bg-success">
@@ -69,7 +202,9 @@
               {% endif %}
             </td>
 
+            <!-- Actions -->
             <td class="text-end text-nowrap">
+
               {% if product.file %}
                 <a
                   href="{% url 'products:download_stl' product.id %}"
@@ -86,18 +221,39 @@
               >
                 Details
               </a>
+
             </td>
+
           </tr>
+
           {% empty %}
+
           <tr>
-            <td colspan="6" class="text-center text-secondary py-4">
+            <td colspan="7" class="text-center text-secondary py-5">
+
+              <i class="bi bi-box-seam fs-3 d-block mb-2"></i>
+
               No products found.
+
+              {% if search or selected_type or selected_visibility %}
+                <div class="mt-2">
+                  <a href="{% url 'products:index' %}">
+                    Clear filters
+                  </a>
+                </div>
+              {% endif %}
+
             </td>
           </tr>
+
           {% endfor %}
+
         </tbody>
+
       </table>
     </div>
+
   </div>
 </div>
+
 {% endblock %}

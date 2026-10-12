@@ -9,12 +9,26 @@ from customers.models import Customer
 from orders.models import Order, OrderItem
 from products.utils import create_dummy_product
 
+from django.conf import settings
+from products.models import Product
+
 # if we only want users that are superuser:
 # @user_passes_test(lambda u: u.is_superuser) 
 
 @staff_member_required
 def index(request):
-    return render(request, "dashboard/index.html")
+    standard_products = Product.objects.filter(
+        product_type=Product.ProductType.STANDARD,
+    ).order_by("name")
+
+    return render(
+        request,
+        "dashboard/index.html",
+        {
+            "standard_products": standard_products,
+            "debug": settings.DEBUG,
+        },
+    )
 
 def oefenscherm(request):
     return HttpResponse("Oefenscherm. Oefenschikking.")
