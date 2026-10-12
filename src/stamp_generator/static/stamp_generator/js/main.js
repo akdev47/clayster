@@ -1,10 +1,12 @@
 import { createViewer } from "./viewer.js";
 import { Pipeline } from "./pipeline/index.js";
-import { createPipelineControls } from "./pipelineControls.js";
+import { createPipelineControls, exportable } from "./pipelineControls.js";
 import { createPipelineDiagnostics } from "./pipelineDiagnostics.js";
 import { createReviewPage } from "./reviewPage.js";
 import { createCanonicalSvgRenderer } from "./canonicalSvgRenderer.js";
 import { createOrderPage } from "./orderPage.js";
+import { createSTL } from "./exporters.js";
+import { readServerConfig } from "./serverConfig.js";
 import { DesignHistory } from "./designHistory.js";
 import { DesignModel } from "./designModel.js";
 import {
@@ -1224,6 +1226,8 @@ const orderPage = createOrderPage({
   pipeline,
   onBack: () => showPage("review"),
   renderPreview: renderOrderPreview,
+  createStl: () => createSTL(exportable(viewer, pipeline)),
+  config: readServerConfig(),
 });
 
 function showPage(name) {

@@ -1,0 +1,15 @@
+{
+  "stamp": {
+    "faceShape": "square",
+    "faceSize": 50,
+    "handle": "none"
+  },
+  "info": {
+    "width": 50,
+    "depth": 50,
+    "height": 6,
+    "faceSize": 50,
+    "triangles": 288,
+    "mode": "emboss"
+  }
+}

@@ -4,7 +4,7 @@ Keep this file up to date: tick items when done (and move them to **Done**),
 add new ones as they come up. Tags: **[bug]**, **[ux]**, **[backend]**,
 **[idea]**, **[tech]**. Items marked *decide* need a decision before work starts.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-12
 
 ## Done
 
@@ -20,9 +20,9 @@ Last updated: 2026-10-05
 - [ ] the 3d render sometimes shows triangle at bottem of mug.
 
 ### Order flow
-- [ ] **[ux] "Finalize order" vs "Save order details".** Nothing is placed or sent yet, but the wording suggests a final order. *Decide* the end of the flow (confirmation step, order number), then rename the buttons.
+- [x] **[ux] "Finalize order" vs "Save order details".** The flow now ends as: order page ("Continue to payment") → pay page → the customer's own order page `/order/<guid>/`, which is also emailed.
 - [ ] **[ux] Order page is not a real route.** The URL never changes, so the browser back button and reload both return to the design page. The "Logo Here" placeholder is still in the navbar.
-- [ ] **[ux] Nothing confirms how long saved details are kept.** "Saved on this device" gives no hint that clearing browser data deletes them.
+- [ ] **[ux] Nothing confirms how long saved details are kept.** The order form is still remembered on this device until the order is placed (then it is cleared), but nothing says so.
 - [ ] **[tech] No tests for the page code.** `orderPage.js`, the red overflow overlay and the 3D order preview were only checked through logic tests, never in a real browser.
 
 ### Editor
@@ -47,13 +47,16 @@ Last updated: 2026-10-05
 
 - [ ] **[ux] Simple vs Advanced mode.** *Will think about it.* Candidates for "Advanced": letter/line spacing, letter thickness, the X/Y/scale/rotation fields, face size mode, margin, base thickness, relief depth, mirror, STL/3MF export, diagnostics, custom font, PNG smoothing, source size.
 - [ ] **[backend] Save the design on the device or in the database.**
-- [ ] **[backend] Delivery data in `localStorage`** (name, email, address) stays on a shared computer. To be solved with the backend.
-- [ ] **[backend] Connect to the Django order system:**
-  - replace `PRICING` in `src/pricing.js` with the real price list (all values are placeholders; VAT 21% and free shipping over 50 EUR are assumptions)
-  - replace `COUNTRY_OPTIONS` in `src/orderDraft.js` with the countries the backend delivers to
-  - send `buildOrderPayload()` and upload the SVG/PNG/font files separately
-  - server-side validation, authentication (cookie + CSRF or token), and the "Account" link (currently hidden)
-  - export file (STL/3MF) attached at submit time instead of a user download
+- [x] **[backend] Delivery data in `localStorage`** is cleared once the order has been placed; until then it is only a draft for a failed or abandoned submit.
+- [ ] **[backend] Connect to the Django order system** (done: the order is sent, validated and priced by the server, the STL is attached at submit time, the customer gets a private order page). Still open:
+  - **Payment is a placeholder.** `src/orders/payments.py` accepts every payment immediately; connect a real provider there and in the pay page (`orders/public/pay.html`). Production jobs are already created only after payment.
+  - **Email is a placeholder.** `src/orders/emails.py` prints the confirmation in the server log (console backend in `MAILERS`); configure a real mail backend and check the text in `orders/templates/orders/email/`.
+  - Replace the placeholder price list and country list in `src/orders/pricing.py` (single source: the page receives it from the server; `src/orders/test_data/pricing_cases.json` keeps `pricing.js` and the server in agreement). VAT 21% and free shipping over 50 EUR are assumptions. `COUNTRY_OPTIONS` in `orderDraft.js` is still a copy of the server's list.
+  - Upload the SVG/PNG/font files separately (only the finished STL and the design settings are stored now).
+  - The "Account" link (currently hidden) and linking orders to a customer account.
+  - Abuse protection for `POST /api/orders/` (rate limit per IP, e.g. at the reverse proxy) and a retention rule: unpaid orders and their STL files are never removed, and orders hold names and addresses.
+  - "Other country" is a shipping zone only; the real country is not asked for.
+  - A double click on "Continue to payment" is blocked in the browser, but the server has no idempotency key.
 - [ ] **[idea] "Needed by" date.** *Decide first:* is a deadline real, does it change price or production time, and what is the earliest possible date?
 
 ## Nice to have

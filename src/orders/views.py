@@ -8,65 +8,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib import messages
 from django.views.decorators.http import require_POST
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.conf import settings
-
-from products.utils import create_dummy_product
 
 from production.models import ProductionJob
 from products.models import Product
 
-from .forms import CheckoutForm
 from .models import Order, OrderItem
 from .utils import create_test_order
-
-@transaction.atomic
-def checkout(request):
-    if request.method == "POST":
-        form = CheckoutForm(request.POST)
-
-        if form.is_valid():
-            customer_info = form.save()
-
-            product = create_dummy_product()
-            quantity = 1
-
-            subtotal = product.price * quantity
-            shipping = Decimal("10.0")
-
-            order = Order.objects.create(
-                customer=customer_info,
-                subtotal_price=subtotal,
-                shipping_costs=shipping,
-                total_price=shipping + subtotal,
-            )
-
-            order_item = OrderItem.objects.create(
-                order=order,
-                product=product,
-                quantity=quantity,
-                unit_price=product.price,
-            )
-
-            if product.product_type == Product.ProductType.CUSTOM_STAMP:
-                ProductionJob.objects.create(
-                    product=product,
-                    order_item=order_item,
-                    quantity=quantity,
-                )
-
-            request.session["order_id"] = order.pk
-
-            return redirect("orders:payment")
-
-    else:
-        form = CheckoutForm()
-
-    return render(
-        request,
-        "orders/checkout.html",
-        {"form": form},
-    )
 
 @staff_member_required
 @require_POST
@@ -112,24 +61,6 @@ def test_standard_order(request):
     )
 
     return redirect("orders:order", order_id=order.id)
-
-def payment(request):
-    order_id = request.session.get("order_id")
-
-    if order_id is None:
-        return redirect("orders:checkout")
-
-    order = get_object_or_404(
-        Order,
-        pk=order_id,
-    )
-
-    return render(
-        request,
-        "orders/payment.html",
-        {"order": order},
-    )
-
 
 @staff_member_required
 def index(request):
@@ -423,3 +354,17 @@ def undo_item_ready(request, item_id):
     )
 
     return redirect("orders:order", order_id=order.id)
+
+
+@staff_member_required
+def download_item_stl(request, item_id):
+    """The stamp file the customer's browser built for this item (never served publicly)."""
+    item = get_object_or_404(OrderItem, pk=item_id)
+    if not item.stl_file:
+        raise Http404()
+
+    return FileResponse(
+        item.stl_file.open("rb"),
+        as_attachment=True,
+        filename=f"order-{item.order_id}-item-{item.pk}.stl",
+    )

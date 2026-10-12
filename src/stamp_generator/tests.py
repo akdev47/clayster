@@ -36,3 +36,17 @@ class IndexViewTests(TestCase):
         )
         for name, url in imports.items():
             self.assertEqual(name.endswith("/"), url.endswith("/"), name)
+
+    def test_page_gives_the_order_page_its_config_and_csrf_token(self):
+        response = self.client.get("/")
+
+        match = re.search(
+            r'<script id="clayster-config" type="application/json">(.*?)</script>',
+            response.content.decode(),
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        config = json.loads(match.group(1))
+        self.assertEqual(config["orderEndpoint"], "/api/orders/")
+        self.assertEqual(config["pricing"]["currency"], "EUR")
+        self.assertRegex(response.content.decode(), r'<meta name="csrf-token" content="[^"]+"')

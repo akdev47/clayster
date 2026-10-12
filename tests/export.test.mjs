@@ -8,7 +8,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { unzipSync, strFromU8 } from "three/addons/libs/fflate.module.js";
 import { initializeSolids, solidBoolean } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 import { prepareClosedStamp, verifiedSTL } from "../src/stamp_generator/static/stamp_generator/js/exportValidation.js";
-import { create3MF } from "../src/stamp_generator/static/stamp_generator/js/exporters.js";
+import { create3MF, createSTL } from "../src/stamp_generator/static/stamp_generator/js/exporters.js";
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
 import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
 import { buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
@@ -210,4 +210,18 @@ test("3MF archive preserves units, dimensions, closed triangles, and escaped nam
   built.stamp.computeBoundingBox();
   assert.ok(checked.boundingBox.equals(built.stamp.boundingBox));
   [decoded, checked, built.stamp, built.clay].forEach((g) => g.dispose());
+});
+
+test("createSTL gives the same checked binary STL the export button downloads", async () => {
+  const built = buildStamp(artwork("CLAY"), {});
+  try {
+    const blob = createSTL([{ name: "Clayster stamp", color: null, geometry: built.stamp }]);
+    assert.equal(blob.type, "model/stl");
+    const view = new DataView(await blob.arrayBuffer());
+    assert.equal(blob.size, 84 + 50 * view.getUint32(80, true), "size matches the triangle count");
+    assert.throws(() => createSTL([]), /Nothing to export/);
+  } finally {
+    built.stamp.dispose();
+    built.clay.dispose();
+  }
 });

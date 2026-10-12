@@ -252,8 +252,14 @@
               <td>
 
                 <div class="fw-medium">
-                  {{ item.product.name }}
+                  {{ item.display_name }}
                 </div>
+
+                {% if item.description %}
+                  <div class="small text-secondary">
+                    {{ item.description }}
+                  </div>
+                {% endif %}
 
                 <a
                   href="{% url 'products:product' item.product.id %}"
@@ -338,9 +344,8 @@
                 {% if item.stl_file %}
 
                   <a
-                    href="{{ item.stl_file.url }}"
+                    href="{% url 'orders:download_item_stl' item.id %}"
                     class="btn btn-sm btn-outline-secondary"
-                    download
                   >
                     <i class="bi bi-download me-1"></i>
                     STL

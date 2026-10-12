@@ -1,0 +1,17 @@
+{% autoescape off %}Hi {{ order.customer.first_name }},
+
+Thank you for your order. We received your payment and will start making your stamp.
+
+Order #{{ order.pk }}
+{% for item in items %}- {{ item.quantity }} x {{ item.display_name }}
+{% endfor %}
+Subtotal: EUR {{ order.subtotal_price }}
+Shipping: EUR {{ order.shipping_costs }}
+Total:    EUR {{ order.total_price }}
+
+You can follow your order at any time with this link. Keep it safe: anyone who has it can see your order.
+
+{{ order_url }}
+
+Clayster
+{% endautoescape %}

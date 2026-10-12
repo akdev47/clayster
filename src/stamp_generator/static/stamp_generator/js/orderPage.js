@@ -1,14 +1,16 @@
 // The order page: stamp preview (2D / 3D), price estimate,
-// printability check, and the order and delivery fields. Values are kept
-// locally for a later API request (see orderDraft.js and pricing.js).
+// printability check, and the order and delivery fields. Placing the order
+// sends it to Django (orderApi.js) and continues to the payment page.
 import {
   COUNTRY_OPTIONS,
   buildOrderPayload,
+  clearOrderDraft,
   loadOrderForm,
   saveOrderDraft,
   validateDelivery,
   validateOrderDetails,
 } from "./orderDraft.js";
+import { submitOrder } from "./orderApi.js";
 import { estimatePrice, formatMoney } from "./pricing.js";
 import { createStampSpinner } from "./stampSpinner.js";
 
@@ -30,7 +32,18 @@ const DELIVERY_FIELDS = [
 ];
 
 
-export function createOrderPage({ designModel, pipeline, onBack, renderPreview }) {
+/**
+ * `createStl()` returns the checked STL of the current stamp as a Blob and
+ * `config` comes from readServerConfig(): the server's price list and endpoint.
+ */
+export function createOrderPage({
+  designModel,
+  pipeline,
+  onBack,
+  renderPreview,
+  createStl,
+  config,
+}) {
   const byId = (id) => document.getElementById(id);
   const page = byId("order-page");
   const status = byId("order-status");
@@ -97,12 +110,15 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
 
   const currentPrice = () => {
     const details = readDetails();
-    return estimatePrice({
-      stamp: pipeline.stamp,
-      info: pipeline.result?.info ?? null,
-      quantity: details.quantity,
-      country: deliveryInput("country").value,
-    });
+    return estimatePrice(
+      {
+        stamp: pipeline.stamp,
+        info: pipeline.result?.info ?? null,
+        quantity: details.quantity,
+        country: deliveryInput("country").value,
+      },
+      config.pricing ?? undefined, // the server's price list, else the built-in one
+    );
   };
 
   const renderPrice = () => {
@@ -248,8 +264,13 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
     renderPrice();
   });
 
-  byId("order-form").addEventListener("submit", (event) => {
+  const saveButton = byId("order-save");
+  let placing = false;
+
+  byId("order-form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (placing) return;
+
     const details = readDetails();
     const delivery = readDelivery();
     const orderErrors = validateOrderDetails(details);
@@ -261,6 +282,10 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
       showStatus("Please fix the highlighted fields.", false);
       return;
     }
+    if (config.orderEndpoint === null) {
+      showStatus("Ordering is not available on this page.", false);
+      return;
+    }
 
     const payload = buildOrderPayload({
       details,
@@ -270,13 +295,41 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
       stamp: pipeline.stamp,
       info: pipeline.result?.info ?? null,
     });
+    let stl;
+    try {
+      stl = createStl();
+    } catch (error) {
+      showStatus(error.message, false);
+      return;
+    }
+
+    // Keep what was typed until the server has accepted it.
     const target = storage();
-    const saved = target !== null && saveOrderDraft(target, payload);
+    if (target !== null) saveOrderDraft(target, payload);
+
+    placing = true;
+    saveButton.disabled = true;
+    showStatus("Placing your order…", true);
+    const result = await submitOrder({
+      endpoint: config.orderEndpoint,
+      csrfToken: config.csrfToken,
+      payload,
+      stl,
+    });
+
+    if (result.ok) {
+      // The details now live on the server, so none are left on this device.
+      if (target !== null) clearOrderDraft(target);
+      window.location.assign(result.payUrl);
+      return;
+    }
+
+    placing = false;
+    saveButton.disabled = false;
+    showErrors(result.errors.order ?? {}, result.errors.delivery ?? {});
     showStatus(
-      saved
-        ? "Saved on this device. It will be sent once ordering is connected."
-        : "Could not save: browser storage is unavailable.",
-      saved,
+      result.errors.general ?? "Please fix the highlighted fields.",
+      false,
     );
   });
 

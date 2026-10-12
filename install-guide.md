@@ -106,6 +106,24 @@ Run the JavaScript checks and the Django tests with:
 `tests/importMap.test.mjs` and `tests/browserModules.test.mjs` check that every
 import in the stamp generator resolves the way the browser resolves it.
 
+## How ordering works
+
+The order page sends the order to Django (`POST /api/orders/`): the details and
+design as JSON plus the finished STL. The server validates everything, works
+out the price itself and stores the order as "Awaiting payment". The customer
+then continues to `/order/<guid>/pay/`, and after paying lands on their own
+order page `/order/<guid>/`. That link is the only thing that gives access to
+the page, and it is emailed to them. Staff see the same order in the dashboard
+at `/orders/`, with the customer's STL as a download.
+
+Payment and email are placeholders for now. Pressing "Pay" accepts the order
+without charging anything, and the confirmation email is printed in the server
+log instead of being sent. `src/orders/payments.py` and `src/orders/emails.py`
+are the places to connect the real ones.
+
+After pulling changes that touch the models, run `python manage.py migrate`
+(Docker does this on start).
+
 # [recommended] Installation guide (devenv)
 
 ## Requirements

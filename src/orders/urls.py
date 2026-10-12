@@ -6,8 +6,6 @@ app_name = "orders"
 
 urlpatterns = [
     path("", views.index, name="index"),
-    path("checkout/", views.checkout, name="checkout"),
-    path("payment/", views.payment, name="payment"),
 
     path(
         "<int:order_id>/",
@@ -19,6 +17,12 @@ urlpatterns = [
         "<int:order_id>/status/",
         views.change_status,
         name="change_status",
+    ),
+
+    path(
+        "items/<int:item_id>/stl/",
+        views.download_item_stl,
+        name="download_item_stl",
     ),
 
     path(
