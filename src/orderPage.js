@@ -11,6 +11,7 @@ import {
 } from "./orderDraft.js";
 import { estimatePrice, formatMoney } from "./pricing.js";
 import { createStampSpinner } from "./stampSpinner.js";
+import { submitOrder } from "./orderApi.js";
 
 const ORDER_FIELDS = {
   title: "title",
@@ -19,10 +20,12 @@ const ORDER_FIELDS = {
   notes: "notes",
 };
 const DELIVERY_FIELDS = [
-  "fullName",
+  "firstName",
+  "lastName",
   "email",
   "street",
   "houseNumber",
+  "houseNumberAddition",
   "postalCode",
   "city",
   "country",
@@ -248,7 +251,7 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
     renderPrice();
   });
 
-  byId("order-form").addEventListener("submit", (event) => {
+  byId("order-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const details = readDetails();
     const delivery = readDelivery();
@@ -270,14 +273,37 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
       stamp: pipeline.stamp,
       info: pipeline.result?.info ?? null,
     });
+    // Keep a local copy so nothing is lost if sending fails.
     const target = storage();
-    const saved = target !== null && saveOrderDraft(target, payload);
-    showStatus(
-      saved
-        ? "Saved on this device. It will be sent once ordering is connected."
-        : "Could not save: browser storage is unavailable.",
-      saved,
-    );
+    if (target !== null) saveOrderDraft(target, payload);
+
+    const button = byId("order-save");
+    button.disabled = true;
+    showStatus("Placing your order…", true);
+    try {
+      const { ok, status: code, data } = await submitOrder(payload);
+      if (ok) {
+        showStatus(
+          `Order #${data.order_id} placed. Total: ${formatMoney(data.total_cents)}.`,
+          true,
+        );
+      } else if (code === 400 && data?.errors) {
+        const serverOrderErrors = data.errors.order ?? {};
+        showErrors(serverOrderErrors, data.errors.delivery ?? {});
+        showStatus(
+          serverOrderErrors.stamp ??
+            data.errors.payload ??
+            "Please fix the highlighted fields.",
+          false,
+        );
+      } else {
+        showStatus(`Could not place the order (error ${code}). Please try again.`, false);
+      }
+    } catch {
+      showStatus("Could not reach the server. Your details are saved on this device.", false);
+    } finally {
+      button.disabled = false;
+    }
   });
 
   byId("order-back").addEventListener("click", onBack);

@@ -11,3 +11,15 @@ def create_dummy_product():
     )
 
     return dummy_product
+
+def get_custom_stamp_product():
+    custom_product, _ = Product.objects.get_or_create(
+        name = "Custom clay stamp",
+        defaults={
+                "short_description": "Custom stamp",
+                "price": 8.50,
+                "product_type": Product.ProductType.CUSTOM_STAMP,
+        },
+    )
+
+    return custom_product

@@ -21,7 +21,7 @@ class Order(models.Model):
         default=OrderStatus.PROCESSING,
     )
     delivery_notes = models.CharField(
-        max_length=256,
+        max_length=500,
         blank=True,
     )
     subtotal_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -60,6 +60,7 @@ class OrderAddress(models.Model):
         return f"{self.street_name} {self.house_number}{self.house_number_addition}"
 
 class OrderItem(models.Model):
+    name = models.CharField(max_length=80)
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -70,14 +71,20 @@ class OrderItem(models.Model):
          on_delete=models.PROTECT,
          related_name="order_items"
     )
+    description = models.CharField(max_length=500, blank=True)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     stl_file = models.FileField(
         upload_to="stl/",
         blank=True,
     )
+    design = models.JSONField(
+         default=dict,
+         blank=True
+    )
+    # stl_file = models.URLField(blank=True) if we are using URLs
     is_ready = models.BooleanField(default=False)
-    
+
     @property
     def line_total(self):
         return self.quantity * self.unit_price
