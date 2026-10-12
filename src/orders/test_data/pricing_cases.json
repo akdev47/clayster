@@ -1,0 +1,284 @@
+{
+  "pricing": {
+    "currency": "EUR",
+    "vatRate": 0.21,
+    "baseCents": 850,
+    "perCm2Cents": 6,
+    "handleCents": 300,
+    "quantityDiscounts": [
+      {
+        "minQuantity": 10,
+        "rate": 0.1
+      },
+      {
+        "minQuantity": 25,
+        "rate": 0.15
+      },
+      {
+        "minQuantity": 50,
+        "rate": 0.2
+      }
+    ],
+    "shipping": {
+      "freeOverCents": 5000,
+      "byCountryCents": {
+        "NL": 495,
+        "BE": 695,
+        "DE": 695,
+        "FR": 895,
+        "OTHER": 1295
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "one square stamp, Netherlands",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 50,
+        "depth": 40
+      },
+      "quantity": 1,
+      "country": "NL",
+      "expected": {
+        "unitCents": 970,
+        "itemsCents": 970,
+        "discountCents": 0,
+        "shippingCents": 495,
+        "totalCents": 1465
+      }
+    },
+    {
+      "name": "round stamp with handle, two pieces",
+      "stamp": {
+        "faceShape": "round",
+        "faceSize": 40,
+        "handle": "sample"
+      },
+      "info": {
+        "width": 40,
+        "depth": 40
+      },
+      "quantity": 2,
+      "country": "NL",
+      "expected": {
+        "unitCents": 1225,
+        "itemsCents": 2450,
+        "discountCents": 0,
+        "shippingCents": 495,
+        "totalCents": 2945
+      }
+    },
+    {
+      "name": "no measurements falls back to the face size",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": null,
+      "quantity": 1,
+      "country": "NL",
+      "expected": {
+        "unitCents": 1000,
+        "itemsCents": 1000,
+        "discountCents": 0,
+        "shippingCents": 495,
+        "totalCents": 1495
+      }
+    },
+    {
+      "name": "Belgium zone",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 50,
+        "depth": 40
+      },
+      "quantity": 1,
+      "country": "BE",
+      "expected": {
+        "unitCents": 970,
+        "itemsCents": 970,
+        "discountCents": 0,
+        "shippingCents": 695,
+        "totalCents": 1665
+      }
+    },
+    {
+      "name": "Germany zone",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 50,
+        "depth": 40
+      },
+      "quantity": 1,
+      "country": "DE",
+      "expected": {
+        "unitCents": 970,
+        "itemsCents": 970,
+        "discountCents": 0,
+        "shippingCents": 695,
+        "totalCents": 1665
+      }
+    },
+    {
+      "name": "France zone",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 50,
+        "depth": 40
+      },
+      "quantity": 1,
+      "country": "FR",
+      "expected": {
+        "unitCents": 970,
+        "itemsCents": 970,
+        "discountCents": 0,
+        "shippingCents": 895,
+        "totalCents": 1865
+      }
+    },
+    {
+      "name": "unknown country uses the other zone",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 50,
+        "depth": 40
+      },
+      "quantity": 1,
+      "country": "ZZ",
+      "expected": {
+        "unitCents": 970,
+        "itemsCents": 970,
+        "discountCents": 0,
+        "shippingCents": 1295,
+        "totalCents": 2265
+      }
+    },
+    {
+      "name": "ten pieces: 10% discount and free shipping",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 50,
+        "depth": 40
+      },
+      "quantity": 10,
+      "country": "NL",
+      "expected": {
+        "unitCents": 970,
+        "itemsCents": 9700,
+        "discountCents": 970,
+        "shippingCents": 0,
+        "totalCents": 8730
+      }
+    },
+    {
+      "name": "25 pieces: 15% discount",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 30,
+        "depth": 30
+      },
+      "quantity": 25,
+      "country": "BE",
+      "expected": {
+        "unitCents": 904,
+        "itemsCents": 22600,
+        "discountCents": 3390,
+        "shippingCents": 0,
+        "totalCents": 19210
+      }
+    },
+    {
+      "name": "50 pieces: 20% discount",
+      "stamp": {
+        "faceShape": "round",
+        "faceSize": 40,
+        "handle": "sample"
+      },
+      "info": {
+        "width": 60,
+        "depth": 45
+      },
+      "quantity": 50,
+      "country": "NL",
+      "expected": {
+        "unitCents": 1277,
+        "itemsCents": 63850,
+        "discountCents": 12770,
+        "shippingCents": 0,
+        "totalCents": 51080
+      }
+    },
+    {
+      "name": "tiny stamp, shipping not free",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 10,
+        "depth": 10
+      },
+      "quantity": 3,
+      "country": "FR",
+      "expected": {
+        "unitCents": 856,
+        "itemsCents": 2568,
+        "discountCents": 0,
+        "shippingCents": 895,
+        "totalCents": 3463
+      }
+    },
+    {
+      "name": "half cents round half up",
+      "stamp": {
+        "faceShape": "square",
+        "faceSize": 50,
+        "handle": "none"
+      },
+      "info": {
+        "width": 33.3,
+        "depth": 27.7
+      },
+      "quantity": 7,
+      "country": "NL",
+      "expected": {
+        "unitCents": 905,
+        "itemsCents": 6335,
+        "discountCents": 0,
+        "shippingCents": 0,
+        "totalCents": 6335
+      }
+    }
+  ]
+}

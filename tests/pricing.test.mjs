@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PRICING, estimatePrice, faceAreaCm2 } from "../src/pricing.js";
+import { PRICING, estimatePrice, faceAreaCm2 } from "../src/stamp_generator/static/stamp_generator/js/pricing.js";
 
 const stamp = { faceShape: "square", faceSize: 50, handle: "none" };
 const info = { width: 50, depth: 40 };

@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import {
   createPNGTraceMask,
   traceMaskToSVG,
-} from "../src/pngTrace.js";
-import { postProcessPNGArtwork } from "../src/pipeline/png.js";
-import { ringArea } from "../src/pipeline/canonical.js";
+} from "../src/stamp_generator/static/stamp_generator/js/pngTrace.js";
+import { postProcessPNGArtwork } from "../src/stamp_generator/static/stamp_generator/js/pipeline/png.js";
+import { ringArea } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 
 const maskFrom = (width, height, filled) =>
   Uint8Array.from({ length: width * height }, (_, index) =>

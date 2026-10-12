@@ -4,8 +4,8 @@ import * as THREE from "three";
 import {
   getFilledSVGShapes,
   getSVGViewportTransform,
-} from "../src/svgValidation.js";
-import { applySVGViewport, scaleToSize } from "../src/pipeline/svg.js";
+} from "../src/stamp_generator/static/stamp_generator/js/svgValidation.js";
+import { applySVGViewport, scaleToSize } from "../src/stamp_generator/static/stamp_generator/js/pipeline/svg.js";
 
 const root = (attributes) => ({
   getAttribute: (name) => attributes[name] ?? null,

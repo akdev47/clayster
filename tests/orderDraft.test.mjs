@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel } from "../src/designModel.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 import {
   DEFAULT_DELIVERY,
   DEFAULT_ORDER_DETAILS,
@@ -10,7 +10,7 @@ import {
   saveOrderDraft,
   validateDelivery,
   validateOrderDetails,
-} from "../src/orderDraft.js";
+} from "../src/stamp_generator/static/stamp_generator/js/orderDraft.js";
 
 const goodDelivery = {
   ...DEFAULT_DELIVERY,

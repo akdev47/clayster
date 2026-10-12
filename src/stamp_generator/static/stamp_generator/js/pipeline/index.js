@@ -22,9 +22,12 @@ import {
   elementFromLegacySource,
   textLetterSpacingMm,
 } from "./artworkComposition.js";
-import wasmUrl from "manifold-3d/manifold.wasm?url";
 
-const SAMPLE_HANDLE = "./models/StampHandle.stl";
+// Resolved through the import map in the browser and by Node itself in tests.
+const wasmUrl = import.meta.resolve("manifold-3d/manifold.wasm");
+
+const SAMPLE_HANDLE = new URL("../../models/StampHandle.stl", import.meta.url)
+  .href;
 const DEBOUNCE_MS = 300;
 
 export const DEFAULT_SOURCE = {

@@ -19,3 +19,8 @@ db.sqlite3
 __pycache__/
 
 media/
+
+# Docker / deployment
+.env
+staticfiles/
+src/static/vendor/

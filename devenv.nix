@@ -28,12 +28,8 @@
     };
   };
 
-  processes = {
-    vite.exec = "npx vite";
-  };
-
   enterTest = ''
-    node --test tests/*
+    node --test tests/*.mjs
   '';
 
   git-hooks.hooks = {

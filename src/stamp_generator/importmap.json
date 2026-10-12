@@ -1,0 +1,17 @@
+{
+  "imports": {
+    "three": "three/build/three.module.js",
+    "three/addons/": "three/examples/jsm/",
+    "three-mesh-bvh": "three-mesh-bvh/src/index.js",
+    "three-bvh-csg": "three-bvh-csg/src/index.js",
+    "polyclip-ts": "polyclip-ts/dist/esm/index.js",
+    "opentype.js": "opentype.js/dist/opentype.mjs",
+    "manifold-3d": "manifold-3d/manifold.js",
+    "manifold-3d/manifold.wasm": "manifold-3d/manifold.wasm",
+    "bignumber.js": "bignumber.js/bignumber.mjs",
+    "splaytree-ts": "splaytree-ts/dist/esm/index.js"
+  },
+  "files": [
+    "bootstrap/dist/js/bootstrap.bundle.min.js"
+  ]
+}

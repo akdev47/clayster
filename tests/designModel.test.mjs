@@ -4,7 +4,7 @@ import {
   DEFAULT_ELEMENT_TRANSFORM,
   DesignModel,
   createDesignElement,
-} from "../src/designModel.js";
+} from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 
 test("creates type-specific editable element intent without derived geometry", () => {
   const svgReference = { assetId: "logo" };

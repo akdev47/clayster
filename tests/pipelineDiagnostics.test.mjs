@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel } from "../src/designModel.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 import {
   DesignEditorController,
   fitsFace,
-} from "../src/editor2dInteractions.js";
-import { createPipelineDiagnostics } from "../src/pipelineDiagnostics.js";
+} from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
+import { createPipelineDiagnostics } from "../src/stamp_generator/static/stamp_generator/js/pipelineDiagnostics.js";
 
 class DiagnosticPipeline extends EventTarget {
   constructor() {

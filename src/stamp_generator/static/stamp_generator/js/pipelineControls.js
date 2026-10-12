@@ -134,7 +134,7 @@ function bindNumber(input, onChange, min = -Infinity) {
   });
 }
 
-function exportable(viewer, pipeline) {
+export function exportable(viewer, pipeline) {
   if (pipeline.busy) {
     throw new Error("Wait for the updated stamp before exporting.");
   }

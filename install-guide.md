@@ -4,13 +4,16 @@
 
 - Node.js 22 or newer
 - npm
+- Python 3.12 or newer
 
-Check whether Node.js and npm are installed:
+Check whether Node.js, npm and Python are installed:
 
     node --version
     npm --version
+    python3 --version
 
-This project requires Node.js 22 or newer.
+This project requires Node.js 22 or newer (npm only fetches the browser
+libraries and runs the tests) and Python 3.12 or newer (Django 6.1).
 
 If Node.js is not installed, we recommend using NVM:
 
@@ -37,22 +40,40 @@ This installs all dependencies defined in package.json:
   stamp and press the stamp into the clay
 - `three-mesh-bvh` — required by three-bvh-csg
 - `manifold-3d` — closed-solid operations for the printable stamp; three-bvh-csg remains in use for the clay preview
-- `vite` — the dev server and build (dev dependency)
+- `bootstrap` — its JavaScript is loaded by the Django pages
 
 The 3MF exporter is part of this project; it uses the `fflate` zip
 library that already ships inside three's addons.
 
-Fonts live in `fonts/`: Noto Sans and Noto Serif, subset to Latin so
-four faces cost under 200 KB. They are licensed under the SIL Open Font
-License; see `fonts/OFL.txt`. Any other `.ttf` or `.otf` can be uploaded
-in the app.
+There is no bundler. `npm install` also runs `npm run vendor`, which copies
+the browser files of these packages (and what they import) into
+`src/static/vendor/`, so Django serves all JavaScript as plain static files.
+That folder is generated and not committed; run `npm run vendor` again after
+changing a dependency. The page lists the packages in an import map built from
+`src/stamp_generator/importmap.json`; add a package there before importing
+it from the stamp generator's code.
+
+Fonts live in `src/stamp_generator/static/stamp_generator/fonts/`: Noto Sans
+and Noto Serif, subset to Latin so four faces cost under 200 KB. They are
+licensed under the SIL Open Font License; see `OFL.txt` in the same folder.
+Any other `.ttf` or `.otf` can be uploaded in the app.
 
 ## Run the project
 
-    npx vite
+Create a Python environment once and install the Django dependencies:
 
-Vite will display the local URL where the application is running,
-usually http://localhost:5173.
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+
+Then start Django from the `src` folder:
+
+    cd src
+    python manage.py migrate
+    python manage.py runserver
+
+The stamp generator is at http://localhost:8000/ and the shop pages are at
+`/dashboard/`, `/products/`, `/orders/` and `/production/`.
 
 ## How the app works
 
@@ -77,9 +98,31 @@ duplicate triangles, disconnected outward shells, and non-positive volume.
 STL bytes are loaded back and checked again before download. These are surface
 checks, not a guarantee of printer compatibility or minimum feature thickness.
 
-Run the export regression checks with:
+Run the JavaScript checks and the Django tests with:
 
-    node --test tests/export.test.mjs
+    node --test tests/*.mjs
+    cd src && python manage.py test
+
+`tests/importMap.test.mjs` and `tests/browserModules.test.mjs` check that every
+import in the stamp generator resolves the way the browser resolves it.
+
+## How ordering works
+
+The order page sends the order to Django (`POST /api/orders/`): the details and
+design as JSON plus the finished STL. The server validates everything, works
+out the price itself and stores the order as "Awaiting payment". The customer
+then continues to `/order/<guid>/pay/`, and after paying lands on their own
+order page `/order/<guid>/`. That link is the only thing that gives access to
+the page, and it is emailed to them. Staff see the same order in the dashboard
+at `/orders/`, with the customer's STL as a download.
+
+Payment and email are placeholders for now. Pressing "Pay" accepts the order
+without charging anything, and the confirmation email is printed in the server
+log instead of being sent. `src/orders/payments.py` and `src/orders/emails.py`
+are the places to connect the real ones.
+
+After pulling changes that touch the models, run `python manage.py migrate`
+(Docker does this on start).
 
 # [recommended] Installation guide (devenv)
 
@@ -106,13 +149,14 @@ Manually enter the shell
 
     devenv shell
 
-## Run the project
-
-    devenv up
-
-Vite will display the local URL where the application is running,
-usually http://localhost:5173.
-
 ## Run Django
 
+    cd src
     python manage.py runserver (or python3 manage.py runserver)
+
+The stamp generator is at http://localhost:8000/.
+
+# Docker deployment
+
+Running the site in Docker, development mode with stack traces, database
+migrations and backups are explained in [docker.md](docker.md).

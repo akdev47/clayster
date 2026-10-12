@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { reviewSummary } from "../src/reviewSummary.js";
+import { reviewSummary } from "../src/stamp_generator/static/stamp_generator/js/reviewSummary.js";
 
 test("review summary uses live visible elements and stamp settings", () => {
   const model = {

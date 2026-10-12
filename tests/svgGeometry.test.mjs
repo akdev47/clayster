@@ -7,9 +7,9 @@ import {
   canonicalizeSVGShapes,
   scaleToSize,
   SVG_SIMPLIFY_TOLERANCE_MM,
-} from "../src/pipeline/svg.js";
-import { removeShortEdges } from "../src/pipeline/canonical.js";
-import { validate } from "../src/pipeline/validate.js";
+} from "../src/stamp_generator/static/stamp_generator/js/pipeline/svg.js";
+import { removeShortEdges } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
+import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
 
 const IDENTITY = {
   scaleX: 1,

@@ -1,0 +1,17 @@
+# Development on top of docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Django's debug page (stack traces in the browser), the auto-reloading
+# development server, and ./src mounted into the container so code and
+# template changes show up without rebuilding the image.
+#
+# The browser files come from the mounted ./src/static/vendor, which `npm install`
+# creates on your machine (or run `npm run vendor`).
+services:
+  web:
+    command: sh -c "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:$${PORT}"
+    environment:
+      DJANGO_DEBUG: "true"
+    volumes:
+      - ./src:/app/src

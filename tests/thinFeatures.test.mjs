@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { transform } from "../src/pipeline/canonical.js";
-import { DEFAULT_STAMP, fitToFace } from "../src/pipeline/stamp.js";
-import { thinFeatureIssues } from "../src/pipeline/validate.js";
-import { initializeSolids } from "../src/solidGeometry.js";
+import { transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
+import { DEFAULT_STAMP, fitToFace } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
+import { thinFeatureIssues } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
+import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 
 await initializeSolids();
 

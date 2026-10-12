@@ -6,8 +6,8 @@ import {
   canonicalViewBox,
   canonicalSvgTransform,
   createCanonicalSvgRenderer,
-} from "../src/canonicalSvgRenderer.js";
-import { transform } from "../src/pipeline/canonical.js";
+} from "../src/stamp_generator/static/stamp_generator/js/canonicalSvgRenderer.js";
+import { transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 
 const square = [
   [

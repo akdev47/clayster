@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validate } from "../src/pipeline/validate.js";
+import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
 
 const rectangle = (minX, maxX) => [
   [

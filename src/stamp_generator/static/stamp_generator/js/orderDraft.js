@@ -1,6 +1,6 @@
 // Order details and delivery address collected on the order page, kept locally
-// until the backend order system exists. Nothing here talks to a server: buildOrderPayload()
-// returns the body a later API request can send as-is.
+// until the order has been placed (see orderApi.js). Nothing here talks to a
+// server: buildOrderPayload() returns the body that gets sent.
 
 export const ORDER_DRAFT_KEY = "clayster.orderDraft.v1";
 export const MAX_QUANTITY = 999;
@@ -181,6 +181,15 @@ export function saveOrderDraft(storage, payload) {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Removes the saved form, e.g. once the order has been placed. */
+export function clearOrderDraft(storage) {
+  try {
+    storage.removeItem(ORDER_DRAFT_KEY);
+  } catch {
+    // Storage is unavailable: there is nothing saved to remove.
   }
 }
 

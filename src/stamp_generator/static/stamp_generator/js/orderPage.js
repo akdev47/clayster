@@ -1,17 +1,18 @@
 // The order page: stamp preview (2D / 3D), price estimate,
-// printability check, and the order and delivery fields. Values are kept
-// locally for a later API request (see orderDraft.js and pricing.js).
+// printability check, and the order and delivery fields. Placing the order
+// sends it to Django (orderApi.js) and continues to the payment page.
 import {
   COUNTRY_OPTIONS,
   buildOrderPayload,
+  clearOrderDraft,
   loadOrderForm,
   saveOrderDraft,
   validateDelivery,
   validateOrderDetails,
 } from "./orderDraft.js";
+import { submitOrder } from "./orderApi.js";
 import { estimatePrice, formatMoney } from "./pricing.js";
 import { createStampSpinner } from "./stampSpinner.js";
-import { submitOrder } from "./orderApi.js";
 
 const ORDER_FIELDS = {
   title: "title",
@@ -33,7 +34,18 @@ const DELIVERY_FIELDS = [
 ];
 
 
-export function createOrderPage({ designModel, pipeline, onBack, renderPreview }) {
+/**
+ * `createStl()` returns the checked STL of the current stamp as a Blob and
+ * `config` comes from readServerConfig(): the server's price list and endpoint.
+ */
+export function createOrderPage({
+  designModel,
+  pipeline,
+  onBack,
+  renderPreview,
+  createStl,
+  config,
+}) {
   const byId = (id) => document.getElementById(id);
   const page = byId("order-page");
   const status = byId("order-status");
@@ -100,12 +112,15 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
 
   const currentPrice = () => {
     const details = readDetails();
-    return estimatePrice({
-      stamp: pipeline.stamp,
-      info: pipeline.result?.info ?? null,
-      quantity: details.quantity,
-      country: deliveryInput("country").value,
-    });
+    return estimatePrice(
+      {
+        stamp: pipeline.stamp,
+        info: pipeline.result?.info ?? null,
+        quantity: details.quantity,
+        country: deliveryInput("country").value,
+      },
+      config.pricing ?? undefined, // the server's price list, else the built-in one
+    );
   };
 
   const renderPrice = () => {
@@ -246,13 +261,22 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
 
   // --- events ----------------------------------------------------------------
 
-  page.addEventListener("input", () => {
+  page.addEventListener("input", (event) => {
     status.hidden = true;
+    // Editing a field answers its error message, so stop showing it.
+    const error = byId(`${event.target.id}-error`);
+    if (error !== null) error.textContent = "";
+    event.target.classList.remove("is-invalid");
     renderPrice();
   });
 
+  const saveButton = byId("order-save");
+  let placing = false;
+
   byId("order-form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (placing) return;
+
     const details = readDetails();
     const delivery = readDelivery();
     const orderErrors = validateOrderDetails(details);
@@ -264,6 +288,10 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
       showStatus("Please fix the highlighted fields.", false);
       return;
     }
+    if (config.orderEndpoint === null) {
+      showStatus("Ordering is not available on this page.", false);
+      return;
+    }
 
     const payload = buildOrderPayload({
       details,
@@ -273,37 +301,42 @@ export function createOrderPage({ designModel, pipeline, onBack, renderPreview }
       stamp: pipeline.stamp,
       info: pipeline.result?.info ?? null,
     });
-    // Keep a local copy so nothing is lost if sending fails.
+    let stl;
+    try {
+      stl = createStl();
+    } catch (error) {
+      showStatus(error.message, false);
+      return;
+    }
+
+    // Keep what was typed until the server has accepted it.
     const target = storage();
     if (target !== null) saveOrderDraft(target, payload);
 
-    const button = byId("order-save");
-    button.disabled = true;
+    placing = true;
+    saveButton.disabled = true;
     showStatus("Placing your order…", true);
-    try {
-      const { ok, status: code, data } = await submitOrder(payload);
-      if (ok) {
-        showStatus(
-          `Order #${data.order_id} placed. Total: ${formatMoney(data.total_cents)}.`,
-          true,
-        );
-      } else if (code === 400 && data?.errors) {
-        const serverOrderErrors = data.errors.order ?? {};
-        showErrors(serverOrderErrors, data.errors.delivery ?? {});
-        showStatus(
-          serverOrderErrors.stamp ??
-            data.errors.payload ??
-            "Please fix the highlighted fields.",
-          false,
-        );
-      } else {
-        showStatus(`Could not place the order (error ${code}). Please try again.`, false);
-      }
-    } catch {
-      showStatus("Could not reach the server. Your details are saved on this device.", false);
-    } finally {
-      button.disabled = false;
+    const result = await submitOrder({
+      endpoint: config.orderEndpoint,
+      csrfToken: config.csrfToken,
+      payload,
+      stl,
+    });
+
+    if (result.ok) {
+      // The details now live on the server, so none are left on this device.
+      if (target !== null) clearOrderDraft(target);
+      window.location.assign(result.payUrl);
+      return;
     }
+
+    placing = false;
+    saveButton.disabled = false;
+    showErrors(result.errors.order ?? {}, result.errors.delivery ?? {});
+    showStatus(
+      result.errors.general ?? "Please fix the highlighted fields.",
+      false,
+    );
   });
 
   byId("order-back").addEventListener("click", onBack);

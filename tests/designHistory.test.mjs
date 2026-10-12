@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel } from "../src/designModel.js";
-import { DesignHistory } from "../src/designHistory.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
+import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/designHistory.js";
 
 const setup = () => {
   const clock = { time: 0 };

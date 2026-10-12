@@ -10,6 +10,12 @@ const MODEL_PATH = "3D/3dmodel.model";
 
 // Serialize the completed stamp, then check the actual STL bytes before download.
 export function exportSTL(parts, filename) {
+  download(createSTL(parts), filename);
+}
+
+// The checked STL as a Blob. Kept separate from the download so the order page
+// can upload the same file the export button would give the customer.
+export function createSTL(parts) {
   if (parts.length === 0) {
     throw new Error("Nothing to export — add a part first.");
   }
@@ -21,7 +27,7 @@ export function exportSTL(parts, filename) {
     merged =
       geometries.length === 1 ? geometries[0] : mergeGeometries(geometries);
     if (!merged) throw new Error("Could not merge the parts into one mesh.");
-    download(verifiedSTL(merged), filename);
+    return verifiedSTL(merged);
   } finally {
     if (geometries.length > 1) merged?.dispose();
     geometries.forEach((geometry) => geometry.dispose());

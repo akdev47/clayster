@@ -1,8 +1,12 @@
 // Loads fonts, fits text into rows, and converts the letter outlines into 2D polygons.
 import * as THREE from "three";
-import opentype from "opentype.js";
+import * as opentypeModule from "opentype.js";
 import { fromShapes } from "./canonical.js";
 import { TEXT_LIMITS } from "./limits.js";
+
+// The browser loads opentype.js' ES build, which only has named exports; Node
+// loads the CommonJS build, whose default export is the whole library.
+const opentype = opentypeModule.default ?? opentypeModule;
 
 // Cache fonts loaded by URL; uploaded File objects are parsed directly below.
 const cache = new Map();
