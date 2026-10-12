@@ -1,15 +1,15 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
-import "./style.css";
-import { createViewer } from "./src/viewer.js";
-import { Pipeline } from "./src/pipeline/index.js";
-import { createPipelineControls } from "./src/pipelineControls.js";
-import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
-import { createReviewPage } from "./src/reviewPage.js";
-import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
-import { createOrderPage } from "./src/orderPage.js";
-import { DesignHistory } from "./src/designHistory.js";
-import { DesignModel } from "./src/designModel.js";
+import "./css/style.css";
+import { createViewer } from "./viewer.js";
+import { Pipeline } from "./pipeline/index.js";
+import { createPipelineControls } from "./pipelineControls.js";
+import { createPipelineDiagnostics } from "./pipelineDiagnostics.js";
+import { createReviewPage } from "./reviewPage.js";
+import { createCanonicalSvgRenderer } from "./canonicalSvgRenderer.js";
+import { createOrderPage } from "./orderPage.js";
+import { DesignHistory } from "./designHistory.js";
+import { DesignModel } from "./designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
@@ -20,15 +20,15 @@ import {
   MIN_ELEMENT_SCALE,
   shouldHandleElementArrowKey,
   textResizePreview,
-} from "./src/editor2dInteractions.js";
-import { SharedDesignControls } from "./src/sharedDesignControls.js";
-import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
+} from "./editor2dInteractions.js";
+import { SharedDesignControls } from "./sharedDesignControls.js";
+import { BUILT_IN_FONTS } from "./pipeline/fonts.js";
 import {
   createStampLayout,
   layoutRenderElements,
-} from "./src/pipeline/stampLayout.js";
-import { bounds, transform } from "./src/pipeline/canonical.js";
-import { readableStampDisplay } from "./src/stamp2dDisplay.js";
+} from "./pipeline/stampLayout.js";
+import { bounds, transform } from "./pipeline/canonical.js";
+import { readableStampDisplay } from "./stamp2dDisplay.js";
 
 const state = {
   width: 60,

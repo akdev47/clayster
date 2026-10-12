@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
+    path('', include("stamp_generator.urls")),
     path('admin/', admin.site.urls),
     path("dashboard/", include("dashboard.urls")),
     path("products/", include("products.urls")),

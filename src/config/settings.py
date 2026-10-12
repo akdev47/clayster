@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "orders",
     "products",
     "production",
+    "stamp_generator",
 ]
 
 MIDDLEWARE = [
