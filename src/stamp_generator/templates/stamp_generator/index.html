@@ -848,9 +848,14 @@
 
                 <div class="pipeline-field-grid">
                   <div>
-                    <label class="control-label" for="order-delivery-fullName">Full name</label>
-                    <input id="order-delivery-fullName" class="form-control clay-input mt-1" type="text" maxlength="80" autocomplete="name" />
-                    <p class="order-error" id="order-delivery-fullName-error" role="alert"></p>
+                    <label class="control-label" for="order-delivery-firstName">First name</label>
+                    <input id="order-delivery-firstName" class="form-control clay-input mt-1" type="text" maxlength="50" autocomplete="given-name" />
+                    <p class="order-error" id="order-delivery-firstName-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-lastName">Last name</label>
+                    <input id="order-delivery-lastName" class="form-control clay-input mt-1" type="text" maxlength="100" autocomplete="family-name" />
+                    <p class="order-error" id="order-delivery-lastName-error" role="alert"></p>
                   </div>
                   <div>
                     <label class="control-label" for="order-delivery-email">Email</label>
@@ -864,8 +869,13 @@
                   </div>
                   <div>
                     <label class="control-label" for="order-delivery-houseNumber">House number</label>
-                    <input id="order-delivery-houseNumber" class="form-control clay-input mt-1" type="text" maxlength="12" autocomplete="address-line2" />
+                    <input id="order-delivery-houseNumber" class="form-control clay-input mt-1" type="text" maxlength="5" inputmode="numeric" />
                     <p class="order-error" id="order-delivery-houseNumber-error" role="alert"></p>
+                  </div>
+                  <div>
+                    <label class="control-label" for="order-delivery-houseNumberAddition">Addition <span class="order-optional">(optional)</span></label>
+                    <input id="order-delivery-houseNumberAddition" class="form-control clay-input mt-1" type="text" maxlength="10" placeholder="e.g. A, bis, 2-hoog" />
+                    <p class="order-error" id="order-delivery-houseNumberAddition-error" role="alert"></p>
                   </div>
                   <div>
                     <label class="control-label" for="order-delivery-postalCode">Postal code</label>

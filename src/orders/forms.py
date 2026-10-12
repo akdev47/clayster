@@ -14,6 +14,8 @@ POSTAL_CODE_PATTERNS = {
     "FR": (r"^\d{5}$", "Use a 5-digit postal code."),
 }
 
+QUANTITY_ERROR = f"Quantity must be a whole number from 1 to {MAX_QUANTITY}."
+
 
 class OrderDetailsForm(forms.Form):
     title = forms.CharField(
@@ -25,19 +27,23 @@ class OrderDetailsForm(forms.Form):
         min_value=1,
         max_value=MAX_QUANTITY,
         error_messages={
-            "required": f"Quantity must be a whole number from 1 to {MAX_QUANTITY}.",
-            "invalid": f"Quantity must be a whole number from 1 to {MAX_QUANTITY}.",
-            "min_value": f"Quantity must be a whole number from 1 to {MAX_QUANTITY}.",
-            "max_value": f"Quantity must be a whole number from 1 to {MAX_QUANTITY}.",
+            "required": QUANTITY_ERROR,
+            "invalid": QUANTITY_ERROR,
+            "min_value": QUANTITY_ERROR,
+            "max_value": QUANTITY_ERROR,
         },
     )
     notes = forms.CharField(max_length=500, required=False)
 
 
 class DeliveryForm(forms.Form):
-    fullName = forms.CharField(
-        max_length=150,
-        error_messages={"required": "Enter the recipient's name."},
+    firstName = forms.CharField(
+        max_length=50,
+        error_messages={"required": "Enter the first name."},
+    )
+    lastName = forms.CharField(
+        max_length=100,
+        error_messages={"required": "Enter the last name."},
     )
     email = forms.EmailField(
         max_length=254,
@@ -48,10 +54,12 @@ class DeliveryForm(forms.Form):
     )
     phone = forms.CharField(max_length=20, required=False)
     street = forms.CharField(max_length=100, error_messages={"required": "Enter the street."})
+    # The number is an integer in the database; letters go in the addition.
     houseNumber = forms.CharField(
-        max_length=26,
+        max_length=5,
         error_messages={"required": "Enter the house number."},
     )
+    houseNumberAddition = forms.CharField(max_length=20, required=False)
     postalCode = forms.CharField(
         max_length=10,
         error_messages={"required": "Enter the postal code."},
@@ -71,18 +79,11 @@ class DeliveryForm(forms.Form):
             raise forms.ValidationError("Use digits, spaces, + ( ) or - only.")
         return phone
 
-    def clean_fullName(self):
-        # Stored as first and last name; everything after the first word is the last name.
-        first, _, last = self.cleaned_data["fullName"].partition(" ")
-        if len(first) > 50 or len(last.strip()) > 100:
-            raise forms.ValidationError("This name is too long.")
-        return self.cleaned_data["fullName"]
-
     def clean_houseNumber(self):
-        match = re.fullmatch(r"(\d{1,6})\s*(.{0,20})", self.cleaned_data["houseNumber"])
-        if match is None:
-            raise forms.ValidationError("Enter the house number, for example 12 or 12B.")
-        return self.cleaned_data["houseNumber"]
+        number = self.cleaned_data["houseNumber"]
+        if not re.fullmatch(r"[1-9]\d{0,4}", number):
+            raise forms.ValidationError("Use digits only; put letters like A in the addition.")
+        return number
 
     def clean(self):
         cleaned = super().clean()
@@ -95,22 +96,18 @@ class DeliveryForm(forms.Form):
     # --- how the fields map onto the models ---------------------------------
 
     def customer_fields(self):
-        first, _, last = self.cleaned_data["fullName"].partition(" ")
         return {
-            "first_name": first,
-            "last_name": last.strip(),
+            "first_name": self.cleaned_data["firstName"],
+            "last_name": self.cleaned_data["lastName"],
             "email": self.cleaned_data["email"],
             "phone": self.cleaned_data["phone"],
         }
 
     def address_fields(self):
-        number, addition = re.fullmatch(
-            r"(\d{1,6})\s*(.{0,20})", self.cleaned_data["houseNumber"]
-        ).groups()
         return {
             "street_name": self.cleaned_data["street"],
-            "house_number": int(number),
-            "house_number_addition": addition.strip(),
+            "house_number": int(self.cleaned_data["houseNumber"]),
+            "house_number_addition": self.cleaned_data["houseNumberAddition"],
             "postal_code": self.cleaned_data["postalCode"].upper(),
             "city": self.cleaned_data["city"],
             "country": COUNTRIES[self.cleaned_data["country"]],

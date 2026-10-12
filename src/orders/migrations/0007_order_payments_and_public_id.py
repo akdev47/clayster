@@ -17,7 +17,7 @@ def fill_public_ids(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("orders", "0003_orderitem_is_ready_alter_order_order_status"),
+        ("orders", "0006_merge_20261012_1254"),
     ]
 
     operations = [
@@ -35,11 +35,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name="order",
-            name="delivery_notes",
-            field=models.CharField(blank=True, max_length=500),
-        ),
-        migrations.AlterField(
-            model_name="order",
             name="order_status",
             field=models.CharField(
                 choices=[
@@ -53,21 +48,6 @@ class Migration(migrations.Migration):
                 default="PR",
                 max_length=2,
             ),
-        ),
-        migrations.AddField(
-            model_name="orderitem",
-            name="name",
-            field=models.CharField(blank=True, max_length=120),
-        ),
-        migrations.AddField(
-            model_name="orderitem",
-            name="description",
-            field=models.CharField(blank=True, max_length=1000),
-        ),
-        migrations.AddField(
-            model_name="orderitem",
-            name="design",
-            field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AlterField(
             model_name="orderitem",

@@ -16,7 +16,7 @@ from django.utils.formats import number_format
 from customers.models import Customer
 from production.models import ProductionJob
 from products.models import Product
-from products.utils import get_custom_stamp_product
+from products.utils import CUSTOM_STAMP_PRODUCT_NAME, get_custom_stamp_product
 
 from . import pricing
 from .models import Order, OrderItem, Payment
@@ -65,6 +65,21 @@ class PricingTests(SimpleTestCase):
                 self.assertEqual(price["discount_cents"], expected["discountCents"])
                 self.assertEqual(price["shipping_cents"], expected["shippingCents"])
                 self.assertEqual(price["total_cents"], expected["totalCents"])
+
+    def test_cases_from_the_first_python_port(self):
+        # Kept from the original pricing tests; the numbers must not change.
+        knob = {"faceShape": "square", "faceSize": 40, "handle": "knob"}
+        plain = {"faceShape": "square", "faceSize": 40, "handle": "none"}
+        cases = [
+            ("square with a handle, no measurements", knob, None, 1, "NL", "total_cents", 1741),
+            ("round without handle, Belgium", {**plain, "faceShape": "round"}, None, 1, "BE", "total_cents", 1620),
+            ("discount and free shipping", {**knob, "faceSize": 30}, None, 10, "DE", "total_cents", 10836),
+            ("unknown country uses the other zone", plain, {"width": 52.5, "depth": 31}, 1, "US", "total_cents", 2243),
+            ("rounds half up like JavaScript", plain, {"width": 50, "depth": 15.5}, 1, "NL", "unit_cents", 897),
+        ]
+        for name, stamp, info, quantity, country, key, expected in cases:
+            with self.subTest(name):
+                self.assertEqual(estimate_price(stamp, info, quantity, country)[key], expected)
 
     def test_countries_and_shipping_zones_agree(self):
         zones = set(pricing.PRICING["shipping"]["by_country_cents"])
@@ -149,11 +164,13 @@ class OrderMixin:
                 "notes": "Ring the bell twice.",
             },
             "delivery": {
-                "fullName": "Jan de Vries",
+                "firstName": "Jan",
+                "lastName": "de Vries",
                 "email": "jan@example.nl",
                 "phone": "+31 6 12345678",
                 "street": "Kerkstraat",
-                "houseNumber": "12B",
+                "houseNumber": "12",
+                "houseNumberAddition": "B",
                 "postalCode": "1234 ab",
                 "city": "Utrecht",
                 "country": "NL",
@@ -233,21 +250,29 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
     def test_every_order_uses_the_same_custom_stamp_product(self):
         self.post_order()
         self.post_order()
-        self.assertEqual(Product.objects.filter(name="Custom stamp").count(), 1)
+        self.assertEqual(Product.objects.filter(name=CUSTOM_STAMP_PRODUCT_NAME).count(), 1)
         self.assertEqual(get_custom_stamp_product(), Order.objects.first().items.get().product)
 
     def test_invalid_fields_are_reported_by_the_names_the_page_uses(self):
         payload = self.payload()
         payload["order"].update(title="  ", quantity=0)
-        payload["delivery"].update(email="nope", postalCode="12", houseNumber="Kerk", phone="abc")
+        payload["delivery"].update(
+            firstName="", lastName=" ", email="nope", postalCode="12", houseNumber="12B", phone="abc"
+        )
 
         response = self.post_order(payload)
 
         self.assertEqual(response.status_code, 400)
         errors = response.json()["errors"]
         self.assertEqual(set(errors["order"]), {"title", "quantity"})
-        self.assertEqual(set(errors["delivery"]), {"email", "postalCode", "houseNumber", "phone"})
+        self.assertEqual(
+            set(errors["delivery"]),
+            {"firstName", "lastName", "email", "postalCode", "houseNumber", "phone"},
+        )
         self.assertEqual(errors["delivery"]["postalCode"], "Use the format 1234 AB.")
+        self.assertEqual(
+            errors["delivery"]["houseNumber"], "Use digits only; put letters like A in the addition."
+        )
         self.assertEqual((Order.objects.count(), Customer.objects.count()), (0, 0))
 
     def test_unknown_country_and_overlong_text_are_rejected(self):
@@ -415,7 +440,7 @@ class CustomerOrderPageTests(OrderMixin, MediaTestCase):
         self.assertContains(response, f"http://testserver/order/{order.public_id}/")
         self.assertContains(response, "Jan, Utrecht, Netherlands")
         self.assertContains(response, "j***@example.nl")
-        for private in ("jan@example.nl", "Kerkstraat", "12B", "+31 6 12345678", "1234 AB"):
+        for private in ("jan@example.nl", "Kerkstraat", "12B", "+31 6 12345678", "1234 AB", "de Vries"):
             self.assertNotContains(response, private)
 
     def test_an_unpaid_order_offers_payment_and_a_paid_one_does_not(self):

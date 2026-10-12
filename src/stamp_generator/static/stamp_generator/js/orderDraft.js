@@ -23,11 +23,13 @@ const POSTAL_CODE_PATTERNS = {
 };
 
 export const DEFAULT_DELIVERY = Object.freeze({
-  fullName: "",
+  firstName: "",
+  lastName: "",
   email: "",
   phone: "",
   street: "",
   houseNumber: "",
+  houseNumberAddition: "",
   postalCode: "",
   city: "",
   country: "NL",
@@ -61,13 +63,19 @@ export function validateDelivery(delivery) {
   const errors = {};
   const text = (field) => String(delivery[field] ?? "").trim();
   const required = {
-    fullName: "Enter the recipient's name.",
+    firstName: "Enter the first name.",
+    lastName: "Enter the last name.",
     street: "Enter the street.",
     houseNumber: "Enter the house number.",
     city: "Enter the city.",
   };
   for (const [field, message] of Object.entries(required)) {
     if (text(field) === "") errors[field] = message;
+  }
+
+  // The backend stores the number as an integer; letters go in the addition.
+  if (!errors.houseNumber && !/^[1-9]\d{0,4}$/.test(text("houseNumber"))) {
+    errors.houseNumber = "Use digits only; put letters like A in the addition.";
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text("email"))) {
@@ -91,11 +99,13 @@ export function validateDelivery(delivery) {
 export function normalizeDelivery(delivery) {
   const text = (field) => String(delivery[field] ?? "").trim();
   return {
-    fullName: text("fullName"),
+    firstName: text("firstName"),
+    lastName: text("lastName"),
     email: text("email"),
     phone: text("phone"),
     street: text("street"),
     houseNumber: text("houseNumber"),
+    houseNumberAddition: text("houseNumberAddition"),
     postalCode: text("postalCode").toUpperCase(),
     city: text("city"),
     country: delivery.country ?? DEFAULT_DELIVERY.country,
@@ -128,7 +138,7 @@ export function buildOrderPayload({
   now = new Date(),
 }) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     savedAt: now.toISOString(),
     order: normalizeOrderDetails(details),
     delivery: normalizeDelivery(delivery),

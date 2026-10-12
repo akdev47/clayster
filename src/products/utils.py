@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from products.models import Product
 
-CUSTOM_STAMP_PRODUCT_NAME = "Custom stamp"
+CUSTOM_STAMP_PRODUCT_NAME = "Custom clay stamp"
 
 def create_dummy_product():
     dummy_product, _ = Product.objects.get_or_create(
@@ -15,7 +15,6 @@ def create_dummy_product():
     )
 
     return dummy_product
-
 
 def get_custom_stamp_product():
     """The one catalogue product that every stamp designed by a customer is an order item of."""
@@ -30,8 +29,8 @@ def get_custom_stamp_product():
     if product is None:
         product = Product.objects.create(
             name=CUSTOM_STAMP_PRODUCT_NAME,
-            short_description="A stamp designed by the customer",
-            price=Decimal("0.00"),
+            short_description="Custom stamp",
+            price=Decimal("8.50"),
             product_type=Product.ProductType.CUSTOM_STAMP,
             on_website=False,
         )

@@ -21,10 +21,12 @@ const ORDER_FIELDS = {
   notes: "notes",
 };
 const DELIVERY_FIELDS = [
-  "fullName",
+  "firstName",
+  "lastName",
   "email",
   "street",
   "houseNumber",
+  "houseNumberAddition",
   "postalCode",
   "city",
   "country",
@@ -259,8 +261,12 @@ export function createOrderPage({
 
   // --- events ----------------------------------------------------------------
 
-  page.addEventListener("input", () => {
+  page.addEventListener("input", (event) => {
     status.hidden = true;
+    // Editing a field answers its error message, so stop showing it.
+    const error = byId(`${event.target.id}-error`);
+    if (error !== null) error.textContent = "";
+    event.target.classList.remove("is-invalid");
     renderPrice();
   });
 

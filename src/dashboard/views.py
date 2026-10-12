@@ -56,8 +56,10 @@ def create_dummy_order(request):
     product = create_dummy_product()
 
     orderItem = OrderItem.objects.create(
+        name="Dummy Product",
         order=order,
         product=product,
+        description="dummy product used for testing",
         unit_price = 10
     )
 

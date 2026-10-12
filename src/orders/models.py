@@ -104,6 +104,8 @@ class OrderAddress(models.Model):
         return f"{self.street_name} {self.house_number}{self.house_number_addition}"
 
 class OrderItem(models.Model):
+    # What the customer called this item (custom stamps) or the product's name.
+    name = models.CharField(max_length=80)
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -114,16 +116,17 @@ class OrderItem(models.Model):
          on_delete=models.PROTECT,
          related_name="order_items"
     )
-    # What the customer called this item and a description of it, for custom stamps.
-    name = models.CharField(max_length=120, blank=True)
-    description = models.CharField(max_length=1000, blank=True)
-    # The stamp settings, measurements and design the customer ordered.
-    design = models.JSONField(default=dict, blank=True)
+    description = models.CharField(max_length=500, blank=True)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     stl_file = models.FileField(
         upload_to=order_stl_path,
         blank=True,
+    )
+    # The stamp settings, measurements and design the customer ordered.
+    design = models.JSONField(
+         default=dict,
+         blank=True
     )
     is_ready = models.BooleanField(default=False)
 
