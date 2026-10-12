@@ -201,6 +201,34 @@ test("doubling Text size doubles relative multiline spacing", () => {
   assertClose(bounds(large).height, bounds(small).height * 2);
 });
 
+test("glyph diagnostic metadata leaves text geometry unchanged and includes detached dots", () => {
+  const glyphOutlines = [];
+  const options = { text: "ai\na", size: 7.5, letterSpacing: 1, align: "right" };
+  const canonical = layoutText(font, options);
+  assert.deepEqual(layoutText(font, { ...options, glyphOutlines }), canonical);
+  assert.deepEqual(glyphOutlines.map(({ character, line, column }) =>
+    ({ character, line, column })), [
+    { character: "a", line: 1, column: 1 },
+    { character: "i", line: 1, column: 2 },
+    { character: "a", line: 2, column: 1 },
+  ]);
+  assert.equal(glyphOutlines[1].canonical.length, 2);
+});
+
+test("glyph substitutions without a reliable character mapping remain unattributed", () => {
+  const shapedFont = Object.create(font);
+  shapedFont.stringToGlyphs = (text) => text === "fi"
+    ? font.stringToGlyphs("i")
+    : font.stringToGlyphs(text);
+  const glyphOutlines = [];
+  const options = { text: "fi", size: 7.5 };
+  assert.deepEqual(
+    layoutText(shapedFont, { ...options, glyphOutlines }),
+    layoutText(shapedFont, options),
+  );
+  assert.equal(glyphOutlines[0].character, null);
+});
+
 test("overflowing artwork neither rescales nor grows the fixed face", () => {
   const local = rectangle(-10, -2, 10, 2);
   const element = {

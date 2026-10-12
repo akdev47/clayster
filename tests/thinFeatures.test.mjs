@@ -1,11 +1,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import opentype from "opentype.js";
 import { transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 import { DEFAULT_STAMP, fitToFace } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
+import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
 import { thinFeatureIssues } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
-import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
+import { initializeSolids, offsetOutline } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 
 await initializeSolids();
+
+const fontBytes = readFileSync(
+  new URL("../src/stamp_generator/static/stamp_generator/fonts/NotoSans-Bold.ttf", import.meta.url),
+);
+const notoSansBold = opentype.parse(fontBytes.buffer.slice(
+  fontBytes.byteOffset,
+  fontBytes.byteOffset + fontBytes.byteLength,
+));
 
 const rectangle = (minX, minY, maxX, maxY) => [
   [minX, minY],
@@ -21,6 +32,11 @@ const circle = (radius, segments = 128) =>
   });
 
 const hasWarning = (input) => thinFeatureIssues(input).length === 1;
+
+const defaultTextGlyph = (character) => offsetOutline(
+  layoutText(notoSansBold, { text: character, size: 7.5 }),
+  0.3 / 2,
+);
 
 test("strip just below the minimum feature width is warned", () => {
   assert.equal(hasWarning([[rectangle(0, 0, 10, 0.79)]]), true);
@@ -92,7 +108,7 @@ test("only the thin polygon in multiple artwork polygons is counted", () => {
   assert.match(issues[0].message, /^1 shape looks thinner/i);
 });
 
-test("sharp valid corners are accepted with mitered offsets", () => {
+test("sharp valid corners are accepted", () => {
   const triangle = [
     [0, 0],
     [10, 0],
@@ -120,6 +136,31 @@ test("reversed winding and redundant points do not change the result", () => {
   ].reverse();
 
   assert.equal(hasWarning([[redundant]]), false);
+});
+
+test("acute Noto Sans Bold glyph joins are not mistaken for thin features", () => {
+  for (const character of ["A", "M", "W", "w"]) {
+    assert.deepEqual(
+      thinFeatureIssues(defaultTextGlyph(character)),
+      [],
+      `${character} should be printable at the default text settings.`,
+    );
+  }
+});
+
+test("Noto Sans Bold glyph result is stable under rigid transforms and detects real scaling", () => {
+  for (const character of ["A", "M", "W", "w"]) {
+    const glyph = defaultTextGlyph(character);
+    for (const transformed of [
+      transform(glyph, { x: 3, y: -2 }),
+      transform(glyph, { rotation: 37 }),
+      transform(glyph, { mirrorX: true }),
+      transform(glyph, { mirrorY: true }),
+    ]) {
+      assert.deepEqual(thinFeatureIssues(transformed), []);
+    }
+    assert.equal(hasWarning(transform(glyph, { scale: 0.5 })), true);
+  }
 });
 
 const artwork = [
@@ -169,4 +210,25 @@ test("artwork requiring no fitting stays unchanged", () => {
 
   assert.deepEqual(fitted, artwork);
   assert.deepEqual(thinFeatureIssues(fitted), []);
+});
+
+test("thin glyph attribution uses geometry and retains generic warnings for ambiguous ownership", () => {
+  const polygon = [rectangle(0, 0, 5, 0.6)];
+  const glyph = { elementId: "text", character: "a", line: 2, column: 3, canonical: [polygon] };
+  const named = thinFeatureIssues([polygon], { textGlyphs: [glyph] });
+  assert.equal(named[0].message, "Potentially thin letters: a (below approximately 0.8 mm).");
+  assert.match(named[0].details[0], /line 2, character 3/);
+  assert.equal(named[0].thinGlyphs[0], glyph);
+
+  for (const other of [
+    { ...glyph, character: "b", column: 4 },
+    { character: null, canonical: [polygon] },
+  ]) {
+    const issues = thinFeatureIssues([polygon], { textGlyphs: [glyph, other] });
+    assert.match(issues[0].message, /^1 shape looks thinner/);
+    assert.equal(issues.length, 1);
+  }
+  const elsewhere = { ...glyph, canonical: [[rectangle(10, 10, 15, 10.6)]] };
+  assert.match(thinFeatureIssues([polygon], { textGlyphs: [elsewhere] })[0].message,
+    /^1 shape looks thinner/);
 });

@@ -52,6 +52,7 @@ export function createPipelineDiagnostics(
     render = null,
     getOverflowElementIds = () => [],
     onFitToStamp = null,
+    onHighlightThinGlyphs = () => {},
   } = {},
 ) {
   const renderState =
@@ -60,10 +61,13 @@ export function createPipelineDiagnostics(
       renderDOM(collectDOM(), state, {
         getOverflowElementIds,
         onFitToStamp,
+        onHighlightThinGlyphs,
       }));
   let state = null;
 
   const publish = (phase) => {
+    // A replaced warning cannot keep stale glyphs highlighted.
+    onHighlightThinGlyphs([]);
     state = createPipelineDiagnosticState(pipeline, phase);
     // Failed stamp generation can still leave editable overflowing artwork.
     // Offer the same recovery action for Text, SVG and PNG in that case.
@@ -109,9 +113,13 @@ export function createPipelineDiagnosticState(pipeline, phase) {
   if (phase === "failed") {
     const rows = [
       ...segmentationRows(pipeline.result?.segmentations),
+      ...(pipeline.artworkPreview?.issues ?? []).map(issueRow),
       ...diagnosticRows(pipeline.diagnostics),
     ];
-    if (rows.length === 0) {
+    const errorRow = rows.find(({ level }) => level === "error");
+    if (errorRow && pipeline.error?.message) {
+      errorRow.details = [...(errorRow.details ?? []), pipeline.error.message];
+    } else if (!errorRow) {
       rows.push({
         level: "error",
         message: `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
@@ -225,19 +233,108 @@ function diagnosticRows(diagnostics) {
   return [
     {
       level: diagnostics.level,
-      badge: diagnostics.level === "ok" ? "SVG" : undefined,
       message: diagnostics.message,
-      details: diagnostics.details,
+      details: [
+        ...(diagnostics.details ?? []),
+        ...(diagnostics.stage ? [`Stage: ${diagnostics.stage}`] : []),
+      ],
     },
   ];
 }
 
+function unprefixedMessage(message) {
+  return message.replace(/^Element "[^"]+"(?: \([^)]+\))?:\s*/, "")
+    .replace(/^(?:Warning|Note):\s*/, "");
+}
+
+// Presentation only: keep authoritative severities, messages and geometry on
+// the pipeline result untouched. Unknown messages remain available in full.
+export function presentDiagnosticRows(rows) {
+  const unique = [];
+  for (const row of rows) {
+    const original = unprefixedMessage(row.message);
+    const existing = unique.find((candidate) =>
+      candidate.level === row.level && candidate.original === original &&
+      (!candidate.elementId || !row.elementId || candidate.elementId === row.elementId));
+    if (existing) {
+      existing.details.push(...(row.details ?? []));
+      existing.thinGlyphs ??= row.thinGlyphs;
+      existing.elementId ??= row.elementId;
+      existing.elementKind ??= row.elementKind;
+      existing.code ??= row.code;
+    } else {
+      unique.push({ ...row, original, details: [...(row.details ?? [])] });
+    }
+  }
+  const reported = new Set(unique.filter(({ level }) => level !== "ok")
+    .map(({ original }) => original));
+  const priority = { error: 0, warning: 1, working: 2, idle: 2, fixed: 3, info: 4, ok: 5 };
+  return unique.map((row) => {
+    let message = row.original;
+    let suggestion;
+    if (row.thinGlyphs?.length) {
+      message = `Potentially thin letters: ${[...new Set(row.thinGlyphs.map(({ character }) => character))].join(", ")}.`;
+      suggestion = "Try increasing Letter Thickness or Text Size.";
+    } else if (/^\d+ shapes? looks? thinner than about/.test(message)) {
+      message = "Some artwork details may be too thin to print.";
+      suggestion = "Try increasing the artwork size or thickness.";
+    } else if (row.code === "artwork-overflow") {
+      message = "Artwork extends beyond the usable stamp area.";
+    } else if (/^Wrapped onto (\d+) rows/.test(message)) {
+      message = `Text wrapped onto ${message.match(/^Wrapped onto (\d+)/)[1]} lines.`;
+    } else if (/^Set at [\d.]+ mm rather than/.test(message)) {
+      message = "Text size was reduced to fit.";
+    } else if (/^Merged overlapping and self-intersecting outlines/.test(message)) {
+      message = "Overlapping outlines were cleaned up.";
+    } else if (/^Separated \d+ isolated point/.test(message)) {
+      message = "Touching outlines were separated for printing.";
+    } else if (/Stamp surface checks passed:/.test(message)) {
+      message = "Stamp surface checks passed.";
+    } else if (/^(?:Artwork is clean|Design processed successfully|SVG processed successfully)/.test(message)) {
+      message = "Artwork checks passed.";
+    } else if (row.level === "working") {
+      message = "Checking your design…";
+    } else if (row.level === "error") {
+      message = message.replace(/^(?:Artwork conversion failed|SVG loading failed|Stamp preparation failed|Geometry generation failed|Stamp mesh validation failed|Design processing failed|SVG processing failed|Could not build the stamp):\s*/, "")
+        .replace(/^Element "[^"]+" \([^)]+\) could not be converted:\s*/, "");
+      if (/Recess depth must be smaller than the backing thickness/.test(message)) {
+        message = "Recess depth must be smaller than the backing thickness.";
+      } else if (/no (?:usable filled|closed) outlines|produced no closed outlines/i.test(message)) {
+        message = "No filled artwork found. Use closed, filled shapes.";
+      } else if (/non-manifold|open edges|inconsistent.*edges|mesh validation failed/i.test(message)) {
+        message = "The stamp surface could not be built safely.";
+      } else if (/could not be repaired safely|ambiguous point contact/i.test(message)) {
+        message = "Some outlines need editing before they can be printed.";
+      }
+    }
+    if (message.length > 160) message = `${message.slice(0, 157)}…`;
+    const details = row.details.filter((detail) =>
+      !reported.has(unprefixedMessage(detail)));
+    if (message !== row.original) details.unshift(row.original);
+    if (row.elementId) details.unshift(`Element "${row.elementId}"${row.elementKind ? ` (${row.elementKind})` : ""}`);
+    return { ...row, message, suggestion, details: [...new Set(details)] };
+  }).sort((a, b) => (priority[a.level] ?? 1) - (priority[b.level] ?? 1));
+}
+
 function renderRows(dom, rows, actions) {
-  const shown =
+  const shown = presentDiagnosticRows(
     rows.length > 0
       ? rows
-      : [{ level: "ok", message: "No validation issues reported." }];
-  dom.list.replaceChildren(...shown.map((row) => createRow(row, actions)));
+      : [{ level: "ok", message: "No validation issues reported." }]);
+  const visible = shown.filter(({ level }) => level !== "ok");
+  const passed = shown.filter(({ level }) => level === "ok");
+  const nodes = visible.map((row) => createRow(row, actions));
+  if (passed.length > 0) {
+    const checks = document.createElement("details");
+    checks.className = "diagnostic-checks";
+    const summary = document.createElement("summary");
+    summary.textContent = `Checks passed (${passed.length})`;
+    const content = document.createElement("div");
+    content.append(...passed.map((row) => createRow(row, actions)));
+    checks.append(summary, content);
+    nodes.push(checks);
+  }
+  dom.list.replaceChildren(...nodes);
 }
 
 function renderDOM(dom, state, actions) {
@@ -247,10 +344,24 @@ function renderDOM(dom, state, actions) {
   setExportReadiness(dom, state.export.label, state.export.level);
 }
 
-function createRow(row, { getOverflowElementIds, onFitToStamp }) {
+function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGlyphs }) {
   const level = LEVELS[row.level] ?? LEVELS.warning;
   const item = document.createElement("div");
   item.className = "validation-row";
+  if (row.level === "warning" && row.elementKind === "text" && row.thinGlyphs?.length) {
+    item.tabIndex = 0;
+    let hovered = false;
+    let focused = false;
+    const highlight = () => onHighlightThinGlyphs(hovered || focused ? row.thinGlyphs : []);
+    item.addEventListener("mouseenter", () => { hovered = true; highlight(); });
+    item.addEventListener("mouseleave", () => { hovered = false; highlight(); });
+    item.addEventListener("focusin", () => { focused = true; highlight(); });
+    item.addEventListener("focusout", (event) => {
+      if (event.relatedTarget && item.contains(event.relatedTarget)) return;
+      focused = false;
+      highlight();
+    });
+  }
 
   const icon = document.createElement("span");
   icon.className = `status-icon ${row.iconClass ?? level.iconClass}`;
@@ -263,10 +374,24 @@ function createRow(row, { getOverflowElementIds, onFitToStamp }) {
   message.textContent = row.message;
   content.append(message);
 
-  for (const detail of row.details ?? []) {
-    const text = document.createElement("small");
-    text.textContent = detail;
-    content.append(text);
+  if (row.suggestion) {
+    const suggestion = document.createElement("small");
+    suggestion.textContent = row.suggestion;
+    content.append(suggestion);
+  }
+  if (row.details?.length) {
+    const details = document.createElement("details");
+    details.className = "diagnostic-details";
+    const summary = document.createElement("summary");
+    summary.textContent = "Details";
+    const information = document.createElement("div");
+    for (const detail of row.details) {
+      const text = document.createElement("small");
+      text.textContent = detail;
+      information.append(text);
+    }
+    details.append(summary, information);
+    content.append(details);
   }
 
   if (row.code === "artwork-overflow" && onFitToStamp !== null) {

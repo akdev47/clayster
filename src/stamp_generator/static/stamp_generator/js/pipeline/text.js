@@ -101,7 +101,7 @@ function report({ rows, broken }, paragraphs, asked, chosen, limits) {
 
   if (rows.length > paragraphs) {
     issues.push({
-      level: "fixed",
+      level: "info",
       message: `Wrapped onto ${rows.length} rows to keep each one inside ${limits.rowWidth} mm.`,
     });
   }
@@ -249,6 +249,7 @@ export function layoutText(
     letterSpacing = 0,
     lineSpacing = 1.25,
     align = "center",
+    glyphOutlines = null,
   } = {},
 ) {
   const lines = String(text).split("\n");
@@ -272,6 +273,14 @@ export function layoutText(
   const blockWidth = Math.max(0, ...laidOutLines.map(({ width }) => width));
 
   laidOutLines.forEach(({ glyphs, widths, width }, index) => {
+    // Only label characters when shaping preserves a one-to-one mapping.
+    // Ligatures/substitutions retain the ordinary shape diagnostic instead.
+    const characters = Array.from(lines[index]);
+    const characterGlyphs = glyphOutlines === null ? [] :
+      characters.map((character) => font.stringToGlyphs(character));
+    const attributable = glyphOutlines !== null && characters.length === glyphs.length &&
+      characterGlyphs.every((mapped, position) =>
+        mapped.length === 1 && mapped[0].index === glyphs[position].index);
     // opentype counts Y downwards, so later lines get a larger Y and end up
     // below the first once canonical.js flips the axis.
     let x = alignOffset(align, width, blockWidth);
@@ -281,6 +290,16 @@ export function layoutText(
       const path = glyph.getPath(x, y, size);
       if (path.commands.length > 0) drawn++;
       appendCommands(shapePath, path.commands);
+      if (glyphOutlines !== null && path.commands.length > 0) {
+        const glyphPath = new THREE.ShapePath();
+        appendCommands(glyphPath, path.commands);
+        glyphOutlines.push({
+          character: attributable ? characters[position] : null,
+          line: index + 1,
+          column: position + 1,
+          canonical: fromShapes(glyphPath.toShapes(), { flipY: true }),
+        });
+      }
       x += widths[position];
     });
   });
