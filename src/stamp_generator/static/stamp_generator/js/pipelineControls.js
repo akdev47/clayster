@@ -1,6 +1,6 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
 import { enableDragResize } from "./resize.js";
-import { export3MF, exportSTL } from "./exporters.js";
+import { exportSTL } from "./exporters.js";
 
 const SIZE_FIELDS = {
   elementScale: "elementScale",
@@ -63,23 +63,15 @@ export function createPipelineControls(
       return "Exported the stamp as STL.";
     }),
   );
-  dom.export3MF.addEventListener("click", () =>
-    run(dom, () => {
-      export3MF(exportable(viewer, pipeline), "clayster-stamp.3mf");
-      return "Exported the stamp as 3MF.";
-    }),
-  );
-
-  dom.exportSTL.disabled = dom.export3MF.disabled = true;
+  dom.exportSTL.disabled = true;
   pipeline.addEventListener("running", () => {
-    dom.exportSTL.disabled = dom.export3MF.disabled = true;
+    dom.exportSTL.disabled = true;
   });
   pipeline.addEventListener("result", () => {
-    const disabled = !pipeline.result?.stamp;
-    dom.exportSTL.disabled = dom.export3MF.disabled = disabled;
+    dom.exportSTL.disabled = !pipeline.result?.stamp;
   });
   pipeline.addEventListener("failed", () => {
-    dom.exportSTL.disabled = dom.export3MF.disabled = true;
+    dom.exportSTL.disabled = true;
   });
 
   const resizeTarget = createResizeTarget(pipeline, designControls);
@@ -214,7 +206,6 @@ function collectDOM() {
     mirror: byId("pipeline-mirror"),
     handleSelect: byId("pipeline-handle-select"),
     exportSTL: byId("pipeline-export-stl"),
-    export3MF: byId("pipeline-export-3mf"),
     status: byId("pipeline-control-status"),
   };
 }

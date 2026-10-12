@@ -86,7 +86,9 @@ export function hasThinCrossSection(
     // Even-odd filling preserves canonical holes without depending on winding.
     const original = keep(new engine.CrossSection(polygon, "EvenOdd"));
     const originalComponents = componentCount(original);
-    const insetOffset = keep(original.offset(-minFeature / 2, "Miter", 10));
+    // A circular measurement radius must not grow acute corner miters far
+    // beyond the requested physical inset. Reconstruction remains mitered.
+    const insetOffset = keep(original.offset(-minFeature / 2, "Round", 10, 64));
     const inset = keep(insetOffset.simplify(simplifyTolerance));
 
     if (inset.isEmpty()) return true;

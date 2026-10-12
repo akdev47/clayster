@@ -4,6 +4,7 @@ import { createPipelineControls, exportable } from "./pipelineControls.js";
 import { createPipelineDiagnostics } from "./pipelineDiagnostics.js";
 import { createReviewPage } from "./reviewPage.js";
 import { createCanonicalSvgRenderer } from "./canonicalSvgRenderer.js";
+import { createThinGlyphHighlight } from "./thinGlyphHighlight.js";
 import { createOrderPage } from "./orderPage.js";
 import { createSTL } from "./exporters.js";
 import { readServerConfig } from "./serverConfig.js";
@@ -36,22 +37,7 @@ const state = {
   minY: -22.5,
 };
 
-const designModel = new DesignModel({
-  elements: [
-    {
-      id: "text-1",
-      kind: "text",
-      source: {
-        text: "CLAYSTER\nSTUDIO",
-        font: { id: "sans-bold", reference: null },
-        fontSizeMm: 7.5,
-        letterSpacingRatio: 1 / 7.5,
-        lineSpacing: 1.25,
-        alignment: "center",
-      },
-    },
-  ],
-});
+const designModel = new DesignModel();
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
 const designHistory = new DesignHistory(designModel);
@@ -66,6 +52,7 @@ const previewStatus = $("#three-preview-status");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline({ designModel });
 const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
+const thinGlyphHighlight = createThinGlyphHighlight($("#thin-glyph-highlight"));
 let hasFramedPreview = false;
 let interactionActive = false;
 let renderGeometry = new Map();
@@ -80,6 +67,7 @@ const uploadedFonts = new Map();
 let pendingImageUpload = null;
 let samplePreviewReference = null;
 let samplePreviewObjectUrl = null;
+let transformControlsExpanded = false;
 
 artboard.classList.add("canonical-rendering-enabled");
 
@@ -146,6 +134,17 @@ const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
   onFitToStamp: (elementId) => {
     if (editor.fitToStamp(elementId) !== null) render();
   },
+  onHighlightThinGlyphs: (glyphs) => {
+    if (editor.view !== "2d" || pipeline.busy || !lastScene || !pipeline.result?.layout) {
+      thinGlyphHighlight.clear();
+      return;
+    }
+    thinGlyphHighlight.show(
+      glyphs,
+      lastScene.dimensions,
+      pipeline.result.layout.artworkTransform.mirrorX,
+    );
+  },
 });
 
 function setRenderGeometry(renderElements) {
@@ -157,6 +156,22 @@ function setRenderGeometry(renderElements) {
 
 function selectedElement() {
   return editor.selectedElement();
+}
+
+function setTransformControlsExpanded(expanded) {
+  transformControlsExpanded = expanded;
+  const toggle = $("#transform-controls-toggle");
+  const label = expanded
+    ? "Collapse position and transform controls"
+    : "Expand position and transform controls";
+
+  $("#transform-controls-content").hidden = !expanded;
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-label", label);
+  toggle.title = label;
+  toggle.querySelector("[aria-hidden='true']").textContent = expanded
+    ? "⌃"
+    : "⌄";
 }
 
 function clearCommittedResizePreviews() {
@@ -257,6 +272,7 @@ function renderArtboard() {
 }
 
 function renderCanonicalArtwork() {
+  thinGlyphHighlight.clear();
   const sourceElements = designModel.elements.flatMap((element) => {
     const canonical = renderGeometry.get(element.id);
     return element.visible && canonical !== undefined
@@ -806,6 +822,7 @@ $("#add-text").addEventListener("click", () => {
       letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
       lineSpacing: 1.25,
       alignment: "center",
+      thicknessMm: 0.3,
     },
     { yMm: freeSpotForNewText(NEW_TEXT_SIZE_MM) },
   );
@@ -1125,6 +1142,10 @@ bindTransformNumber(
 );
 bindTransformNumber("#element-rotation", "rotationDeg");
 
+$("#transform-controls-toggle").addEventListener("click", () => {
+  setTransformControlsExpanded(!transformControlsExpanded);
+});
+
 $("#element-mirror-x").addEventListener("change", (event) => {
   designControls.updateSelectedTransform({ mirrorX: event.target.checked });
   renderCanonicalArtwork();
@@ -1160,6 +1181,7 @@ $$("[data-view]").forEach((button) => {
 
     const show2D = button.dataset.view === "2d";
     editor.setView(show2D ? "2d" : "3d");
+    thinGlyphHighlight.clear();
     $("#stamp-canvas").classList.toggle("preview-hidden", !show2D);
     previewContainer.classList.toggle("d-none", show2D);
     $("#preview-surface-toggle").hidden = show2D;

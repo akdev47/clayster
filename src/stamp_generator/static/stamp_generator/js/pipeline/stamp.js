@@ -1,6 +1,6 @@
 // Builds the printable backing, artwork, and optional handle, plus a separate mug preview.
 import * as THREE from "three";
-import { toShapes, bounds } from "./canonical.js";
+import { toShapes, bounds, transform } from "./canonical.js";
 import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
@@ -31,7 +31,7 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
  * Everything is millimetres with Z up, so the geometry that comes out is
  * already in the orientation a slicer expects.
  */
-export function buildStamp(artwork, params, handleGeometry = null) {
+export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs = [] } = {}) {
   const settings = { ...DEFAULT_STAMP, ...params };
   if (
     settings.mode === "deboss" &&
@@ -48,7 +48,12 @@ export function buildStamp(artwork, params, handleGeometry = null) {
   // become a private transform applied only while generating this mesh.
   const layout = createStampLayout(artwork, settings, notes);
   const { artwork: art, faceSize } = layout;
-  const thinIssues = thinFeatureIssues(art);
+  const thinIssues = thinFeatureIssues(art, {
+    textGlyphs: textGlyphs.map((glyph) => ({
+      ...glyph,
+      canonical: transform(glyph.canonical, layout.artworkTransform),
+    })),
+  });
   if (layout.overflows) {
     thinIssues.push({
       level: "warning",

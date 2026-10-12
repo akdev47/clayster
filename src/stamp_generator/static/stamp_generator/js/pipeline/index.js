@@ -166,6 +166,7 @@ export class Pipeline extends EventTarget {
         elementStats = null,
         renderElements = null,
         segmentations = [],
+        textGlyphs = [],
       } = await this.artwork();
       if (token !== this.token) return;
 
@@ -208,12 +209,12 @@ export class Pipeline extends EventTarget {
       await initializeSolids(wasmUrl);
       if (token !== this.token) return;
       this.setSVGStage("stamp generation");
-      const { thinIssues, ...built } = buildStamp(artwork, this.stamp, handle);
+      const { thinIssues, ...built } = buildStamp(artwork, this.stamp, handle, { textGlyphs });
       if (thinIssues.length > 0) {
         const scopedThinIssues =
           this.designModel === null
             ? thinIssues
-            : thinIssues.map((issue) => ({ ...issue, scope: "design" }));
+            : thinIssues.map((issue) => ({ ...issue, scope: issue.elementId ? "element" : "design" }));
         issues = [
           ...issues.filter(({ level }) => level !== "ok"),
           ...scopedThinIssues,
@@ -376,20 +377,25 @@ export class Pipeline extends EventTarget {
       letterSpacing: letterSpacingMm,
     });
 
+    const glyphOutlines = [];
     let canonical = layoutText(font, {
       text: wrapped.text,
       size: wrapped.size,
       letterSpacing: letterSpacingMm,
       lineSpacing: source.lineSpacing,
       align: source.alignment,
+      glyphOutlines,
     });
 
     if (source.thicknessMm) {
       await initializeSolids(wasmUrl);
       canonical = offsetOutline(canonical, source.thicknessMm / 2);
+      for (const glyph of glyphOutlines) {
+        glyph.canonical = offsetOutline(glyph.canonical, source.thicknessMm / 2);
+      }
     }
 
-    return { canonical, issues: wrapped.issues };
+    return { canonical, issues: wrapped.issues, textGlyphs: glyphOutlines };
   }
 
   async handleGeometry() {

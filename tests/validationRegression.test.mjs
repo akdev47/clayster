@@ -12,6 +12,8 @@ import { createPipelineDiagnostics } from "../src/stamp_generator/static/stamp_g
 import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 import { prepareClosedStamp, verifiedSTL } from "../src/stamp_generator/static/stamp_generator/js/exportValidation.js";
 import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
+import { buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
+import { layoutRenderElements } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
 import { bounds, ringArea } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 import { canonicalizeSVGShapes } from "../src/stamp_generator/static/stamp_generator/js/pipeline/svg.js";
 import { postProcessPNGArtwork } from "../src/stamp_generator/static/stamp_generator/js/pipeline/png.js";
@@ -99,6 +101,43 @@ function bowTie() {
     style: { fill: "#000", opacity: 1, fillOpacity: 1, stroke: "none" },
   };
   return path;
+}
+
+function filledShape(outer, holes = []) {
+  const path = (points, Target) => {
+    const result = new Target();
+    result.moveTo(...points[0]);
+    for (const point of points.slice(1)) result.lineTo(...point);
+    result.closePath();
+    return result;
+  };
+  const shape = path(outer, THREE.Shape);
+  shape.holes.push(...holes.map((hole) => path(hole, THREE.Path)));
+  return shape;
+}
+
+// Equivalent to the supplied bird SVG's topology: two bird bodies touch at
+// one convex beak tip, each has two holes, and three separate hearts survive.
+function birdPointContactArtwork() {
+  const hole = (x, y) =>
+    Array.from({ length: 8 }, (_, index) => {
+      const angle = (-index / 8) * Math.PI * 2;
+      return [x + Math.cos(angle) * 0.5, y + Math.sin(angle) * 0.5];
+    });
+  const shapes = [
+    filledShape(
+      [[-12, -6], [-2, -6], [0, 0], [-2, 6], [-12, 6]],
+      [hole(-9, 0), hole(-5, 0)],
+    ),
+    filledShape(
+      [[0, 0], [2, -6], [12, -6], [12, 6], [2, 6]],
+      [hole(5, 0), hole(9, 0)],
+    ),
+    filledShape([[-10, 8], [-8, 7], [-6, 8], [-8, 11]]),
+    filledShape([[-2, 8], [0, 7], [2, 8], [0, 12]]),
+    filledShape([[6, 8], [8, 7], [10, 8], [8, 11]]),
+  ];
+  return canonicalizeSVGShapes(shapes, {}, 30);
 }
 
 for (const kind of ["text", "svg", "png"]) {
@@ -194,6 +233,68 @@ test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified S
     dispose(pipeline);
   }
 });
+
+for (const mode of ["emboss", "deboss"]) {
+  test(`isolated SVG point contact is repaired through ${mode} and STL round-trip`, async () => {
+    const sourceArtwork = birdPointContactArtwork();
+    let unrepaired = null;
+    let constructionError = null;
+    try {
+      unrepaired = buildStamp(sourceArtwork, {
+        faceShape: "square",
+        faceSize: 45,
+        mode,
+        handle: "none",
+      });
+    } catch (error) {
+      constructionError = error;
+    }
+    if (constructionError === null) {
+      assert.throws(() => prepareClosedStamp(unrepaired.stamp), /non-manifold/i);
+    } else {
+      assert.match(
+        constructionError.message,
+        /not a closed manifold|non-manifold/i,
+      );
+    }
+    unrepaired?.stamp.dispose();
+    unrepaired?.clay.dispose();
+
+    const { pipeline, sidebar } = setup(
+      [{ id: "bird-svg", kind: "svg", source: { reference: "bird.svg" } }],
+      () => ({ canonical: sourceArtwork, issues: [] }),
+    );
+    pipeline.stamp.faceShape = "square";
+    pipeline.stamp.faceSize = 45;
+    pipeline.stamp.mode = mode;
+    try {
+      await pipeline.run();
+      assert.equal(pipeline.error, null);
+      assert.equal(pipeline.result.artwork.length, 5);
+      assert.equal(
+        pipeline.result.artwork.reduce(
+          (total, polygon) => total + polygon.length - 1,
+          0,
+        ),
+        4,
+      );
+      assert.ok(pipeline.result.issues.some(
+        ({ level, message }) =>
+          level === "fixed" && /isolated point contact/i.test(message),
+      ));
+      assert.equal(sidebar.state.export.ready, true);
+
+      const blob = verifiedSTL(pipeline.result.stamp);
+      const reloaded = new STLLoader().parse(await blob.arrayBuffer());
+      const checked = prepareClosedStamp(reloaded);
+      assert.ok(blob.size > 84);
+      checked.dispose();
+      reloaded.dispose();
+    } finally {
+      dispose(pipeline);
+    }
+  });
+}
 
 test("transform-only 2D edits reuse conversion but rerun global validation and clear stale diagnostics", async () => {
   let conversions = 0;
@@ -293,6 +394,125 @@ test("shared pipeline checks thin features at final element scale without face r
   }
 });
 
+test("new Clayster Studio text is print-safe by default while genuinely thin text still warns", async () => {
+  const source = {
+    text: "Clayster Studio",
+    font: { id: "sans-bold", reference: font },
+    fontSizeMm: 7.5,
+    letterSpacingRatio: 1 / 7.5,
+    lineSpacing: 1.25,
+    alignment: "center",
+    thicknessMm: 0.3,
+  };
+  const { pipeline, model, sidebar } = setup([
+    { id: "text-1", kind: "text", source },
+  ]);
+
+  try {
+    await pipeline.run();
+
+    assert.ok(pipeline.result.issues.some(({ level, message }) =>
+      level === "info" && /Wrapped onto 2 rows/i.test(message)));
+    assert.ok(sidebar.state.rows.some(({ level, message }) =>
+      level === "info" && /Wrapped onto 2 rows/i.test(message)));
+    assert.equal(pipeline.result.issues.some(({ message }) =>
+      /thinner than about 0\.8 mm/i.test(message)), false);
+    assert.equal(pipeline.result.layout.overflows, false);
+    assert.ok(pipeline.result.stamp);
+
+    const displayed = layoutRenderElements(
+      pipeline.result.renderElements,
+      pipeline.result.layout.artworkTransform,
+    );
+    const displayBounds = bounds(displayed[0].canonical);
+    const stampBounds = bounds(pipeline.result.layout.artwork);
+    for (const field of ["minX", "minY", "maxX", "maxY"]) {
+      assert.ok(Math.abs(displayBounds[field] - stampBounds[field]) <= 0.05);
+    }
+    assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
+
+    pipeline.result.stamp.dispose();
+    pipeline.result.clay.dispose();
+    model.updateElement("text-1", { source: { text: "w", thicknessMm: 0 } });
+    await pipeline.run();
+
+    assert.ok(pipeline.result.issues.some(({ level, message }) =>
+      level === "warning" && /Potentially thin letters: w/i.test(message)));
+    const thinLetters = pipeline.result.issues.find(({ message }) => /Potentially thin letters/.test(message));
+    assert.equal(thinLetters.elementId, "text-1");
+    assert.equal(thinLetters.thinGlyphs.length, 1);
+    assert.deepEqual(thinLetters.thinGlyphs.map(({ character, line, column }) =>
+      [character, line, column]), [
+      ["w", 1, 1],
+    ]);
+    assert.deepEqual(thinLetters.details, [
+      "“w” — line 1, character 1 in the laid-out text.",
+    ]);
+    assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+for (const mode of ["emboss", "deboss"]) {
+  test(`default acute glyphs remain warning-free through ${mode} and STL validation`, async () => {
+    const { pipeline } = setup([text("acute-glyphs", {
+      text: "AMWw",
+      fontSizeMm: 7.5,
+      letterSpacingRatio: 1 / 7.5,
+      lineSpacing: 1.25,
+      alignment: "center",
+      thicknessMm: 0.3,
+    })]);
+    pipeline.stamp.mode = mode;
+
+    try {
+      await pipeline.run();
+
+      assert.equal(pipeline.error, null);
+      assert.equal(pipeline.result.issues.some(({ message }) =>
+        /thinner than about 0\.8 mm|Potentially thin letters/i.test(message)), false);
+      assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
+    } finally {
+      dispose(pipeline);
+    }
+  });
+}
+
+test("thin letter positions survive transforms and cached text conversion", async () => {
+  const { pipeline, model } = setup([text("repeated", {
+    text: "aa\na", fontSizeMm: 7.5, letterSpacingRatio: 1 / 7.5,
+    thicknessMm: 0,
+  })]);
+  let conversions = 0;
+  const convert = pipeline.buildElementArtwork.bind(pipeline);
+  pipeline.buildElementArtwork = (element) => {
+    conversions++;
+    return convert(element);
+  };
+  try {
+    await pipeline.run();
+    const first = pipeline.result.issues.find(({ message }) => /Potentially thin letters/.test(message));
+    assert.equal(first.details.length, 3);
+    assert.match(first.details[0], /line 1, character 1/);
+    assert.match(first.details[1], /line 1, character 2/);
+    assert.match(first.details[2], /line 2, character 1/);
+    pipeline.result.stamp.dispose();
+    pipeline.result.clay.dispose();
+
+    model.updateElement("repeated", { transform: {
+      xMm: 2, yMm: 2, rotationDeg: 15, mirrorX: true,
+    } });
+    await pipeline.run();
+    const moved = pipeline.result.issues.find(({ message }) => /Potentially thin letters/.test(message));
+    assert.deepEqual(moved.details, first.details);
+    assert.equal(conversions, 1);
+    assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
 test("manual face overflow keeps artwork scale and reaches unified diagnostics", async () => {
   const { pipeline, sidebar } = setup([
     { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
@@ -386,6 +606,7 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
     children: [],
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },
+    addEventListener(type, listener) { this[type] = listener; },
   });
   const nodes = new Map();
   const byId = (id) => {
@@ -396,8 +617,8 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
   globalThis.document = { createElement: node, getElementById: byId };
   const { pipeline } = setup([text()]);
   createPipelineDiagnostics(pipeline);
-  const messages = () => byId("pipeline-diagnostic-list").children
-    .flatMap((row) => row.children[1].children.map((child) => child.textContent));
+  const textOf = (node) => [node.textContent, ...node.children.flatMap(textOf)];
+  const messages = () => textOf(byId("pipeline-diagnostic-list"));
   try {
     pipeline.stamp.mode = "deboss";
     pipeline.stamp.reliefDepth = pipeline.stamp.faceThickness;

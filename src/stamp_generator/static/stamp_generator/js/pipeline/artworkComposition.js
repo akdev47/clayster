@@ -66,11 +66,21 @@ export class ArtworkComposer {
     const elementIssues = [];
     const elementStats = [];
     const segmentations = [];
+    const textGlyphs = [];
     let validationTolerance;
 
     for (let index = 0; index < keyed.length; index++) {
       const element = keyed[index].element;
       const conversion = converted[index];
+
+      const contributors = conversion.textGlyphs.length > 0
+        ? conversion.textGlyphs
+        : [{ character: null, canonical: conversion.canonical }];
+      textGlyphs.push(...contributors.map((glyph) => ({
+        ...glyph,
+        elementId: element.id,
+        canonical: transform(glyph.canonical, element.transform),
+      })));
 
       canonical.push(...transform(conversion.canonical, element.transform));
       renderElements.push({
@@ -128,6 +138,7 @@ export class ArtworkComposer {
       elementStats,
       segmentations,
       renderElements,
+      textGlyphs,
     };
 
     this.compositionCache = { key: compositionKey, result };
@@ -284,6 +295,7 @@ function normalizeConversion(conversion) {
     sourceStats: conversion.sourceStats ?? null,
     segmentation: conversion.segmentation ?? null,
     validationTolerance: conversion.validationTolerance,
+    textGlyphs: conversion.textGlyphs ?? [],
   };
 }
 
