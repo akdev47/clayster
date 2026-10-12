@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+
+{% block title %}Production | Clayster{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h1 class="fw-semibold mb-1">Production</h1>
+    <p class="text-secondary mb-0">
+      Manage the production queue and completed prints.
+    </p>
+  </div>
+
+  <a href="{% url 'production:add' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>
+    Add production job
+  </a>
+</div>
+
+
+<!-- Currently printing -->
+<h2 class="h5 fw-semibold mb-3">Currently printing</h2>
+
+<div class="card mb-5">
+  <div class="card-body">
+
+    {% if current_job %}
+
+      <div class="d-flex justify-content-between align-items-center">
+
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <h3 class="h5 fw-semibold mb-0">
+              {{ current_job.product.name }}
+            </h3>
+
+            <span class="badge text-bg-primary">
+              Printing
+            </span>
+          </div>
+
+          <div class="text-secondary">
+            Quantity: {{ current_job.quantity }}
+          </div>
+
+          {% if current_job.started_at %}
+            <div class="text-secondary small">
+              Started {{ current_job.started_at|date:"d M Y, H:i" }}
+            </div>
+          {% endif %}
+        </div>
+
+
+        <!-- Current job actions -->
+        <div class="d-flex gap-2">
+
+          {% if current_job.product.file %}
+            <a
+              href="{% url 'products:download_stl' current_job.product.id %}"
+              class="btn btn-outline-secondary"
+            >
+              <i class="bi bi-download me-1"></i>
+              Download STL
+            </a>
+          {% endif %}
+
+          <!-- Open stop modal -->
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-bs-toggle="modal"
+            data-bs-target="#stopProductionModal"
+          >
+            <i class="bi bi-stop-fill me-1"></i>
+            Stop printing
+          </button>
+
+          <!-- Mark ready -->
+          <form
+            method="post"
+            action="{% url 'production:ready' current_job.id %}"
+          >
+            {% csrf_token %}
+
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>
+              Mark as ready
+            </button>
+          </form>
+
+        </div>
+      </div>
+
+    {% else %}
+
+      <div class="text-center py-4">
+        <i class="bi bi-printer fs-2 text-secondary"></i>
+
+        <p class="text-secondary mb-0 mt-2">
+          Nothing is currently printing.
+        </p>
+      </div>
+
+    {% endif %}
+
+  </div>
+</div>
+
+
+<!-- Waiting -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h5 fw-semibold mb-0">Waiting</h2>
+
+  <span class="text-secondary small">
+    {{ waiting_jobs.count }} job{{ waiting_jobs.count|pluralize }}
+  </span>
+</div>
+
+<div class="card overflow-hidden mb-5">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% for job in waiting_jobs %}
+
+            <tr>
+
+              <td class="fw-medium">
+                {{ job.product.name }}
+              </td>
+
+              <td>
+                {{ job.quantity }}
+              </td>
+
+              <td class="text-secondary">
+                {{ job.created_at|date:"d M Y, H:i" }}
+              </td>
+
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-2">
+
+                  <!-- Open cancel modal -->
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#cancelProductionModal{{ job.id }}"
+                  >
+                    <i class="bi bi-x-lg me-1"></i>
+                    Cancel
+                  </button>
+
+                  <!-- Start printing -->
+                  <form
+                    method="post"
+                    action="{% url 'production:start' job.id %}"
+                  >
+                    {% csrf_token %}
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-primary"
+                      {% if current_job %}disabled{% endif %}
+                    >
+                      <i class="bi bi-play-fill me-1"></i>
+                      Start printing
+                    </button>
+                  </form>
+
+                </div>
+              </td>
+
+            </tr>
+
+          {% empty %}
+
+            <tr>
+              <td
+                colspan="4"
+                class="text-center text-secondary py-4"
+              >
+                No production jobs are waiting.
+              </td>
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- Ready -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h5 fw-semibold mb-0">Ready</h2>
+
+  <span class="text-secondary small">
+    {{ ready_jobs.count }} job{{ ready_jobs.count|pluralize }}
+  </span>
+</div>
+
+<div class="card overflow-hidden mb-5">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% for job in ready_jobs %}
+
+            <tr>
+
+              <td class="fw-medium">
+                {{ job.product.name }}
+              </td>
+
+              <td>
+                {{ job.quantity }}
+              </td>
+
+              <td class="text-secondary">
+                {{ job.created_at|date:"d M Y, H:i" }}
+              </td>
+
+              <td class="text-end">
+
+                <form
+                  method="post"
+                  action="{% url 'production:complete' job.id %}"
+                >
+                  {% csrf_token %}
+
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-outline-success"
+                  >
+                    <i class="bi bi-check-lg me-1"></i>
+                    Complete
+                  </button>
+                </form>
+
+              </td>
+
+            </tr>
+
+          {% empty %}
+
+            <tr>
+              <td
+                colspan="4"
+                class="text-center text-secondary py-4"
+              >
+                No production jobs are ready.
+              </td>
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- Recently completed -->
+<h2 class="h5 fw-semibold mb-3">
+  Recently completed
+</h2>
+
+<div class="card overflow-hidden">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Completed</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% for job in completed_jobs %}
+
+            <tr>
+
+              <td class="fw-medium">
+                {{ job.product.name }}
+              </td>
+
+              <td>
+                {{ job.quantity }}
+              </td>
+
+              <td class="text-secondary">
+                {{ job.completed_at|date:"d M Y, H:i" }}
+              </td>
+
+            </tr>
+
+          {% empty %}
+
+            <tr>
+              <td
+                colspan="3"
+                class="text-center text-secondary py-4"
+              >
+                No completed production jobs yet.
+              </td>
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ================================================== -->
+<!-- Modals                                             -->
+<!-- ================================================== -->
+
+
+<!-- Stop current production modal -->
+{% if current_job %}
+
+  <div
+    class="modal fade"
+    id="stopProductionModal"
+    tabindex="-1"
+    aria-labelledby="stopProductionModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header">
+
+          <h1
+            class="modal-title fs-5"
+            id="stopProductionModalLabel"
+          >
+            Stop printing?
+          </h1>
+
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+
+        </div>
+
+        <div class="modal-body">
+
+          Are you sure you want to stop printing
+          <strong>{{ current_job.product.name }}</strong>?
+
+          <div class="text-secondary small mt-2">
+            The production job will return to the waiting queue.
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-bs-dismiss="modal"
+          >
+            No
+          </button>
+
+          <form
+            method="post"
+            action="{% url 'production:stop' current_job.id %}"
+          >
+            {% csrf_token %}
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+            >
+              Yes, stop printing
+            </button>
+          </form>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+{% endif %}
+
+
+<!-- Cancel waiting production modals -->
+{% for job in waiting_jobs %}
+
+  <div
+    class="modal fade"
+    id="cancelProductionModal{{ job.id }}"
+    tabindex="-1"
+    aria-labelledby="cancelProductionModalLabel{{ job.id }}"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header">
+
+          <h1
+            class="modal-title fs-5"
+            id="cancelProductionModalLabel{{ job.id }}"
+          >
+            Cancel production job?
+          </h1>
+
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+
+        </div>
+
+        <div class="modal-body">
+
+          Are you sure you want to cancel production of
+          <strong>{{ job.product.name }}</strong>?
+
+          <div class="text-secondary small mt-2">
+            This production job will be removed from the waiting queue.
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-bs-dismiss="modal"
+          >
+            No
+          </button>
+
+          <form
+            method="post"
+            action="{% url 'production:cancel' job.id %}"
+          >
+            {% csrf_token %}
+
+            <button
+              type="submit"
+              class="btn btn-danger"
+            >
+              Yes, cancel job
+            </button>
+          </form>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Orders | Clayster{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="mb-4">
+  <h1 class="fw-semibold mb-1">Orders</h1>
+  <p class="text-secondary mb-0">
+    View and manage customer orders.
+  </p>
+</div>
+
+
+<!-- Summary -->
+<div class="row g-3 mb-4">
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary small mb-1">
+          Processing
+        </div>
+
+        <div class="fs-3 fw-semibold">
+          {{ processing_count }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary small mb-1">
+          Ready to ship
+        </div>
+
+        <div class="fs-3 fw-semibold">
+          {{ ready_count }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary small mb-1">
+          Orders today
+        </div>
+
+        <div class="fs-3 fw-semibold">
+          {{ today_count }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- Filters + search -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+
+  <!-- Status filters -->
+  <div class="d-flex flex-wrap gap-2">
+
+    <a
+      href="{% url 'orders:index' %}"
+      class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      All
+    </a>
+
+    <a
+      href="{% url 'orders:index' %}?status=PR"
+      class="btn btn-sm {% if current_status == 'PR' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      Processing
+    </a>
+
+    <a
+      href="{% url 'orders:index' %}?status=RE"
+      class="btn btn-sm {% if current_status == 'RE' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      Ready to ship
+    </a>
+
+    <a
+      href="{% url 'orders:index' %}?status=SH"
+      class="btn btn-sm {% if current_status == 'SH' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      Shipped
+    </a>
+
+    <a
+      href="{% url 'orders:index' %}?status=CO"
+      class="btn btn-sm {% if current_status == 'CO' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      Completed
+    </a>
+
+    <a
+      href="{% url 'orders:index' %}?status=CA"
+      class="btn btn-sm {% if current_status == 'CA' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      Cancelled
+    </a>
+
+  </div>
+
+
+  <!-- Search -->
+  <form
+    method="get"
+    action="{% url 'orders:index' %}"
+    class="d-flex"
+  >
+
+    {% if current_status %}
+      <input
+        type="hidden"
+        name="status"
+        value="{{ current_status }}"
+      >
+    {% endif %}
+
+    <div class="input-group input-group-sm">
+
+      <span class="input-group-text bg-body">
+        <i class="bi bi-search"></i>
+      </span>
+
+      <input
+        type="search"
+        name="search"
+        value="{{ search }}"
+        class="form-control"
+        placeholder="Search orders..."
+        aria-label="Search orders"
+      >
+
+      <button
+        type="submit"
+        class="btn btn-outline-secondary"
+      >
+        Search
+      </button>
+
+    </div>
+
+  </form>
+
+</div>
+
+
+<!-- Orders table -->
+<div class="card overflow-hidden">
+  <div class="card-body p-0">
+
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Customer</th>
+            <th>Date</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% for order in orders %}
+
+            <tr>
+
+              <td class="fw-semibold">
+                #{{ order.id }}
+              </td>
+
+              <td>
+                <div class="fw-medium">
+                  {{ order.customer.first_name }}
+                  {{ order.customer.last_name }}
+                </div>
+
+                <div class="text-secondary small">
+                  {{ order.customer.email }}
+                </div>
+              </td>
+
+              <td class="text-secondary">
+                {{ order.created_at|date:"d M Y, H:i" }}
+              </td>
+
+              <td>
+                {{ order.item_count }}
+              </td>
+
+              <td class="fw-medium">
+                €{{ order.total_price|floatformat:2 }}
+              </td>
+
+              <td>
+
+                {% if order.order_status == "PR" %}
+
+                  <span class="badge text-bg-primary">
+                    {{ order.get_order_status_display }}
+                  </span>
+
+                {% elif order.order_status == "RE" %}
+
+                  <span class="badge text-bg-warning">
+                    {{ order.get_order_status_display }}
+                  </span>
+
+                {% elif order.order_status == "SH" %}
+
+                  <span class="badge text-bg-info">
+                    {{ order.get_order_status_display }}
+                  </span>
+
+                {% elif order.order_status == "CO" %}
+
+                  <span class="badge text-bg-success">
+                    {{ order.get_order_status_display }}
+                  </span>
+
+                {% elif order.order_status == "CA" %}
+
+                  <span class="badge text-bg-danger">
+                    {{ order.get_order_status_display }}
+                  </span>
+
+                {% else %}
+
+                  <span class="badge text-bg-secondary">
+                    {{ order.get_order_status_display }}
+                  </span>
+
+                {% endif %}
+
+              </td>
+
+              <td class="text-end">
+
+                <a
+                  href="{% url 'orders:order' order.id %}"
+                  class="btn btn-sm btn-outline-secondary"
+                >
+                  Details
+                  <i class="bi bi-chevron-right ms-1"></i>
+                </a>
+
+              </td>
+
+            </tr>
+
+          {% empty %}
+
+            <tr>
+              <td
+                colspan="7"
+                class="text-center py-5"
+              >
+                <i class="bi bi-inbox fs-2 text-secondary"></i>
+
+                <div class="text-secondary mt-2">
+                  No orders found.
+                </div>
+              </td>
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

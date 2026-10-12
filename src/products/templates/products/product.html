@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} | Clayster{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="fw-semibold mb-1">{{ product.name }}</h1>
+    <p class="text-secondary mb-0">
+      Product details and inventory management.
+    </p>
+  </div>
+
+  <a href="{% url 'products:index' %}"
+     class="back-link text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>
+    Back to Products
+  </a>
+</div>
+
+
+<!-- Product information -->
+<div class="card overflow-hidden mb-4">
+
+  <div class="card-header bg-body-tertiary">
+    <h2 class="h6 fw-semibold mb-0">Product information</h2>
+  </div>
+
+  <div class="card-body">
+    <div class="row g-4">
+
+      <div class="col-md-6">
+        <div class="text-secondary small mb-1">Name</div>
+        <div class="fw-medium">{{ product.name }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="text-secondary small mb-1">Product type</div>
+        <div class="fw-medium">
+          {{ product.get_product_type_display }}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="text-secondary small mb-1">Price</div>
+        <div class="fw-medium">€{{ product.price }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="text-secondary small mb-1">Category</div>
+        <div class="fw-medium">
+          {{ product.category|default:"—" }}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="text-secondary small mb-1">Total units ordered</div>
+        <div class="fw-medium">
+          {{ total_units_ordered }}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="text-secondary small mb-1">On website</div>
+
+        {% if product.on_website %}
+          <span class="badge text-bg-success">
+            <i class="bi bi-check-lg me-1"></i>
+            Visible
+          </span>
+        {% else %}
+          <span class="badge text-bg-secondary">
+            <i class="bi bi-x-lg me-1"></i>
+            Hidden
+          </span>
+        {% endif %}
+      </div>
+
+      <!-- Short description -->
+      <div class="col-12">
+        <div class="text-secondary small mb-1">
+          Short description
+        </div>
+        <div>
+          {{ product.short_description|default:"—" }}
+        </div>
+      </div>
+
+      <!-- Long description -->
+      <div class="col-12">
+        <div class="text-secondary small mb-1">
+          Long description
+        </div>
+        <div>
+          {{ product.long_description|default:"—"|linebreaksbr }}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- Inventory: standard products only -->
+{% if product.product_type == "ST" %}
+
+<div class="card overflow-hidden mb-4">
+
+  <div class="card-header bg-body-tertiary">
+    <h2 class="h6 fw-semibold mb-0">Inventory</h2>
+  </div>
+
+  <div class="card-body">
+    <div class="row g-4 align-items-end">
+
+      <!-- Available stock -->
+      <div class="col-md-6">
+
+        <div class="text-secondary small mb-2">
+          Available stock
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+
+          <!-- Decrease stock -->
+          <form method="post"
+                action="{% url 'products:adjust_stock' product.id %}">
+            {% csrf_token %}
+
+            <input type="hidden" name="action" value="decrease">
+
+            <button type="submit"
+                    class="btn btn-outline-secondary"
+                    title="Decrease stock"
+                    {% if product.stock == 0 %}disabled{% endif %}>
+              <i class="bi bi-dash-lg"></i>
+            </button>
+          </form>
+
+          <!-- Stock count -->
+          <span class="fs-4 fw-semibold">
+            {{ product.stock }}
+          </span>
+
+          <!-- Increase stock -->
+          <form method="post"
+                action="{% url 'products:adjust_stock' product.id %}">
+            {% csrf_token %}
+
+            <input type="hidden" name="action" value="increase">
+
+            <button type="submit"
+                    class="btn btn-outline-secondary"
+                    title="Increase stock">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </form>
+
+        </div>
+
+        <div class="small text-secondary mt-2">
+          Products available for new orders.
+        </div>
+
+      </div>
+
+
+      <!-- Add to production -->
+      <div class="col-md-6">
+
+        <form method="post"
+              action="{% url 'products:add_to_production' product.id %}">
+          {% csrf_token %}
+
+          <label for="quantity" class="form-label">
+            Add to production
+          </label>
+
+          <div class="input-group">
+
+            <input type="number"
+                   id="quantity"
+                   name="quantity"
+                   class="form-control"
+                   value="1"
+                   min="1"
+                   required>
+
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-printer me-1"></i>
+              Add to production
+            </button>
+
+          </div>
+        </form>
+
+        <div class="small text-secondary mt-2">
+          Create a production job for additional inventory.
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endif %}
+
+
+<!-- Production jobs -->
+<div class="card overflow-hidden mb-4">
+
+  <div class="card-header bg-body-tertiary">
+    <h2 class="h6 fw-semibold mb-0">Production jobs</h2>
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Order</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for job in production_jobs %}
+          <tr>
+
+            <!-- Job ID -->
+            <td class="fw-medium">
+              #{{ job.id }}
+            </td>
+
+            <!-- Quantity -->
+            <td>
+              {{ job.quantity }}
+            </td>
+
+            <!-- Status -->
+            <td>
+              {% if job.status == "WA" %}
+                <span class="badge text-bg-warning">
+                  Waiting
+                </span>
+              {% elif job.status == "PR" %}
+                <span class="badge text-bg-primary">
+                  Printing
+                </span>
+              {% elif job.status == "RE" %}
+                <span class="badge text-bg-info">
+                  Ready
+                </span>
+              {% elif job.status == "CO" %}
+                <span class="badge text-bg-success">
+                  Completed
+                </span>
+              {% elif job.status == "CA" %}
+                <span class="badge text-bg-secondary">
+                  Cancelled
+                </span>
+              {% endif %}
+            </td>
+
+            <!-- Associated order -->
+            <td>
+              {% if job.order_item %}
+                <a href="{% url 'orders:order' job.order_item.order.id %}">
+                  Order #{{ job.order_item.order.id }}
+                </a>
+              {% else %}
+                <span class="text-secondary">
+                  Stock production
+                </span>
+              {% endif %}
+            </td>
+
+            <!-- Created -->
+            <td class="text-secondary">
+              {{ job.created_at|date:"d M Y, H:i" }}
+            </td>
+
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-secondary py-4">
+              No production jobs for this product.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+      </table>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- Actions -->
+<div class="d-flex gap-2">
+
+  <a href="{% url 'products:edit' product.id %}"
+     class="btn btn-primary">
+    <i class="bi bi-pencil me-1"></i>
+    Edit product
+  </a>
+
+  {% if product.file %}
+    <a href="{% url 'products:download_stl' product.id %}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-download me-1"></i>
+      Download STL
+    </a>
+  {% endif %}
+
+</div>
+
+{% endblock %}

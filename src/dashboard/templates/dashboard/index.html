@@ -1,0 +1,111 @@
+{% extends "base.html" %} {% block title %} Products | Clayster {% endblock %}
+{% block content %}
+
+{% if debug %}
+
+<div class="card mt-4">
+  <div class="card-body">
+
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-tools text-secondary"></i>
+      <h2 class="h5 fw-semibold mb-0">
+        Development tools
+      </h2>
+    </div>
+
+    <p class="text-secondary small mb-4">
+      Create test orders to try the order and production workflows.
+      Only available in development mode.
+    </p>
+
+    <div class="row g-3">
+
+      <!-- Custom stamp -->
+      <div class="col-md-6">
+        <div class="border rounded p-3 h-100">
+
+          <h3 class="h6 fw-semibold">
+            Custom stamp order
+          </h3>
+
+          <p class="text-secondary small">
+            Creates a custom stamp order and automatically
+            adds it to the production queue.
+          </p>
+
+          <form
+            method="post"
+            action="{% url 'orders:test_custom_order' %}"
+          >
+            {% csrf_token %}
+
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-plus-lg me-1"></i>
+              Create custom order
+            </button>
+
+          </form>
+
+        </div>
+      </div>
+
+      <!-- Standard product -->
+      <div class="col-md-6">
+        <div class="border rounded p-3 h-100">
+
+          <h3 class="h6 fw-semibold">
+            Standard product order
+          </h3>
+
+          <p class="text-secondary small">
+            Select an existing product and create a test order.
+          </p>
+
+          <form
+            method="post"
+            action="{% url 'orders:test_standard_order' %}"
+          >
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <select
+                name="product_id"
+                class="form-select"
+                required
+              >
+
+                <option value="" selected disabled>
+                  Select a product...
+                </option>
+
+                {% for product in standard_products %}
+                  <option value="{{ product.id }}">
+                    {{ product.name }} — €{{ product.price }}
+                  </option>
+                {% endfor %}
+
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-outline-primary"
+              {% if not standard_products %}disabled{% endif %}
+            >
+              <i class="bi bi-plus-lg me-1"></i>
+              Create standard order
+            </button>
+
+          </form>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+{% endif %}
+
+{% endblock %}

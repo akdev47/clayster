@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ product.name }} | Clayster{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-semibold mb-1">Edit product</h1>
+    <p class="text-secondary mb-0">
+      Update {{ product.name }}.
+    </p>
+  </div>
+
+  <a href="{% url 'products:product' product.id %}"
+     class="back-link text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i>
+    Back to Product
+  </a>
+</div>
+
+
+<!-- Edit form -->
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  {% include "products/components/product_form.html" %}
+
+  <div class="d-flex gap-2">
+
+    <button type="submit" class="btn btn-primary">
+      Save changes
+    </button>
+
+    <a
+      href="{% url 'products:product' product.id %}"
+      class="btn btn-outline-secondary"
+    >
+      Cancel
+    </a>
+
+    <!-- Open delete modal -->
+    <button
+      type="button"
+      class="btn btn-outline-danger ms-auto"
+      data-bs-toggle="modal"
+      data-bs-target="#deleteProductModal"
+    >
+      <i class="bi bi-trash me-1"></i>
+      Delete
+    </button>
+
+  </div>
+</form>
+
+
+<!-- Delete product modal -->
+<div
+  class="modal fade"
+  id="deleteProductModal"
+  tabindex="-1"
+  aria-labelledby="deleteProductModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <h1
+          class="modal-title fs-5"
+          id="deleteProductModalLabel"
+        >
+          Delete product?
+        </h1>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+
+      </div>
+
+
+      <div class="modal-body">
+
+        Are you sure you want to delete
+        <strong>{{ product.name }}</strong>?
+
+        <div class="text-secondary small mt-2">
+          This action cannot be undone.
+        </div>
+
+      </div>
+
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
+          No
+        </button>
+
+        <form
+          method="post"
+          action="{% url 'products:delete' product.id %}"
+        >
+          {% csrf_token %}
+
+          <button
+            type="submit"
+            class="btn btn-danger"
+          >
+            <i class="bi bi-trash me-1"></i>
+            Yes, delete product
+          </button>
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

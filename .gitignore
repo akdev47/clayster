@@ -14,3 +14,8 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+db.sqlite3
+
+__pycache__/
+
+media/
