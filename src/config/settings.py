@@ -177,6 +177,27 @@ if not DEBUG:
 MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media'))
 MEDIA_URL = 'media/'
 
+# Logging
+# Django only prints errors and their stack traces to the console when DEBUG is
+# on, so with DEBUG off a failing request would leave no trace anywhere. This
+# always writes them to the console, which is what `docker compose logs web`
+# shows. DJANGO_LOG_LEVEL=WARNING quiets the request log.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}
+
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 

@@ -158,39 +158,5 @@ The stamp generator is at http://localhost:8000/.
 
 # Docker deployment
 
-One image holds everything: Django runs under gunicorn and WhiteNoise serves
-the static files, which include all JavaScript. The image build runs
-`npm run vendor` in a Node stage; Node is not part of the final image. The
-stamp generator is served at `/`; the rest of Django lives at `/admin/`,
-`/dashboard/`, `/products/`, `/orders/` and `/production/`.
-
-## Requirements
-
-- Docker with the Compose plugin
-
-## Run with Docker Compose
-
-    cp .env.example .env
-
-Fill in `DJANGO_SECRET_KEY` (the file shows how to generate one), then:
-
-    docker compose up --build
-
-The site is available at http://localhost:8000 (set `WEB_PORT` in `.env` to
-use another port). Rebuild with `docker compose up --build -d` after changing
-code, because static files are collected when the image is built. The database migrates
-itself on start. Create the first admin user with:
-
-    docker compose exec web python manage.py createsuperuser
-
-The SQLite database and uploaded files live in the `clayster-data`
-volume (`/data` in the container). `docker compose down` keeps it;
-`docker compose down -v` deletes it.
-
-## Settings
-
-All deployment settings are environment variables; see `.env.example`.
-Without them `src/config/settings.py` behaves like local development
-(`DEBUG` on, SQLite next to the project), so `python manage.py runserver`
-still works. Python dependencies are in `requirements.txt` (Python 3.12
-or newer).
+Running the site in Docker, development mode with stack traces, database
+migrations and backups are explained in [docker.md](docker.md).
