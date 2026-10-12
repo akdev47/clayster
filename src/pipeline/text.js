@@ -256,15 +256,21 @@ export function layoutText(
   // SVG source goes through.
   const shapePath = new THREE.ShapePath();
   let drawn = 0;
-
-  lines.forEach((line, index) => {
+  const laidOutLines = lines.map((line) => {
     const glyphs = font.stringToGlyphs(line);
     const widths = advanceWidths(font, glyphs, scale, letterSpacing);
-    const lineWidth = widths.reduce((total, width) => total + width, 0);
+    return {
+      glyphs,
+      widths,
+      width: widths.reduce((total, width) => total + width, 0),
+    };
+  });
+  const blockWidth = Math.max(0, ...laidOutLines.map(({ width }) => width));
 
+  laidOutLines.forEach(({ glyphs, widths, width }, index) => {
     // opentype counts Y downwards, so later lines get a larger Y and end up
     // below the first once canonical.js flips the axis.
-    let x = alignOffset(align, lineWidth);
+    let x = alignOffset(align, width, blockWidth);
     const y = index * lineHeight;
 
     glyphs.forEach((glyph, position) => {
@@ -289,9 +295,10 @@ function advanceWidths(font, glyphs, scale, letterSpacing) {
   });
 }
 
-function alignOffset(align, lineWidth) {
-  if (align === "left") return 0;
-  if (align === "right") return -lineWidth;
+function alignOffset(align, lineWidth, blockWidth) {
+  const blockLeft = -blockWidth / 2;
+  if (align === "left") return blockLeft;
+  if (align === "right") return blockLeft + blockWidth - lineWidth;
   return -lineWidth / 2;
 }
 

@@ -5,13 +5,21 @@ import { createViewer } from "./src/viewer.js";
 import { Pipeline } from "./src/pipeline/index.js";
 import { createPipelineControls } from "./src/pipelineControls.js";
 import { createPipelineDiagnostics } from "./src/pipelineDiagnostics.js";
+import { createReviewPage } from "./src/reviewPage.js";
 import { createCanonicalSvgRenderer } from "./src/canonicalSvgRenderer.js";
 import { createOrderPage } from "./src/orderPage.js";
+import { DesignHistory } from "./src/designHistory.js";
 import { DesignModel } from "./src/designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  cornerDragScale,
   fitsFace,
+  isEditingField,
+  MAX_ELEMENT_SCALE,
+  MIN_ELEMENT_SCALE,
+  shouldHandleElementArrowKey,
+  textResizePreview,
 } from "./src/editor2dInteractions.js";
 import { SharedDesignControls } from "./src/sharedDesignControls.js";
 import { BUILT_IN_FONTS } from "./src/pipeline/fonts.js";
@@ -38,7 +46,7 @@ const designModel = new DesignModel({
         text: "CLAYSTER\nSTUDIO",
         font: { id: "sans-bold", reference: null },
         fontSizeMm: 7.5,
-        letterSpacingMm: 1,
+        letterSpacingRatio: 1 / 7.5,
         lineSpacing: 1.25,
         alignment: "center",
       },
@@ -47,6 +55,7 @@ const designModel = new DesignModel({
 });
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
+const designHistory = new DesignHistory(designModel);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
@@ -64,10 +73,14 @@ let renderGeometry = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
 let overflowingIds = new Set();
+const resizePreviewTransforms = new Map();
+const committedResizePreviews = new Set();
 let lastScene = null;
 let artworkLayoutTransform = {};
 const uploadedFonts = new Map();
 let pendingImageUpload = null;
+let samplePreviewReference = null;
+let samplePreviewObjectUrl = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
@@ -85,22 +98,22 @@ Object.defineProperty(editor, "faceLimit", {
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
-createPipelineDiagnostics(pipeline);
 
 pipeline.addEventListener("running", () => {
   publishedLayout = null;
-  renderCanonicalArtwork();
-  if (!interactionActive) renderArtboard();
+  if (!interactionActive) {
+    renderCanonicalArtwork();
+    renderArtboard();
+  }
   previewStatus.hidden = false;
   previewStatus.textContent = "Building 3D preview…";
 });
 
 pipeline.addEventListener("result", () => {
   const result = pipeline.result;
-  renderGeometry = new Map(
-    (result.renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
-  );
+  setRenderGeometry(result.renderElements);
   publishedLayout = result.layout ?? null;
+  clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: result.stamp, clay: result.clay });
@@ -116,9 +129,12 @@ pipeline.addEventListener("result", () => {
 });
 
 pipeline.addEventListener("failed", () => {
-  renderGeometry = new Map();
-  displayGeometry = new Map();
+  // Stamp generation can fail after the artwork itself was converted (for
+  // example when enlarged text sits outside the backing). Keep that artwork
+  // editable so the user can shrink or move it and trigger a successful run.
+  setRenderGeometry(pipeline.artworkPreview?.renderElements);
   publishedLayout = null;
+  clearCommittedResizePreviews();
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
@@ -126,8 +142,27 @@ pipeline.addEventListener("failed", () => {
   previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
 });
 
+const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
+  getOverflowElementIds: () => [...overflowingIds],
+  onFitToStamp: (elementId) => {
+    if (editor.fitToStamp(elementId) !== null) render();
+  },
+});
+
+function setRenderGeometry(renderElements) {
+  renderGeometry = new Map(
+    (renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  if (renderGeometry.size === 0) displayGeometry = new Map();
+}
+
 function selectedElement() {
   return editor.selectedElement();
+}
+
+function clearCommittedResizePreviews() {
+  committedResizePreviews.forEach((id) => resizePreviewTransforms.delete(id));
+  committedResizePreviews.clear();
 }
 
 function imageKind(file) {
@@ -139,7 +174,16 @@ function imageKind(file) {
 
 function imageSource(kind, file) {
   return kind === "png"
-    ? { reference: file, baseSizeMm: 30, tracing: { smoothing: 2 } }
+    ? {
+        reference: file,
+        baseSizeMm: 30,
+        tracing: {
+          smoothing: 2,
+          backgroundMode: "auto",
+          backgroundSamples: [],
+          backgroundTolerance: 1,
+        },
+      }
     : { reference: file, baseSizeMm: 30 };
 }
 
@@ -161,6 +205,11 @@ function addResizeHandles(element) {
 }
 
 function renderArtboard() {
+  const focusedElementId = document.activeElement?.classList?.contains(
+    "design-element",
+  )
+    ? document.activeElement.dataset.elementId
+    : null;
   artboard.querySelectorAll(".design-element").forEach((item) => item.remove());
 
   designModel.elements.forEach((element) => {
@@ -189,6 +238,8 @@ function renderArtboard() {
     }
 
     item.addEventListener("pointerdown", startDrag);
+    item.addEventListener("focus", () => selectElement(element.id));
+    item.addEventListener("keydown", moveElementFromKeyboard);
     item.querySelectorAll(".resize-handle").forEach((handle) => {
       handle.addEventListener("pointerdown", (event) => {
         startResize(event, element, item);
@@ -197,6 +248,13 @@ function renderArtboard() {
     artboard.append(item);
     applyOverlayBounds(item, element);
   });
+
+  if (focusedElementId !== null) {
+    const focusedItem = [...artboard.querySelectorAll(".design-element")].find(
+      (item) => item.dataset.elementId === focusedElementId,
+    );
+    focusedItem?.focus({ preventScroll: true });
+  }
 }
 
 function renderCanonicalArtwork() {
@@ -208,7 +266,8 @@ function renderCanonicalArtwork() {
             id: element.id,
             kind: element.kind,
             canonical,
-            transform: element.transform,
+            transform:
+              resizePreviewTransforms.get(element.id) ?? element.transform,
           },
         ]
       : [];
@@ -261,17 +320,12 @@ function renderCanonicalArtwork() {
     },
   };
 
-  canonicalRenderer.render(
-    display.artwork.length === 0
-      ? []
-      : [
-          { id: "combined-artwork", kind: "design", canonical: display.artwork },
-          ...overflowing.map(({ id, canonical }) => ({
-            id: `overflow-${id}`,
-            kind: "overflow",
-            canonical,
-          })),
-        ],
+  canonicalRenderer.renderTransformed(
+    sourceElements.map((element) => ({
+      ...element,
+      kind: overflowingIds.has(element.id) ? "overflow" : element.kind,
+      transforms: [element.transform, { ...layout.artworkTransform, mirrorX: false }],
+    })),
     {
       widthMm: state.width,
       heightMm: state.height,
@@ -392,10 +446,13 @@ function updateControls() {
   const isText = element?.kind === "text";
   const isImage = element?.kind === "svg" || element?.kind === "png";
 
+  $("#selected-element-section").hidden = !element;
   $("#text-controls").classList.toggle("d-none", !isText);
   $("#image-controls").classList.toggle("d-none", !isImage);
   $("#png-options").classList.toggle("d-none", element?.kind !== "png");
   $("#transform-controls").classList.toggle("d-none", !element);
+  $("#element-scale-control").classList.toggle("d-none", !element || isText);
+  $("#duplicate-element").disabled = !element;
   $("#delete-element").disabled = !element;
 
   if (element) {
@@ -412,34 +469,117 @@ function updateControls() {
     $("#image-message").textContent = `${element.kind.toUpperCase()} source: ${sourceName(element.source.reference)}`;
     if (element.kind === "png") {
       const smoothing = element.source.tracing.smoothing;
+      $("#png-background").value = element.source.tracing.backgroundMode;
       $("#png-smoothing").value = smoothing;
       $("#png-smoothing-value").textContent =
         smoothing === 0 ? "Off" : `${smoothing}×`;
     }
   }
 
+  updatePNGSampleControls(element);
+
   if (!isText) return;
 
   $("#text-input").value = element.source.text;
   updateFontPicker(element);
-  $("#font-size").value = element.source.fontSizeMm;
-  $("#letter-spacing").value = element.source.letterSpacingMm;
+  const textSizeMm = element.source.fontSizeMm * element.transform.scale;
+  updateTextSizeControl(textSizeMm);
+  const letterSpacingPercent = round2(
+    element.source.letterSpacingRatio * 100,
+  );
+  $("#letter-spacing").value = letterSpacingPercent;
   $("#line-spacing").value = element.source.lineSpacing;
   $("#font-weight").value = element.source.thicknessMm;
 
-  $("#font-size-value").textContent = `${element.source.fontSizeMm} mm`;
-  $("#letter-spacing-value").textContent = `${element.source.letterSpacingMm} mm`;
+  $("#letter-spacing-value").textContent = `${letterSpacingPercent}%`;
   $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
   $("#font-weight-value").textContent = thicknessLabel(
     element.source.thicknessMm,
   );
 
   $$(".alignment-button").forEach((button) => {
-    button.classList.toggle(
-      "active",
-      button.dataset.align === element.source.alignment,
-    );
+    const active = button.dataset.align === element.source.alignment;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
+}
+
+function updateTextSizeControl(fontSizeMm) {
+  const displayedSizeMm = round2(fontSizeMm);
+  $("#font-size").value = displayedSizeMm;
+  $("#font-size-value").textContent = `${displayedSizeMm} mm`;
+}
+
+function updatePNGSampleControls(element) {
+  const controls = $("#png-sample-controls");
+  const picking =
+    element?.kind === "png" &&
+    element.source.tracing.backgroundMode === "pick";
+  controls.hidden = !picking;
+  if (!picking) return;
+
+  setPNGSamplePreview(element.source.reference);
+  const { backgroundSamples, backgroundTolerance } = element.source.tracing;
+  $("#png-background-tolerance").value = backgroundTolerance;
+  $("#png-background-tolerance-value").textContent = `${backgroundTolerance}×`;
+  $("#png-sample-count").textContent = `${backgroundSamples.length} ${
+    backgroundSamples.length === 1 ? "sample" : "samples"
+  }`;
+  $("#png-clear-samples").disabled = backgroundSamples.length === 0;
+
+  const markers = $("#png-sample-markers");
+  markers.replaceChildren(
+    ...backgroundSamples.map(({ x, y }, index) => {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "png-sample-marker";
+      marker.style.left = `${x * 100}%`;
+      marker.style.top = `${y * 100}%`;
+      marker.textContent = "×";
+      marker.setAttribute(
+        "aria-label",
+        `Remove background sample ${index + 1}`,
+      );
+      marker.addEventListener("click", (event) => {
+        event.stopPropagation();
+        updatePNGTracing({
+          backgroundSamples: backgroundSamples.filter(
+            (_sample, sampleIndex) => sampleIndex !== index,
+          ),
+        });
+      });
+      return marker;
+    }),
+  );
+}
+
+function setPNGSamplePreview(reference) {
+  if (reference === samplePreviewReference) return;
+  if (samplePreviewObjectUrl !== null) {
+    URL.revokeObjectURL(samplePreviewObjectUrl);
+    samplePreviewObjectUrl = null;
+  }
+  samplePreviewReference = reference;
+
+  const image = $("#png-sample-image");
+  if (reference instanceof Blob) {
+    samplePreviewObjectUrl = URL.createObjectURL(reference);
+    image.src = samplePreviewObjectUrl;
+  } else if (typeof reference === "string") {
+    image.src = reference;
+  } else {
+    image.removeAttribute("src");
+  }
+}
+
+function updatePNGTracing(tracingPatch) {
+  const selected = selectedElement();
+  if (selected?.kind !== "png") return null;
+  const changed = designControls.updateSelectedSource("png", {
+    tracing: { ...selected.source.tracing, ...tracingPatch },
+  });
+  if (changed !== null) render();
+  return changed;
 }
 
 function sourceName(reference) {
@@ -526,6 +666,23 @@ function startDrag(event) {
   item.addEventListener("pointercancel", stop);
 }
 
+function moveElementFromKeyboard(event) {
+  if (!shouldHandleElementArrowKey(event)) return;
+
+  event.preventDefault();
+  interactionActive = true;
+  try {
+    const item = event.currentTarget;
+    const changed = editor.moveFromArrowKey(item.dataset.elementId, event.key);
+    if (changed === null) return;
+    renderCanonicalArtwork();
+    applyOverlayBounds(item, changed);
+    updateControls();
+  } finally {
+    interactionActive = false;
+  }
+}
+
 function startResize(event, element, item) {
   event.preventDefault();
   event.stopPropagation();
@@ -539,38 +696,75 @@ function startResize(event, element, item) {
   event.currentTarget.setPointerCapture(event.pointerId);
 
   const itemBounds = item.getBoundingClientRect();
-  const centerX = itemBounds.left + itemBounds.width / 2;
-  const centerY = itemBounds.top + itemBounds.height / 2;
-  const startDistance = Math.hypot(
-    event.clientX - centerX,
-    event.clientY - centerY,
-  );
+  const centre = {
+    x: itemBounds.left + itemBounds.width / 2,
+    y: itemBounds.top + itemBounds.height / 2,
+  };
+  const startPointer = { x: event.clientX, y: event.clientY };
   const startTransform = element.transform;
   const startScale = startTransform.scale;
+  const startTextSizeMm =
+    element.kind === "text" ? element.source.fontSizeMm : null;
+  let textPreview =
+    element.kind === "text"
+      ? textResizePreview(startTextSizeMm, startTransform, startScale)
+      : null;
+  let hasTextPreview = false;
   const handle = event.currentTarget;
 
   const resize = (moveEvent) => {
-    const distance = Math.hypot(
-      moveEvent.clientX - centerX,
-      moveEvent.clientY - centerY,
+    const nextScale = cornerDragScale(
+      startPointer,
+      centre,
+      { x: moveEvent.clientX, y: moveEvent.clientY },
+      startTransform.scale,
     );
-    const nextScale = startScale * (distance / Math.max(startDistance, 1));
+
+    if (element.kind === "text") {
+      textPreview = textResizePreview(
+        startTextSizeMm,
+        startTransform,
+        nextScale,
+      );
+      resizePreviewTransforms.set(element.id, textPreview.transform);
+      hasTextPreview = true;
+      renderCanonicalArtwork();
+      applyOverlayBounds(item, element);
+      updateTextSizeControl(textPreview.fontSizeMm);
+      return;
+    }
 
     const changed = editor.resize(
       element.id,
       canonical,
       startTransform,
-      Math.min(2.5, Math.max(0.45, nextScale)),
+      nextScale,
     );
     renderCanonicalArtwork();
     applyOverlayBounds(item, changed);
+    updateControls();
   };
 
   const stop = () => {
-    interactionActive = false;
     handle.removeEventListener("pointermove", resize);
     handle.removeEventListener("pointerup", stop);
     handle.removeEventListener("pointercancel", stop);
+
+    if (element.kind === "text" && hasTextPreview) {
+      const currentSizeMm =
+        element.source.fontSizeMm * element.transform.scale;
+      const needsCommit =
+        textPreview.fontSizeMm !== currentSizeMm ||
+        element.transform.scale !== 1;
+      if (needsCommit) {
+        committedResizePreviews.add(element.id);
+        editor.setTextSize(element.id, textPreview.fontSizeMm);
+      } else {
+        resizePreviewTransforms.delete(element.id);
+      }
+    }
+
+    interactionActive = false;
     render();
   };
 
@@ -610,7 +804,7 @@ $("#add-text").addEventListener("click", () => {
       text: "TEXT",
       font: { id: "sans-bold", reference: null },
       fontSizeMm: NEW_TEXT_SIZE_MM,
-      letterSpacingMm: 1,
+      letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
       lineSpacing: 1.25,
       alignment: "center",
     },
@@ -655,7 +849,18 @@ $("#image-upload").addEventListener("change", (event) => {
   }
 
   if (request.action === "replace") {
-    designControls.replaceSelectedReference(kind, file);
+    const selected = selectedElement();
+    if (kind === "png" && selected?.kind === "png") {
+      designControls.updateSelectedSource("png", {
+        reference: file,
+        tracing: {
+          ...selected.source.tracing,
+          backgroundSamples: [],
+        },
+      });
+    } else {
+      designControls.replaceSelectedReference(kind, file);
+    }
   } else {
     designControls.addElement(kind, imageSource(kind, file));
   }
@@ -702,22 +907,74 @@ function deleteSelectedElement() {
   render();
 }
 
+function duplicateSelectedElement() {
+  if (editor.duplicateSelected() === null) return;
+  render();
+}
+
+$("#duplicate-element").addEventListener("click", () => {
+  duplicateSelectedElement();
+});
+
 $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();
 });
 
+// Only the Delete key removes the selected element: Backspace is what people
+// press to edit text, and it must never delete the design.
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Backspace") return;
+  if (event.key === "Delete") {
+    if (isEditingField(event.target) || !selectedElement()) return;
+    event.preventDefault();
+    deleteSelectedElement();
+    return;
+  }
 
-  const target = event.target;
-  const isEditing =
-    target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+  // Inside text fields the browser's own undo handles typing.
+  const modifier = event.ctrlKey || event.metaKey;
+  if (!modifier || isEditingField(event.target) || interactionActive) return;
+  const key = event.key.toLowerCase();
+  if (key === "z" && !event.shiftKey) {
+    event.preventDefault();
+    undoDesign();
+  } else if ((key === "z" && event.shiftKey) || key === "y") {
+    event.preventDefault();
+    redoDesign();
+  }
+});
 
-  if (isEditing || !selectedElement()) return;
+// Undo / redo of design elements.
+function afterHistoryJump() {
+  editor.ensureSelection();
+  render();
+}
 
-  event.preventDefault();
-  deleteSelectedElement();
+function undoDesign() {
+  if (designHistory.undo()) afterHistoryJump();
+}
+
+function redoDesign() {
+  if (designHistory.redo()) afterHistoryJump();
+}
+
+function updateHistoryButtons() {
+  $("#undo-button").disabled = !designHistory.canUndo;
+  $("#redo-button").disabled = !designHistory.canRedo;
+}
+
+$("#undo-button").addEventListener("click", undoDesign);
+$("#redo-button").addEventListener("click", redoDesign);
+designHistory.addEventListener("change", updateHistoryButtons);
+updateHistoryButtons();
+
+// "?" buttons show or hide the explanation they point to.
+document.addEventListener("click", (event) => {
+  const button = event.target.closest(".help-button");
+  if (button === null) return;
+  const text = document.getElementById(button.dataset.help);
+  const show = text.hidden;
+  text.hidden = !show;
+  button.setAttribute("aria-expanded", String(show));
 });
 
 $("#text-input").addEventListener("input", (event) => {
@@ -738,11 +995,17 @@ $("#font-options").addEventListener("click", (event) => {
 });
 
 $("#font-size").addEventListener("input", (event) => {
-  updateSelectedText({ fontSizeMm: Number(event.target.value) });
+  if (
+    designControls.updateSelectedTextSize(Number(event.target.value)) !== null
+  ) {
+    render();
+  }
 });
 
 $("#letter-spacing").addEventListener("input", (event) => {
-  updateSelectedText({ letterSpacingMm: Number(event.target.value) });
+  updateSelectedText({
+    letterSpacingRatio: Number(event.target.value) / 100,
+  });
 });
 
 $("#line-spacing").addEventListener("input", (event) => {
@@ -783,14 +1046,68 @@ $("#png-smoothing").addEventListener("input", (event) => {
   }
 });
 
-function bindTransformNumber(selector, field, minimum = -Infinity) {
+$("#png-background").addEventListener("change", (event) => {
+  updatePNGTracing({ backgroundMode: event.target.value });
+});
+
+$("#png-background-tolerance").addEventListener("input", (event) => {
+  updatePNGTracing({ backgroundTolerance: Number(event.target.value) });
+});
+
+$("#png-sample-editor").addEventListener("click", (event) => {
+  if (event.target.closest(".png-sample-marker") !== null) return;
+  const selected = selectedElement();
+  if (
+    selected?.kind !== "png" ||
+    selected.source.tracing.backgroundMode !== "pick"
+  ) {
+    return;
+  }
+
+  const image = $("#png-sample-image");
+  if (!image.complete || image.naturalWidth === 0) return;
+  const rect = image.getBoundingClientRect();
+  if (!(rect.width > 0) || !(rect.height > 0)) return;
+  const x = (event.clientX - rect.left) / rect.width;
+  const y = (event.clientY - rect.top) / rect.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  if (selected.source.tracing.backgroundSamples.length >= 32) return;
+
+  updatePNGTracing({
+    backgroundSamples: [
+      ...selected.source.tracing.backgroundSamples,
+      { x: round2(x), y: round2(y) },
+    ],
+  });
+});
+
+$("#png-clear-samples").addEventListener("click", () => {
+  updatePNGTracing({ backgroundSamples: [] });
+});
+
+window.addEventListener("beforeunload", () => {
+  if (samplePreviewObjectUrl !== null) {
+    URL.revokeObjectURL(samplePreviewObjectUrl);
+  }
+});
+
+function bindTransformNumber(
+  selector,
+  field,
+  minimum = -Infinity,
+  maximum = Infinity,
+) {
   $(selector).addEventListener("input", (event) => {
-    const value = Number(event.target.value);
+    let value = Number(event.target.value);
     if (
       event.target.value !== "" &&
       Number.isFinite(value) &&
       value >= minimum
     ) {
+      if (value > maximum) {
+        value = maximum;
+        event.target.value = String(maximum);
+      }
       designControls.updateSelectedTransform({ [field]: value });
       if (editor.selectedId !== null) editor.constrainElement(editor.selectedId);
       renderCanonicalArtwork();
@@ -801,7 +1118,12 @@ function bindTransformNumber(selector, field, minimum = -Infinity) {
 
 bindTransformNumber("#element-x", "xMm");
 bindTransformNumber("#element-y", "yMm");
-bindTransformNumber("#element-scale", "scale", 0.05);
+bindTransformNumber(
+  "#element-scale",
+  "scale",
+  MIN_ELEMENT_SCALE,
+  MAX_ELEMENT_SCALE,
+);
 bindTransformNumber("#element-rotation", "rotationDeg");
 
 $("#element-mirror-x").addEventListener("change", (event) => {
@@ -887,47 +1209,62 @@ function renderOrderPreview(svg, dimensionLabel) {
   return { widthMm: scene.dimensions.widthMm };
 }
 
-// Design <-> order details pages.
+// Editor -> review -> order details. The review remains read-only; returning
+// to the editor keeps the same authoritative model and pipeline settings.
 const designPage = $("#design-page");
+const reviewPageElement = $("#review-page");
 const orderPageElement = $("#order-page");
+const reviewPage = createReviewPage({
+  designModel,
+  pipeline,
+  diagnostics: pipelineDiagnostics,
+  onBack: () => showPage("design"),
+  onContinue: () => showPage("order"),
+  renderPreview: renderOrderPreview,
+});
 const orderPage = createOrderPage({
   designModel,
   pipeline,
-  onBack: () => showPage("design"),
+  onBack: () => showPage("review"),
   renderPreview: renderOrderPreview,
 });
 
 function showPage(name) {
+  const review = name === "review";
   const order = name === "order";
-  designPage.hidden = order;
+  reviewPage.hide();
+  orderPage.hide();
+  designPage.hidden = review || order;
+  reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  $("#nav-design").classList.toggle("active", !order);
-  $("#nav-order").classList.toggle("active", order);
+  const steps = ["design", "review", "order"];
+  const currentIndex = steps.indexOf(name);
+  $$('[data-workflow-step]').forEach((step) => {
+    const index = steps.indexOf(step.dataset.workflowStep);
+    step.classList.toggle("current", index === currentIndex);
+    step.classList.toggle("complete", index < currentIndex);
+    if (index === currentIndex) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
+  if (review) reviewPage.show();
   if (order) orderPage.show();
-  else orderPage.hide();
   window.scrollTo({ top: 0 });
 }
 
-$("#nav-design").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("design");
-});
-$("#nav-order").addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("order");
-});
-$("#continue-button").addEventListener("click", () => showPage("order"));
+$("#continue-button").addEventListener("click", () => showPage("review"));
 
-// Finalizing needs a built stamp; warnings are allowed, errors are not.
+// Review needs a built stamp; warnings are allowed, errors are not.
 function updateFinalizeButton() {
   const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
   const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
   $("#continue-button").disabled = !ready || Boolean(blocked);
-  $("#finalize-hint").textContent = !ready
+  $("#finalize-hint").textContent = designModel.elements.length === 0
+    ? "Add text or artwork to continue."
+    : !ready
     ? "Wait for the stamp to finish building."
     : blocked
-      ? "Fix the errors above before finalizing."
-      : "Next: add the order details.";
+      ? "Fix the errors above before reviewing."
+      : "Next: review your design.";
 }
 for (const type of ["running", "result", "failed"]) {
   pipeline.addEventListener(type, updateFinalizeButton);

@@ -14,6 +14,12 @@ const LEVELS = {
     iconClass: "pass-icon",
     badgeClass: "pass-badge",
   },
+  info: {
+    mark: "i",
+    badge: "Note",
+    iconClass: "pass-icon",
+    badgeClass: "pass-badge",
+  },
   warning: {
     mark: "!",
     badge: "Warning",
@@ -32,17 +38,42 @@ const LEVELS = {
     iconClass: "warning-icon",
     badgeClass: "warning-badge",
   },
+  idle: {
+    mark: "+",
+    badge: "Start",
+    iconClass: "idle-icon",
+    badgeClass: "idle-badge",
+  },
 };
 
 export function createPipelineDiagnostics(
   pipeline,
-  { render = null } = {},
+  {
+    render = null,
+    getOverflowElementIds = () => [],
+    onFitToStamp = null,
+  } = {},
 ) {
-  const renderState = render ?? ((state) => renderDOM(collectDOM(), state));
+  const renderState =
+    render ??
+    ((state) =>
+      renderDOM(collectDOM(), state, {
+        getOverflowElementIds,
+        onFitToStamp,
+      }));
   let state = null;
 
   const publish = (phase) => {
     state = createPipelineDiagnosticState(pipeline, phase);
+    // Failed stamp generation can still leave editable overflowing artwork.
+    // Offer the same recovery action for Text, SVG and PNG in that case.
+    if (phase === "failed" && getOverflowElementIds().length > 0) {
+      state.rows.push({
+        level: "warning",
+        code: "artwork-overflow",
+        message: "Some artwork extends beyond the usable stamp area.",
+      });
+    }
     renderState(state);
   };
 
@@ -76,7 +107,10 @@ export function createPipelineDiagnosticState(pipeline, phase) {
   }
 
   if (phase === "failed") {
-    const rows = diagnosticRows(pipeline.diagnostics);
+    const rows = [
+      ...segmentationRows(pipeline.result?.segmentations),
+      ...diagnosticRows(pipeline.diagnostics),
+    ];
     if (rows.length === 0) {
       rows.push({
         level: "error",
@@ -96,9 +130,29 @@ export function createPipelineDiagnosticState(pipeline, phase) {
     throw new Error("A pipeline result event requires a current result.");
   }
 
+  if (result.artwork?.length === 0 && result.issues?.length === 0) {
+    return {
+      overall: { message: "Add artwork to begin", level: "idle" },
+      rows: [{ level: "idle", message: "Add text, SVG, or PNG to start your design." }],
+      info: null,
+      export: { label: "No design yet", level: "idle", ready: false },
+    };
+  }
+
   const issues = result.issues ?? [];
+  const reviewRows = segmentationRows(result.segmentations);
   const rows = [
-    ...issues.map(issueRow),
+    ...reviewRows,
+    ...issues
+      .filter(
+        (issue) =>
+          !reviewRows.some(
+            ({ sourceMessage, elementId }) =>
+              issue.message === sourceMessage &&
+              (issue.elementId === undefined || issue.elementId === elementId),
+          ),
+      )
+      .map(issueRow),
     ...(result.notes ?? []).map((message) => ({
       level: "ok",
       badge: "Verified",
@@ -147,6 +201,25 @@ function issueRow(issue) {
   };
 }
 
+function segmentationRows(segmentations = []) {
+  return segmentations
+    .filter(({ status }) => status === "needs-review")
+    .map(({ elementId, elementKind, message }) => ({
+      level: "info",
+      badge: "Review",
+      iconClass: "warning-icon",
+      badgeClass: "warning-badge",
+      elementId,
+      sourceMessage: message,
+      message:
+        elementId === undefined
+          ? message
+          : `Element "${elementId}"${
+              elementKind === undefined ? "" : ` (${elementKind})`
+            }: ${message}`,
+    }));
+}
+
 function diagnosticRows(diagnostics) {
   if (diagnostics === null) return [];
   return [
@@ -159,28 +232,28 @@ function diagnosticRows(diagnostics) {
   ];
 }
 
-function renderRows(dom, rows) {
+function renderRows(dom, rows, actions) {
   const shown =
     rows.length > 0
       ? rows
       : [{ level: "ok", message: "No validation issues reported." }];
-  dom.list.replaceChildren(...shown.map(createRow));
+  dom.list.replaceChildren(...shown.map((row) => createRow(row, actions)));
 }
 
-function renderDOM(dom, state) {
+function renderDOM(dom, state, actions) {
   setOverall(dom, state.overall.message, state.overall.level);
-  renderRows(dom, state.rows);
+  renderRows(dom, state.rows, actions);
   showSummary(dom, state.info);
   setExportReadiness(dom, state.export.label, state.export.level);
 }
 
-function createRow(row) {
+function createRow(row, { getOverflowElementIds, onFitToStamp }) {
   const level = LEVELS[row.level] ?? LEVELS.warning;
   const item = document.createElement("div");
   item.className = "validation-row";
 
   const icon = document.createElement("span");
-  icon.className = `status-icon ${level.iconClass}`;
+  icon.className = `status-icon ${row.iconClass ?? level.iconClass}`;
   icon.textContent = level.mark;
 
   const content = document.createElement("div");
@@ -196,8 +269,24 @@ function createRow(row) {
     content.append(text);
   }
 
+  if (row.code === "artwork-overflow" && onFitToStamp !== null) {
+    for (const elementId of getOverflowElementIds()) {
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "suggestion-button";
+      action.dataset.elementId = elementId;
+      action.textContent = "Fit to stamp";
+      action.setAttribute(
+        "aria-label",
+        `Fit element ${elementId} to stamp`,
+      );
+      action.addEventListener("click", () => onFitToStamp(elementId));
+      content.append(action);
+    }
+  }
+
   const badge = document.createElement("span");
-  badge.className = `status-badge ${level.badgeClass}`;
+  badge.className = `status-badge ${row.badgeClass ?? level.badgeClass}`;
   badge.textContent = row.badge ?? level.badge;
 
   item.append(icon, content, badge);

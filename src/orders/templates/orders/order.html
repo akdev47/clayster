@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+
+{% block title %}Order #{{ order.id }} | Clayster{% endblock %}
+
+{% block content %}
+
+<!-- Back -->
+<div class="mb-3">
+  <a
+    href="{% url 'orders:index' %}"
+    class="text-secondary text-decoration-none"
+  >
+    <i class="bi bi-arrow-left me-1"></i>
+    Back to orders
+  </a>
+</div>
+
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+
+  <div>
+
+    <div class="d-flex align-items-center gap-2 mb-1">
+
+      <h1 class="h3 fw-semibold mb-0">
+        Order #{{ order.id }}
+      </h1>
+
+      {% if order.order_status == "PR" %}
+
+        <span class="badge text-bg-primary">
+          {{ order.get_order_status_display }}
+        </span>
+
+      {% elif order.order_status == "RE" %}
+
+        <span class="badge text-bg-warning">
+          {{ order.get_order_status_display }}
+        </span>
+
+      {% elif order.order_status == "SH" %}
+
+        <span class="badge text-bg-info">
+          {{ order.get_order_status_display }}
+        </span>
+
+      {% elif order.order_status == "CO" %}
+
+        <span class="badge text-bg-success">
+          {{ order.get_order_status_display }}
+        </span>
+
+      {% elif order.order_status == "CA" %}
+
+        <span class="badge text-bg-danger">
+          {{ order.get_order_status_display }}
+        </span>
+
+      {% else %}
+
+        <span class="badge text-bg-secondary">
+          {{ order.get_order_status_display }}
+        </span>
+
+      {% endif %}
+
+    </div>
+
+    <p class="text-secondary mb-0">
+      Placed {{ order.created_at|date:"d M Y, H:i" }}
+    </p>
+
+  </div>
+
+  <div class="dropdown">
+
+    <button
+      class="btn btn-outline-secondary dropdown-toggle"
+      type="button"
+      data-bs-toggle="dropdown"
+      aria-expanded="false"
+    >
+      <i class="bi bi-pencil me-1"></i>
+      Change status
+    </button>
+
+    <ul class="dropdown-menu dropdown-menu-end">
+
+      {% for value, label in order_statuses %}
+
+        <li>
+          <form
+            method="post"
+            action="{% url 'orders:change_status' order.id %}"
+          >
+            {% csrf_token %}
+
+            <input
+              type="hidden"
+              name="status"
+              value="{{ value }}"
+            >
+
+            <button
+              type="submit"
+              class="dropdown-item {% if order.order_status == value %}active{% endif %}"
+              {% if order.order_status == value %}disabled{% endif %}
+            >
+              {{ label }}
+            </button>
+
+          </form>
+        </li>
+
+      {% endfor %}
+
+    </ul>
+
+  </div>
+
+</div>
+
+
+<!-- Customer + delivery -->
+<div class="row g-4 mb-4">
+
+  <!-- Customer -->
+  <div class="col-md-6">
+
+    <div class="card h-100">
+      <div class="card-body">
+
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-person text-secondary"></i>
+
+          <h2 class="h5 fw-semibold mb-0">
+            Customer
+          </h2>
+        </div>
+
+        <div class="fw-medium">
+          {{ order.customer.first_name }}
+          {{ order.customer.last_name }}
+        </div>
+
+        <div class="text-secondary">
+          {{ order.customer.email }}
+        </div>
+
+        {% if order.customer.phone %}
+          <div class="text-secondary">
+            {{ order.customer.phone }}
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- Delivery -->
+  <div class="col-md-6">
+
+    <div class="card h-100">
+      <div class="card-body">
+
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-geo-alt text-secondary"></i>
+
+          <h2 class="h5 fw-semibold mb-0">
+            Delivery address
+          </h2>
+        </div>
+
+        {% if order.address %}
+
+          <div>
+            {{ order.address.street_name }}
+            {{ order.address.house_number }}{{ order.address.house_number_addition }}
+          </div>
+
+          <div>
+            {{ order.address.postal_code }}
+            {{ order.address.city }}
+          </div>
+
+          <div>
+            {{ order.address.country }}
+          </div>
+
+        {% else %}
+
+          <div class="text-secondary">
+            No delivery address available.
+          </div>
+
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- Items -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+  <h2 class="h5 fw-semibold mb-0">
+    Items
+  </h2>
+
+  <span class="text-secondary small">
+    {{ order.items.count }} product{{ order.items.count|pluralize }}
+  </span>
+
+</div>
+
+
+<div class="card overflow-hidden mb-4">
+  <div class="card-body p-0">
+
+    <div class="table-responsive">
+
+      <table class="table table-hover align-middle mb-0">
+
+        <thead>
+            <tr>
+              <th>Product</th>
+              <th>Type</th>
+              <th>Quantity</th>
+              <th>Stock</th>
+              <th>To produce</th>
+              <th>Unit price</th>
+              <th>Subtotal</th>
+              <th>STL</th>
+              <th>Production</th>
+              <th>Ready</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+          {% for item in order.items.all %}
+
+            <tr>
+
+              <!-- Product -->
+              <td>
+
+                <div class="fw-medium">
+                  {{ item.product.name }}
+                </div>
+
+                <a
+                  href="{% url 'products:product' item.product.id %}"
+                  class="small text-secondary text-decoration-none"
+                >
+                  View product
+                  <i class="bi bi-chevron-right"></i>
+                </a>
+
+              </td>
+
+
+              <!-- Product type -->
+              <td>
+
+                {% if item.product.product_type == "CS" %}
+
+                  <span class="badge text-bg-secondary">
+                    Custom stamp
+                  </span>
+
+                {% else %}
+
+                  {{ item.product.get_product_type_display }}
+
+                {% endif %}
+
+              </td>
+
+
+              <!-- Quantity -->
+              <td>
+                {{ item.quantity }}
+              </td>
+
+              <!-- Available stock -->
+              <td>
+                {% if item.available_stock is not None %}
+                  {% if item.available_stock >= item.quantity %}
+                    <span class="badge text-bg-success">
+                      {{ item.available_stock }} available
+                    </span>
+                  {% else %}
+                    <span class="badge text-bg-warning">
+                      {{ item.available_stock }} available
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-secondary">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Quantity to produce -->
+              <td>
+                {% if item.quantity_to_produce > 0 %}
+                  <span class="badge text-bg-warning">
+                    {{ item.quantity_to_produce }} needed
+                  </span>
+                {% else %}
+                  <span class="badge text-bg-success">
+                    <i class="bi bi-check-lg me-1"></i>
+                    Covered
+                  </span>
+                {% endif %}
+              </td>
+
+              <!-- Price -->
+              <td>
+                €{{ item.unit_price|floatformat:2 }}
+              </td>
+
+
+              <!-- Line total -->
+              <td class="fw-medium">
+                €{{ item.line_total|floatformat:2 }}
+              </td>
+
+
+              <!-- STL -->
+              <td>
+
+                {% if item.stl_file %}
+
+                  <a
+                    href="{{ item.stl_file.url }}"
+                    class="btn btn-sm btn-outline-secondary"
+                    download
+                  >
+                    <i class="bi bi-download me-1"></i>
+                    STL
+                  </a>
+
+                {% elif item.product.file %}
+
+                  <a
+                    href="{% url 'products:download_stl' item.product.id %}"
+                    class="btn btn-sm btn-outline-secondary"
+                  >
+                    <i class="bi bi-download me-1"></i>
+                    STL
+                  </a>
+
+                {% else %}
+
+                  <span class="text-secondary">
+                    —
+                  </span>
+
+                {% endif %}
+
+              </td>
+
+              <!-- Production -->
+               <td>
+
+                {% with jobs=item.production_jobs.all %}
+
+                  {% if jobs %}
+
+                    {% for job in jobs %}
+
+                      {% if job.status == "WA" %}
+
+                        <span class="badge text-bg-secondary">
+                          <i class="bi bi-clock me-1"></i>
+                          Waiting
+                        </span>
+
+                      {% elif job.status == "PR" %}
+
+                        <span class="badge text-bg-primary">
+                          <i class="bi bi-printer me-1"></i>
+                          Printing
+                        </span>
+
+                      {% elif job.status == "RE" %}
+
+                        <span class="badge text-bg-warning">
+                          <i class="bi bi-check-lg me-1"></i>
+                          Ready
+                        </span>
+
+                      {% elif job.status == "CO" %}
+
+                        <span class="badge text-bg-success">
+                          <i class="bi bi-check-circle me-1"></i>
+                          Completed
+                        </span>
+
+                      {% elif job.status == "CA" %}
+
+                        <div class="d-flex align-items-center gap-2">
+
+                          <span class="badge text-bg-danger">
+                            Cancelled
+                          </span>
+
+                          <form
+                            method="post"
+                            action="{% url 'orders:add_to_production' item.id %}"
+                          >
+                            {% csrf_token %}
+
+                            <button
+                              type="submit"
+                              class="btn btn-sm btn-outline-primary"
+                            >
+                              Add again
+                            </button>
+                          </form>
+
+                        </div>
+
+                      {% endif %}
+
+                    {% endfor %}
+
+                  {% else %}
+
+                    <form
+                      method="post"
+                      action="{% url 'orders:add_to_production' item.id %}"
+                    >
+                      {% csrf_token %}
+
+                      <button
+                        type="submit"
+                        class="btn btn-sm btn-outline-primary"
+                      >
+                        <i class="bi bi-plus-lg me-1"></i>
+                        Add to production
+                      </button>
+                    </form>
+
+                  {% endif %}
+
+                {% endwith %}
+
+              </td>
+
+              <!-- Is ready -->
+              <td>
+                {% if item.is_ready %}
+
+                  <div class="d-flex align-items-center gap-2">
+
+                    <span class="badge text-bg-success">
+                      <i class="bi bi-check-circle me-1"></i>
+                      Ready
+                    </span>
+
+                    {% if order.order_status != "SH" and order.order_status != "CO" and order.order_status != "CA" %}
+                      <form
+                        method="post"
+                        action="{% url 'orders:undo_item_ready' item.id %}"
+                      >
+                        {% csrf_token %}
+
+                        <button
+                          type="submit"
+                          class="btn btn-sm btn-outline-secondary"
+                        >
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                          Undo
+                        </button>
+                      </form>
+                    {% endif %}
+
+                  </div>
+
+                {% else %}
+
+                  {% if order.order_status != "SH" and order.order_status != "CO" and order.order_status != "CA" %}
+                    <form
+                      method="post"
+                      action="{% url 'orders:mark_item_ready' item.id %}"
+                    >
+                      {% csrf_token %}
+
+                      <button
+                        type="submit"
+                        class="btn btn-sm btn-outline-success"
+                      >
+                        <i class="bi bi-check-lg me-1"></i>
+                        Mark ready
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="text-secondary">—</span>
+                  {% endif %}
+
+                {% endif %}
+              </td>
+            </tr>
+
+          {% empty %}
+
+            <tr>
+              <td
+                colspan="10"
+                class="text-center text-secondary py-4"
+              >
+                No items in this order.
+              </td>
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Notes + totals -->
+<div class="row g-4">
+
+  <!-- Delivery notes -->
+  <div class="col-lg-7">
+
+    <div class="card h-100">
+      <div class="card-body">
+
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-card-text text-secondary"></i>
+
+          <h2 class="h5 fw-semibold mb-0">
+            Delivery notes
+          </h2>
+        </div>
+
+        {% if order.delivery_notes %}
+
+          <p class="mb-0">
+            {{ order.delivery_notes }}
+          </p>
+
+        {% else %}
+
+          <p class="text-secondary mb-0">
+            No delivery notes.
+          </p>
+
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- Order total -->
+  <div class="col-lg-5">
+
+    <div class="card">
+      <div class="card-body">
+
+        <h2 class="h5 fw-semibold mb-3">
+          Order total
+        </h2>
+
+
+        <div class="d-flex justify-content-between mb-2">
+
+          <span class="text-secondary">
+            Subtotal
+          </span>
+
+          <span>
+            €{{ order.subtotal_price|floatformat:2 }}
+          </span>
+
+        </div>
+
+
+        <div class="d-flex justify-content-between mb-3">
+
+          <span class="text-secondary">
+            Shipping
+          </span>
+
+          <span>
+            €{{ order.shipping_costs|floatformat:2 }}
+          </span>
+
+        </div>
+
+
+        <hr>
+
+
+        <div class="d-flex justify-content-between align-items-center">
+
+          <span class="fw-semibold">
+            Total
+          </span>
+
+          <span class="fs-5 fw-semibold">
+            €{{ order.total_price|floatformat:2 }}
+          </span>
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

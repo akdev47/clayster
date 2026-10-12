@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DesignModel } from "../src/designModel.js";
+import { DesignHistory } from "../src/designHistory.js";
 import { DesignEditorController } from "../src/editor2dInteractions.js";
 import { SharedDesignControls } from "../src/sharedDesignControls.js";
 
@@ -16,12 +17,69 @@ test("shared text controls update the same selected element in both views", () =
 
   controls.updateSelectedSource("text", { text: "Shared design" });
   editor.setView("3d");
-  controls.updateSelectedSource("text", { fontSizeMm: 24 });
+  controls.updateSelectedTextSize(24);
 
   const selected = model.getElement("text-1");
   assert.equal(selected.source.text, "Shared design");
   assert.equal(selected.source.fontSizeMm, 24);
+  assert.equal(selected.transform.scale, 1);
   assert.equal(editor.selectedId, "text-1");
+});
+
+test("text alignment preserves position and participates in history", () => {
+  const { model, editor, controls } = setup([
+    {
+      id: "text-1",
+      kind: "text",
+      source: { text: "WIDE\nI", alignment: "center" },
+      transform: { xMm: 8, yMm: -3 },
+    },
+  ]);
+  const history = new DesignHistory(model);
+  const position = { xMm: 8, yMm: -3 };
+
+  controls.updateSelectedSource("text", { alignment: "right" });
+  assert.equal(model.getElement("text-1").source.alignment, "right");
+  assert.deepEqual(
+    {
+      xMm: model.getElement("text-1").transform.xMm,
+      yMm: model.getElement("text-1").transform.yMm,
+    },
+    position,
+  );
+
+  history.undo();
+  editor.ensureSelection();
+  assert.equal(model.getElement("text-1").source.alignment, "center");
+  assert.deepEqual(
+    {
+      xMm: model.getElement("text-1").transform.xMm,
+      yMm: model.getElement("text-1").transform.yMm,
+    },
+    position,
+  );
+
+  history.redo();
+  assert.equal(model.getElement("text-1").source.alignment, "right");
+});
+
+test("text alignment controls do not update SVG or PNG elements", () => {
+  const { model, editor, controls } = setup([
+    { id: "svg-1", kind: "svg" },
+    { id: "png-1", kind: "png" },
+  ]);
+
+  assert.equal(
+    controls.updateSelectedSource("text", { alignment: "left" }),
+    null,
+  );
+  editor.select("png-1");
+  assert.equal(
+    controls.updateSelectedSource("text", { alignment: "right" }),
+    null,
+  );
+  assert.equal("alignment" in model.getElement("svg-1").source, false);
+  assert.equal("alignment" in model.getElement("png-1").source, false);
 });
 
 test("SVG and PNG source controls update their selected element", () => {
@@ -65,14 +123,14 @@ test("adding Text, SVG and PNG creates and selects DesignModel entries", () => {
 
 test("switching modes preserves shared source and transform values", () => {
   const { model, editor, controls } = setup();
-  controls.updateSelectedSource("text", { letterSpacingMm: 1.75 });
+  controls.updateSelectedSource("text", { letterSpacingRatio: 0.1 });
   controls.updateSelectedTransform({ xMm: 8, scale: 1.4, mirrorX: true });
 
   editor.setView("3d");
   editor.setView("2d");
 
   const element = model.getElement("text-1");
-  assert.equal(element.source.letterSpacingMm, 1.75);
+  assert.equal(element.source.letterSpacingRatio, 0.1);
   assert.equal(element.transform.xMm, 8);
   assert.equal(element.transform.scale, 1.4);
   assert.equal(element.transform.mirrorX, true);

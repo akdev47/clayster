@@ -1,4 +1,7 @@
 node_modules/
+
+# Build output (created by `npm run build`)
+dist/
 CODEX.md
 
 # Devenv
@@ -16,5 +19,3 @@ db.sqlite3
 __pycache__/
 
 media/
-
-package-lock.json

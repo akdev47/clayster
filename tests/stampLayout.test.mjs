@@ -11,6 +11,8 @@ import {
   layoutRenderElements,
 } from "../src/pipeline/stampLayout.js";
 import { canonicalSvgScene } from "../src/canonicalSvgRenderer.js";
+import { createDesignElement } from "../src/designModel.js";
+import { textLetterSpacingMm } from "../src/pipeline/artworkComposition.js";
 import { initializeSolids } from "../src/solidGeometry.js";
 
 await initializeSolids();
@@ -108,15 +110,13 @@ test("centered text uses the same final layout in 2D and 3D", () => {
   matchingTextLayout("CLAY", "center");
 });
 
-test("left-aligned text uses the same anchor in 2D and 3D", () => {
-  const { canonical } = matchingTextLayout("CLAY", "left");
-  assert.ok(bounds(canonical).minX >= 0);
-});
+test("single-line alignment does not reposition the text element", () => {
+  const left = matchingTextLayout("CLAY", "left").canonical;
+  const center = matchingTextLayout("CLAY", "center").canonical;
+  const right = matchingTextLayout("CLAY", "right").canonical;
 
-test("right-aligned text uses the same anchor in 2D and 3D", () => {
-  const { canonical } = matchingTextLayout("CLAY", "right");
-  const box = bounds(canonical);
-  assert.ok((box.minX + box.maxX) / 2 < 0);
+  assert.deepEqual(left, center);
+  assert.deepEqual(right, center);
 });
 
 test("translated element retains the same physical position in both views", () => {
@@ -140,11 +140,65 @@ test("translated element retains the same physical position in both views", () =
   assert.equal((box.minY + box.maxY) / 2, -5);
 });
 
-test("multiline text preserves the same relative layout in both views", () => {
-  const { canonical, layout } = matchingTextLayout("CLAY\nSTUDIO", "right");
+test("multiline alignment moves shorter lines inside a fixed text element", () => {
+  const left = matchingTextLayout("CLAY\nI", "left").canonical;
+  const center = matchingTextLayout("CLAY\nI", "center").canonical;
+  const right = matchingTextLayout("CLAY\nI", "right").canonical;
+  const wideLine = (canonical) =>
+    canonical.filter((polygon) => bounds([polygon]).maxY >= -4);
+  const shortLineBounds = (canonical) =>
+    bounds(
+      canonical.filter(
+        (polygon) => bounds([polygon]).maxY < -4,
+      ),
+    );
 
-  assert.ok(bounds(canonical).height > 16);
-  assert.equal(layout.artwork.length, canonical.length);
+  assert.deepEqual(wideLine(left), wideLine(center));
+  assert.deepEqual(wideLine(right), wideLine(center));
+  assert.ok(shortLineBounds(left).minX < shortLineBounds(center).minX);
+  assert.ok(shortLineBounds(center).minX < shortLineBounds(right).minX);
+});
+
+test("doubling Text size doubles relative letter spacing", () => {
+  const sourceAt = (fontSizeMm) => createDesignElement({
+    kind: "text",
+    source: {
+      text: "II",
+      fontSizeMm,
+      letterSpacingRatio: 0.2,
+    },
+  }).source;
+  const small = sourceAt(10);
+  const large = sourceAt(20);
+  const smallGeometry = layoutText(font, {
+    text: small.text,
+    size: small.fontSizeMm,
+    letterSpacing: textLetterSpacingMm(small),
+  });
+  const largeGeometry = layoutText(font, {
+    text: large.text,
+    size: large.fontSizeMm,
+    letterSpacing: textLetterSpacingMm(large),
+  });
+
+  assert.equal(textLetterSpacingMm(small), 2);
+  assert.equal(textLetterSpacingMm(large), 4);
+  assertClose(bounds(largeGeometry).width, bounds(smallGeometry).width * 2);
+});
+
+test("doubling Text size doubles relative multiline spacing", () => {
+  const small = layoutText(font, {
+    text: "I\nI",
+    size: 10,
+    lineSpacing: 1.5,
+  });
+  const large = layoutText(font, {
+    text: "I\nI",
+    size: 20,
+    lineSpacing: 1.5,
+  });
+
+  assertClose(bounds(large).height, bounds(small).height * 2);
 });
 
 test("overflowing artwork neither rescales nor grows the fixed face", () => {

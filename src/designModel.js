@@ -1,5 +1,12 @@
 // Authoritative editable intent for a design. Canonical polygons, diagnostics,
 // selection and other UI/runtime data deliberately do not live in this model.
+import {
+  DEFAULT_PNG_BACKGROUND_TOLERANCE,
+  DEFAULT_PNG_BACKGROUND_MODE,
+  MAX_PNG_BACKGROUND_TOLERANCE,
+  MIN_PNG_BACKGROUND_TOLERANCE,
+  PNG_BACKGROUND_MODES,
+} from "./pngTrace.js";
 
 export const ELEMENT_KINDS = Object.freeze(["text", "svg", "png"]);
 export const ELEMENT_OPERATIONS = Object.freeze(["add"]);
@@ -24,7 +31,7 @@ const SOURCE_DEFAULTS = Object.freeze({
       reference: null,
     }),
     fontSizeMm: 16,
-    letterSpacingMm: 0,
+    letterSpacingRatio: 0,
     lineSpacing: 1.25,
     alignment: "center",
     // Stroke thickness change on top of the font's own weight, in mm. The
@@ -39,7 +46,12 @@ const SOURCE_DEFAULTS = Object.freeze({
   png: Object.freeze({
     reference: null,
     baseSizeMm: 30,
-    tracing: Object.freeze({ smoothing: 2 }),
+    tracing: Object.freeze({
+      smoothing: 2,
+      backgroundMode: DEFAULT_PNG_BACKGROUND_MODE,
+      backgroundSamples: Object.freeze([]),
+      backgroundTolerance: DEFAULT_PNG_BACKGROUND_TOLERANCE,
+    }),
   }),
 });
 
@@ -183,6 +195,15 @@ export class DesignModel extends EventTarget {
     return removed;
   }
 
+  /**
+   * Swaps in a whole earlier element list (undo / redo). Elements are frozen
+   * and never edited in place, so a list can be kept and restored as-is.
+   */
+  replaceElements(elements) {
+    this.#elements = normalizeElements(elements);
+    this.#changed();
+  }
+
   #changed() {
     this.dispatchEvent(new Event("change"));
   }
@@ -195,6 +216,13 @@ function createElementSource(kind, source) {
 
   const result = { ...SOURCE_DEFAULTS[kind], ...source };
   if (kind === "text") {
+    if (
+      source.letterSpacingRatio === undefined &&
+      source.letterSpacingMm !== undefined
+    ) {
+      result.letterSpacingRatio = source.letterSpacingMm / result.fontSizeMm;
+    }
+    delete result.letterSpacingMm;
     if (
       source.font !== undefined &&
       (source.font === null || typeof source.font !== "object")
@@ -214,10 +242,14 @@ function createElementSource(kind, source) {
     ) {
       throw new TypeError("PNG tracing settings must be an object.");
     }
-    result.tracing = Object.freeze({
+    const tracing = {
       ...SOURCE_DEFAULTS.png.tracing,
       ...source.tracing,
-    });
+    };
+    tracing.backgroundSamples = normalizeBackgroundSamples(
+      tracing.backgroundSamples,
+    );
+    result.tracing = Object.freeze(tracing);
   }
 
   validateSourceNumbers(kind, result);
@@ -229,7 +261,7 @@ function validateSourceNumbers(kind, source) {
     kind === "text" ? ["fontSizeMm", "lineSpacing"] : ["baseSizeMm"];
   const finite =
     kind === "text"
-      ? ["fontSizeMm", "letterSpacingMm", "lineSpacing", "thicknessMm"]
+      ? ["fontSizeMm", "letterSpacingRatio", "lineSpacing", "thicknessMm"]
       : ["baseSizeMm"];
 
   for (const field of finite) {
@@ -250,7 +282,50 @@ function validateSourceNumbers(kind, source) {
         "png source tracing smoothing must be a non-negative finite number.",
       );
     }
+    if (!PNG_BACKGROUND_MODES.includes(source.tracing.backgroundMode)) {
+      throw new RangeError(
+        `Unsupported PNG background mode: ${source.tracing.backgroundMode}.`,
+      );
+    }
+    const tolerance = source.tracing.backgroundTolerance;
+    if (
+      !Number.isFinite(tolerance) ||
+      tolerance < MIN_PNG_BACKGROUND_TOLERANCE ||
+      tolerance > MAX_PNG_BACKGROUND_TOLERANCE
+    ) {
+      throw new RangeError(
+        `png source background tolerance must be between ${MIN_PNG_BACKGROUND_TOLERANCE} and ${MAX_PNG_BACKGROUND_TOLERANCE}.`,
+      );
+    }
   }
+}
+
+function normalizeBackgroundSamples(samples) {
+  if (!Array.isArray(samples)) {
+    throw new TypeError("png source background samples must be an array.");
+  }
+  if (samples.length > 32) {
+    throw new RangeError("png source supports at most 32 background samples.");
+  }
+  return Object.freeze(
+    samples.map((sample) => {
+      if (
+        sample === null ||
+        typeof sample !== "object" ||
+        !Number.isFinite(sample.x) ||
+        !Number.isFinite(sample.y) ||
+        sample.x < 0 ||
+        sample.x > 1 ||
+        sample.y < 0 ||
+        sample.y > 1
+      ) {
+        throw new RangeError(
+          "png source background sample positions must be normalized between zero and one.",
+        );
+      }
+      return Object.freeze({ x: sample.x, y: sample.y });
+    }),
+  );
 }
 
 function normalizeElements(elements) {

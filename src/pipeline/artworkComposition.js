@@ -65,6 +65,7 @@ export class ArtworkComposer {
     const renderElements = [];
     const elementIssues = [];
     const elementStats = [];
+    const segmentations = [];
     let validationTolerance;
 
     for (let index = 0; index < keyed.length; index++) {
@@ -93,6 +94,13 @@ export class ArtworkComposer {
           elementKind: element.kind,
         });
       }
+      if (conversion.segmentation !== null) {
+        segmentations.push({
+          elementId: element.id,
+          elementKind: element.kind,
+          ...conversion.segmentation,
+        });
+      }
       if (conversion.validationTolerance !== undefined) {
         validationTolerance =
           validationTolerance === undefined
@@ -104,7 +112,11 @@ export class ArtworkComposer {
       }
     }
 
-    const checked = validate(canonical, { tolerance: validationTolerance });
+    // A new, untouched design is intentionally empty; it is not invalid
+    // artwork. Once an element exists, even empty output remains an error.
+    const checked = visible.length === 0
+      ? { artwork: [], issues: [] }
+      : validate(canonical, { tolerance: validationTolerance });
     const designIssues = checked.issues.map((issue) => ({
       ...issue,
       scope: "design",
@@ -114,6 +126,7 @@ export class ArtworkComposer {
       issues: [...elementIssues, ...designIssues],
       sourceStats: null,
       elementStats,
+      segmentations,
       renderElements,
     };
 
@@ -125,8 +138,17 @@ export class ArtworkComposer {
     const cached = this.elementCache.get(element.id);
     if (cached?.key === sourceKey) return cached.value;
 
+    const reusable = [...this.elementCache.values()].find(
+      (entry) => entry.key === sourceKey && entry.resolved,
+    );
+    if (reusable !== undefined) {
+      const entry = { ...reusable };
+      this.elementCache.set(element.id, entry);
+      return entry.value;
+    }
+
     const pending = Promise.resolve().then(() => this.convertElement(element));
-    const entry = { key: sourceKey, value: pending };
+    const entry = { key: sourceKey, value: pending, resolved: false };
     this.elementCache.set(element.id, entry);
 
     try {
@@ -140,6 +162,7 @@ export class ArtworkComposer {
       }
 
       entry.value = converted;
+      entry.resolved = true;
       return converted;
     } catch (error) {
       if (this.elementCache.get(element.id) === entry) {
@@ -161,7 +184,7 @@ export class ArtworkComposer {
         source.font.id ?? "",
         this.#referenceKey(source.font.reference),
         source.fontSizeMm,
-        source.letterSpacingMm,
+        source.letterSpacingRatio,
         source.lineSpacing,
         source.alignment,
         source.thicknessMm,
@@ -228,7 +251,12 @@ export function elementFromLegacySource(source) {
       source: {
         reference: source.pngFile,
         baseSizeMm: source.pngSize,
-        tracing: { smoothing: source.pngSmoothing },
+        tracing: {
+          smoothing: source.pngSmoothing,
+          backgroundMode: source.pngBackgroundMode ?? "auto",
+          backgroundSamples: source.pngBackgroundSamples ?? [],
+          backgroundTolerance: source.pngBackgroundTolerance ?? 1,
+        },
       },
     };
   }
@@ -238,11 +266,15 @@ export function elementFromLegacySource(source) {
       text: source.text,
       font: { id: source.fontId, reference: source.fontFile },
       fontSizeMm: source.size,
-      letterSpacingMm: source.letterSpacing,
+      letterSpacingRatio: source.letterSpacing / source.size,
       lineSpacing: source.lineSpacing,
       alignment: source.align,
     },
   };
+}
+
+export function textLetterSpacingMm(source) {
+  return source.fontSizeMm * source.letterSpacingRatio;
 }
 
 function normalizeConversion(conversion) {
@@ -250,6 +282,7 @@ function normalizeConversion(conversion) {
     canonical: conversion.canonical ?? [],
     issues: conversion.issues ?? [],
     sourceStats: conversion.sourceStats ?? null,
+    segmentation: conversion.segmentation ?? null,
     validationTolerance: conversion.validationTolerance,
   };
 }

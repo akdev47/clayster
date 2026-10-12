@@ -248,6 +248,26 @@ test("global polygon repair fails closed before stamp generation and reaches the
   }
 });
 
+test("artwork validation failure exposes no canonical preview geometry", async () => {
+  const { pipeline, sidebar } = setup([text()]);
+  pipeline.artwork = async () => ({
+    artwork: [],
+    issues: [{ level: "error", message: "Artwork validation failed." }],
+    renderElements: [
+      { id: "invalid", kind: "text", canonical: [rectangle(0, 0, 10, 10)] },
+    ],
+  });
+  try {
+    await pipeline.run();
+    assert.deepEqual(pipeline.result.artwork, []);
+    assert.equal(pipeline.result.renderElements, null);
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(sidebar.state.export.ready, false);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
 test("shared pipeline checks thin features at final element scale without face rescaling", async () => {
   const { pipeline, sidebar, model } = setup([
     { id: "strip", kind: "svg", source: { reference: "strip.svg" },
@@ -299,6 +319,44 @@ test("manual face overflow keeps artwork scale and reaches unified diagnostics",
   }
 });
 
+test("failed oversized artwork stays editable and recovers after moving onto the face", async () => {
+  const { model, pipeline, sidebar } = setup(
+    [
+      {
+        id: "oversized-text",
+        kind: "text",
+        source: { text: "TOO BIG" },
+        transform: { xMm: 40 },
+      },
+    ],
+    () => ({ canonical: [rectangle(-4, -2, 4, 2)], issues: [] }),
+  );
+  pipeline.stamp.autoFaceSize = false;
+  pipeline.stamp.faceShape = "round";
+  pipeline.stamp.faceSize = 50;
+  pipeline.stamp.margin = 3;
+
+  try {
+    await rejectedRun(pipeline);
+    assert.equal(pipeline.result, null);
+    assert.equal(sidebar.state.overall.message, "Build failed");
+    assert.equal(pipeline.artworkPreview.renderElements[0].id, "oversized-text");
+    assert.deepEqual(
+      pipeline.artworkPreview.renderElements[0].canonical,
+      [rectangle(-4, -2, 4, 2)],
+    );
+
+    model.updateElement("oversized-text", { transform: { xMm: 0 } });
+    await pipeline.run();
+
+    assert.equal(pipeline.error, null);
+    assert.ok(pipeline.result.stamp);
+    assert.equal(sidebar.state.export.ready, true);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
 test("a closed zero-volume shell blocks otherwise valid STL geometry", () => {
   const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
   outer.deleteAttribute("uv");
@@ -345,6 +403,8 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
     pipeline.stamp.reliefDepth = pipeline.stamp.faceThickness;
     await rejectedRun(pipeline);
     assert.equal(pipeline.result, null);
+    assert.ok(pipeline.artworkPreview.artwork.length > 0);
+    assert.ok(pipeline.artworkPreview.renderElements.length > 0);
     assert.equal(byId("pipeline-overall-status").textContent, "Build failed");
     assert.equal(byId("pipeline-export-status").textContent, "Unavailable");
     assert.ok(messages().some((message) => /Recess depth must be smaller/i.test(message)));

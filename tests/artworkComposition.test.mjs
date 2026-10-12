@@ -56,6 +56,12 @@ async function assertCombination(kinds) {
   );
 }
 
+test("an untouched design has no validation errors", async () => {
+  const result = await composerWith().compose([]);
+  assert.deepEqual(result.artwork, []);
+  assert.deepEqual(result.issues, []);
+});
+
 test("composes text and SVG elements", async () => {
   await assertCombination(["text", "svg"]);
 });
@@ -219,6 +225,106 @@ test("moving and other transform-only edits reuse source conversion", async () =
   assert.equal(bounds(second.artwork).minX, 20);
 });
 
+test("changing PNG background settings invalidates source conversion", async () => {
+  let conversions = 0;
+  const composer = new ArtworkComposer(async () => {
+    conversions += 1;
+    return { canonical: cloneGeometry(geometryByKind.png), issues: [] };
+  });
+  const model = new DesignModel({ elements: [element("png", "mark")] });
+
+  await composer.compose(model.elements);
+  model.updateElement("mark", {
+    source: {
+      tracing: {
+        ...model.getElement("mark").source.tracing,
+        backgroundMode: "original",
+      },
+    },
+  });
+  await composer.compose(model.elements);
+
+  assert.equal(conversions, 2);
+});
+
+test("trusted PNG samples and tolerance invalidate conversion independently", async () => {
+  let conversions = 0;
+  const composer = new ArtworkComposer(async () => {
+    conversions += 1;
+    return { canonical: cloneGeometry(geometryByKind.png), issues: [] };
+  });
+  const model = new DesignModel({ elements: [element("png", "sampled")] });
+
+  await composer.compose(model.elements);
+  model.updateElement("sampled", {
+    source: {
+      tracing: {
+        ...model.getElement("sampled").source.tracing,
+        backgroundMode: "pick",
+        backgroundSamples: [{ x: 0.1, y: 0.2 }],
+      },
+    },
+  });
+  await composer.compose(model.elements);
+  model.updateElement("sampled", {
+    source: {
+      tracing: {
+        ...model.getElement("sampled").source.tracing,
+        backgroundSamples: [],
+      },
+    },
+  });
+  await composer.compose(model.elements);
+  model.updateElement("sampled", {
+    source: {
+      tracing: {
+        ...model.getElement("sampled").source.tracing,
+        backgroundTolerance: 1.25,
+      },
+    },
+  });
+  await composer.compose(model.elements);
+  model.updateElement("sampled", { transform: { xMm: 5, scale: 1.2 } });
+  await composer.compose(model.elements);
+
+  assert.equal(conversions, 4);
+});
+
+test("transform-only PNG edits reuse background removal conversion", async () => {
+  let conversions = 0;
+  const composer = new ArtworkComposer(async () => {
+    conversions += 1;
+    return {
+      canonical: cloneGeometry(geometryByKind.png),
+      issues: [],
+      segmentation: {
+        status: "needs-review",
+        method: "original-fallback",
+        message: "Auto background detection failed — review the traced result.",
+      },
+    };
+  });
+  const model = new DesignModel({ elements: [element("png", "mark")] });
+
+  const first = await composer.compose(model.elements);
+  model.updateElement("mark", {
+    transform: { xMm: 6, rotationDeg: 30, scale: 1.5 },
+  });
+  const second = await composer.compose(model.elements);
+
+  assert.equal(conversions, 1);
+  assert.deepEqual(first.segmentations, [
+    {
+      elementId: "mark",
+      elementKind: "png",
+      status: "needs-review",
+      method: "original-fallback",
+      message: "Auto background detection failed — review the traced result.",
+    },
+  ]);
+  assert.deepEqual(second.segmentations, first.segmentations);
+});
+
 test("invisible elements do not convert or enter the composition", async () => {
   const converted = [];
   const composer = new ArtworkComposer(async ({ id, kind }) => {
@@ -262,7 +368,7 @@ test("the legacy single-source adapter preserves the current source fields", () 
     text: source.text,
     font: { id: source.fontId, reference: source.fontFile },
     fontSizeMm: source.size,
-    letterSpacingMm: source.letterSpacing,
+    letterSpacingRatio: source.letterSpacing / source.size,
     lineSpacing: source.lineSpacing,
     alignment: source.align,
   });
@@ -297,5 +403,10 @@ test("the legacy single-source adapter preserves the current source fields", () 
   });
   assert.equal(adaptedPNG.source.reference, pngReference);
   assert.equal(adaptedPNG.source.baseSizeMm, 28);
-  assert.deepEqual(adaptedPNG.source.tracing, { smoothing: 4 });
+  assert.deepEqual(adaptedPNG.source.tracing, {
+    smoothing: 4,
+    backgroundMode: "auto",
+    backgroundSamples: [],
+    backgroundTolerance: 1,
+  });
 });
