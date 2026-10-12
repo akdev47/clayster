@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createStampLayout, layoutRenderElements } from "../src/pipeline/stampLayout.js";
-import { readableStampDisplay } from "../src/stamp2dDisplay.js";
+import { createStampLayout, layoutRenderElements } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
+import { readableStampDisplay } from "../src/stamp_generator/static/stamp_generator/js/stamp2dDisplay.js";
 
 const artwork = [[[
   [2, -1],

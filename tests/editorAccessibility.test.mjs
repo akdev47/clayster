@@ -2,8 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const projectFile = (path) =>
-  readFile(new URL(`../${path}`, import.meta.url), "utf8");
+const APP = "src/stamp_generator";
+const PROJECT_FILES = {
+  "main.js": `${APP}/static/stamp_generator/js/main.js`,
+  "style.css": `${APP}/static/stamp_generator/css/style.css`,
+  "index.html": `${APP}/templates/stamp_generator/index.html`,
+};
+const projectFile = (name) =>
+  readFile(new URL(`../${PROJECT_FILES[name]}`, import.meta.url), "utf8");
 
 test("design elements are focusable and retain focus across artboard renders", async () => {
   const main = await projectFile("main.js");

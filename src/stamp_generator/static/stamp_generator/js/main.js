@@ -1,6 +1,3 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap/dist/js/bootstrap.bundle.min.js";
-import "./css/style.css";
 import { createViewer } from "./viewer.js";
 import { Pipeline } from "./pipeline/index.js";
 import { createPipelineControls } from "./pipelineControls.js";

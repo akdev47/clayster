@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel } from "../src/designModel.js";
-import { DesignHistory } from "../src/designHistory.js";
-import { DesignEditorController } from "../src/editor2dInteractions.js";
-import { SharedDesignControls } from "../src/sharedDesignControls.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
+import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/designHistory.js";
+import { DesignEditorController } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
+import { SharedDesignControls } from "../src/stamp_generator/static/stamp_generator/js/sharedDesignControls.js";
 
 function setup(elements = [{ id: "text-1", kind: "text" }]) {
   const model = new DesignModel({ elements });

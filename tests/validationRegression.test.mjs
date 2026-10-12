@@ -6,17 +6,17 @@ import { fileURLToPath } from "node:url";
 import * as THREE from "three";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { DesignModel } from "../src/designModel.js";
-import { DesignEditorController } from "../src/editor2dInteractions.js";
-import { createPipelineDiagnostics } from "../src/pipelineDiagnostics.js";
-import { initializeSolids } from "../src/solidGeometry.js";
-import { prepareClosedStamp, verifiedSTL } from "../src/exportValidation.js";
-import { validate } from "../src/pipeline/validate.js";
-import { bounds, ringArea } from "../src/pipeline/canonical.js";
-import { canonicalizeSVGShapes } from "../src/pipeline/svg.js";
-import { postProcessPNGArtwork } from "../src/pipeline/png.js";
-import { traceMaskToSVG } from "../src/pngTrace.js";
-import { getFilledSVGShapes } from "../src/svgValidation.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
+import { DesignEditorController } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
+import { createPipelineDiagnostics } from "../src/stamp_generator/static/stamp_generator/js/pipelineDiagnostics.js";
+import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
+import { prepareClosedStamp, verifiedSTL } from "../src/stamp_generator/static/stamp_generator/js/exportValidation.js";
+import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
+import { bounds, ringArea } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
+import { canonicalizeSVGShapes } from "../src/stamp_generator/static/stamp_generator/js/pipeline/svg.js";
+import { postProcessPNGArtwork } from "../src/stamp_generator/static/stamp_generator/js/pipeline/png.js";
+import { traceMaskToSVG } from "../src/stamp_generator/static/stamp_generator/js/pngTrace.js";
+import { getFilledSVGShapes } from "../src/stamp_generator/static/stamp_generator/js/svgValidation.js";
 
 // Resolve Vite's asset imports for Node without replacing application modules.
 const assets = registerHooks({
@@ -38,12 +38,12 @@ const assets = registerHooks({
     return nextLoad(url, context);
   },
 });
-const { Pipeline } = await import("../src/pipeline/index.js");
+const { Pipeline } = await import("../src/stamp_generator/static/stamp_generator/js/pipeline/index.js");
 assets.deregister();
 await initializeSolids();
 
 const font = new File(
-  [readFileSync(new URL("../fonts/NotoSans-Bold.ttf", import.meta.url))],
+  [readFileSync(new URL("../src/stamp_generator/static/stamp_generator/fonts/NotoSans-Bold.ttf", import.meta.url))],
   "NotoSans-Bold.ttf",
 );
 const rectangle = (x0, y0, x1, y1) => [

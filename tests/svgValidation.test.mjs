@@ -4,7 +4,7 @@ import * as THREE from "three";
 import {
   getFilledSVGShapes,
   getUnsupportedSVGFeatures,
-} from "../src/svgValidation.js";
+} from "../src/stamp_generator/static/stamp_generator/js/svgValidation.js";
 
 const filledPath = (points, style = {}) => {
   const path = new THREE.ShapePath();

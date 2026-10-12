@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ringArea, transform } from "../src/pipeline/canonical.js";
+import { ringArea, transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 
 const pointArtwork = (x, y) => [[[[x, y]]]];
 const transformedPoint = (point, options) =>

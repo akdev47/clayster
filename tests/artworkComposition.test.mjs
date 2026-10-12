@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel, createDesignElement } from "../src/designModel.js";
+import { DesignModel, createDesignElement } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 import {
   ArtworkComposer,
   ElementConversionError,
   elementFromLegacySource,
-} from "../src/pipeline/artworkComposition.js";
-import { bounds, ringArea } from "../src/pipeline/canonical.js";
+} from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
+import { bounds, ringArea } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 
 const rectangle = (minX, minY, maxX, maxY) => [
   [

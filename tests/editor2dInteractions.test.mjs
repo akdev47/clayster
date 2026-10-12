@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel } from "../src/designModel.js";
-import { DesignHistory } from "../src/designHistory.js";
-import { ArtworkComposer } from "../src/pipeline/artworkComposition.js";
-import { bounds, transform } from "../src/pipeline/canonical.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
+import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/designHistory.js";
+import { ArtworkComposer } from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
+import { bounds, transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 import {
   DesignEditorController,
   DUPLICATE_OFFSET_MM,
@@ -17,7 +17,7 @@ import {
   shouldHandleElementArrowKey,
   screenDeltaToMillimetres,
   textResizePreview,
-} from "../src/editor2dInteractions.js";
+} from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
 
 const square = [
   [

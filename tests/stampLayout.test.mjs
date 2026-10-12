@@ -3,22 +3,22 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import opentype from "opentype.js";
 import * as THREE from "three";
-import { bounds, transform } from "../src/pipeline/canonical.js";
-import { layoutText } from "../src/pipeline/text.js";
-import { DEFAULT_STAMP, buildStamp } from "../src/pipeline/stamp.js";
+import { bounds, transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
+import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
+import { DEFAULT_STAMP, buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
 import {
   createStampLayout,
   layoutRenderElements,
-} from "../src/pipeline/stampLayout.js";
-import { canonicalSvgScene } from "../src/canonicalSvgRenderer.js";
-import { createDesignElement } from "../src/designModel.js";
-import { textLetterSpacingMm } from "../src/pipeline/artworkComposition.js";
-import { initializeSolids } from "../src/solidGeometry.js";
+} from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
+import { canonicalSvgScene } from "../src/stamp_generator/static/stamp_generator/js/canonicalSvgRenderer.js";
+import { createDesignElement } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
+import { textLetterSpacingMm } from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
+import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 
 await initializeSolids();
 
 const bytes = readFileSync(
-  new URL("../fonts/NotoSans-Bold.ttf", import.meta.url),
+  new URL("../src/stamp_generator/static/stamp_generator/fonts/NotoSans-Bold.ttf", import.meta.url),
 );
 const font = opentype.parse(
   bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),

@@ -1,10 +1,12 @@
 // Lists the font choices used by both the UI dropdown and the text pipeline.
-// Vite rewrites these to hashed asset URLs and copies them into the build, so
-// the fonts work in dev and in production without a public/ directory.
-import notoSansRegular from "../../fonts/NotoSans-Regular.ttf?url";
-import notoSansBold from "../../fonts/NotoSans-Bold.ttf?url";
-import notoSerifRegular from "../../fonts/NotoSerif-Regular.ttf?url";
-import notoSerifBold from "../../fonts/NotoSerif-Bold.ttf?url";
+// The font files are Django static files next to the js/ folder, so each URL
+// is built from this module's own location and works in the browser and Node.
+const fontUrl = (file) =>
+  new URL(`../../fonts/${file}`, import.meta.url).href;
+const notoSansRegular = fontUrl("NotoSans-Regular.ttf");
+const notoSansBold = fontUrl("NotoSans-Bold.ttf");
+const notoSerifRegular = fontUrl("NotoSerif-Regular.ttf");
+const notoSerifBold = fontUrl("NotoSerif-Bold.ttf");
 
 // Subset to Latin, which is why four faces cost under 200 KB. Anything beyond
 // these is covered by uploading a .ttf or .otf.

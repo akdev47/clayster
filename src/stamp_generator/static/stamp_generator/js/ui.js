@@ -101,7 +101,7 @@ export function createUI(viewer, pipeline) {
   });
 
   dom.svgSample.addEventListener("click", () =>
-    useSVG("./svg-images/pear.svg"),
+    useSVG(new URL("../svg-images/pear.svg", import.meta.url).href),
   );
   number(dom.svgSize, (svgSize) => pipeline.setSource({ svgSize }), {
     min: 0.5,

@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DesignModel } from "../src/designModel.js";
-import { DesignEditorController, constrainToFace, fitsFace } from "../src/editor2dInteractions.js";
-import { ArtworkComposer } from "../src/pipeline/artworkComposition.js";
-import { bounds, transform, ringArea } from "../src/pipeline/canonical.js";
-import { initializeSolids, offsetOutline } from "../src/solidGeometry.js";
-import { DEFAULT_STAMP } from "../src/pipeline/stamp.js";
-import { createStampLayout } from "../src/pipeline/stampLayout.js";
+import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
+import { DesignEditorController, constrainToFace, fitsFace } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
+import { ArtworkComposer } from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
+import { bounds, transform, ringArea } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
+import { initializeSolids, offsetOutline } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
+import { DEFAULT_STAMP } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
+import { createStampLayout } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
 
 await initializeSolids();
 
