@@ -112,6 +112,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .pipeline-dropzone strong { margin-bottom: .2rem; color: var(--ink); font-size: .78rem; }
 .pipeline-dropzone:hover, .pipeline-dropzone.over { color: var(--aqua-dark); background: rgb(139 223 221 / 16%); border-color: var(--aqua-dark); }
 .pipeline-note { margin: .55rem 0; color: var(--muted); font-size: .68rem; line-height: 1.45; }
+.image-upload-error { margin: .65rem 0 0; color: var(--coral-dark); font-size: .72rem; font-weight: 600; line-height: 1.4; }
 .pipeline-control-status { margin: 1rem 0 0; padding: .65rem; color: var(--coral-dark); background: rgb(244 143 104 / 13%); border: 1px solid rgb(201 87 56 / 20%); border-radius: var(--radius-sm); font-size: .7rem; line-height: 1.45; }
 .pipeline-control-status.ok { color: var(--success); background: rgb(61 139 103 / 11%); border-color: rgb(61 139 103 / 20%); }
 .png-sample-controls[hidden] { display: none; }

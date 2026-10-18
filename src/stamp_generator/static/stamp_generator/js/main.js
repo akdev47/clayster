@@ -9,7 +9,7 @@ import { createOrderPage } from "./orderPage.js";
 import { createSTL } from "./exporters.js";
 import { readServerConfig } from "./serverConfig.js";
 import { DesignHistory } from "./designHistory.js";
-import { DesignModel } from "./designModel.js";
+import { createDesignElement, DesignModel } from "./designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
@@ -29,6 +29,7 @@ import {
 } from "./pipeline/stampLayout.js";
 import { bounds, transform } from "./pipeline/canonical.js";
 import { readableStampDisplay } from "./stamp2dDisplay.js";
+import { ArtworkComposer } from "./pipeline/artworkComposition.js";
 
 const state = {
   width: 60,
@@ -199,6 +200,27 @@ function imageSource(kind, file) {
         },
       }
     : { reference: file, baseSizeMm: 30 };
+}
+
+async function validateImageElement(element) {
+  const validator = new ArtworkComposer((candidate) =>
+    pipeline.buildElementArtwork(candidate),
+  );
+  const result = await validator.compose([element]);
+  const blockingIssue = result.issues.find(({ level }) => level === "error");
+  if (blockingIssue !== undefined) throw new Error(blockingIssue.message);
+}
+
+function showImageUploadError(message = "") {
+  const error = $("#image-upload-error");
+  error.textContent = message;
+  error.hidden = message === "";
+}
+
+function readableImageUploadError(error, kind) {
+  const reason = (error?.cause?.message ?? error?.message ?? "the image could not be processed")
+    .replace(/[.\s]+$/, "");
+  return `Could not add ${kind.toUpperCase()}: ${reason}. Your existing design was not changed.`;
 }
 
 function logoPlaceholder(kind) {
@@ -834,6 +856,7 @@ $("#add-text").addEventListener("click", () => {
 
 function chooseImage(action, kind) {
   pendingImageUpload = { action, kind };
+  showImageUploadError();
   const input = $("#image-upload");
   input.accept =
     kind === "svg" ? ".svg,image/svg+xml" : ".png,image/png";
@@ -850,7 +873,7 @@ $("#replace-image").addEventListener("click", () => {
   }
 });
 
-$("#image-upload").addEventListener("change", (event) => {
+$("#image-upload").addEventListener("change", async (event) => {
   const file = event.target.files[0];
 
   if (!file) return;
@@ -859,28 +882,72 @@ $("#image-upload").addEventListener("change", (event) => {
   const request = pendingImageUpload;
   pendingImageUpload = null;
   if (kind === null || request === null || kind !== request.kind) {
-    alert(`Choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file.`);
+    showImageUploadError(
+      `Choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file. Your existing design was not changed.`,
+    );
     event.target.value = "";
     return;
   }
 
-  if (request.action === "replace") {
-    const selected = selectedElement();
-    if (kind === "png" && selected?.kind === "png") {
-      designControls.updateSelectedSource("png", {
-        reference: file,
-        tracing: {
-          ...selected.source.tracing,
-          backgroundSamples: [],
-        },
-      });
+  const selected = request.action === "replace" ? selectedElement() : null;
+  if (request.action === "replace" && selected?.kind !== kind) {
+    showImageUploadError(
+      `The selected ${kind.toUpperCase()} is no longer available. Your existing design was not changed.`,
+    );
+    event.target.value = "";
+    return;
+  }
+
+  let source;
+  if (selected !== null) {
+    source = kind === "png"
+      ? {
+          ...selected.source,
+          reference: file,
+          tracing: {
+            ...selected.source.tracing,
+            backgroundSamples: [],
+          },
+        }
+      : { ...selected.source, reference: file };
+  } else {
+    source = imageSource(kind, file);
+  }
+
+  const candidate = createDesignElement(
+    selected === null
+      ? { kind, source }
+      : { ...selected, source },
+  );
+
+  try {
+    await validateImageElement(candidate);
+  } catch (error) {
+    showImageUploadError(readableImageUploadError(error, kind));
+    event.target.value = "";
+    return;
+  }
+
+  if (selected !== null) {
+    // The user may have interacted with the design while the image decoded.
+    // Update the original target, never whichever element happens to be
+    // selected when validation finishes.
+    const target = designModel.getElement(selected.id);
+    if (target?.kind === kind) {
+      designModel.updateElement(selected.id, { source });
+      editor.select(selected.id);
     } else {
-      designControls.replaceSelectedReference(kind, file);
+      showImageUploadError(
+        `The selected ${kind.toUpperCase()} is no longer available. Your existing design was not changed.`,
+      );
+      event.target.value = "";
+      return;
     }
   } else {
     designControls.addElement(kind, imageSource(kind, file));
   }
 
+  showImageUploadError();
   event.target.value = "";
   render();
 });
