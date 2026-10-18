@@ -19,6 +19,7 @@ import {
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
   shouldHandleElementArrowKey,
+  shouldHandleElementDeleteKey,
   textResizePreview,
 } from "./editor2dInteractions.js";
 import { SharedDesignControls } from "./sharedDesignControls.js";
@@ -1003,11 +1004,9 @@ $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();
 });
 
-// Only the Delete key removes the selected element: Backspace is what people
-// press to edit text, and it must never delete the design.
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Delete") {
-    if (isEditingField(event.target) || !selectedElement()) return;
+  if (shouldHandleElementDeleteKey(event)) {
+    if (!selectedElement()) return;
     event.preventDefault();
     deleteSelectedElement();
     return;

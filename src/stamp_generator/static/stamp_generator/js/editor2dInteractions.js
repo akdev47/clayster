@@ -166,6 +166,17 @@ export function shouldHandleElementArrowKey(event) {
   );
 }
 
+export function shouldHandleElementDeleteKey(event) {
+  return (
+    (event.key === "Backspace" || event.key === "Delete") &&
+    !isEditingField(event.target) &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  );
+}
+
 /** Scale a corner drag along its original direction from the selection centre. */
 export function cornerDragScale(
   startPointer,
