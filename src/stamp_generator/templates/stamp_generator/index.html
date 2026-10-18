@@ -113,7 +113,6 @@
                   </button>
                 </div>
               </div>
-              <p id="image-upload-error" class="image-upload-error" role="alert" hidden></p>
             </section>
 
             <section id="selected-element-section" class="sidebar-section" hidden>
@@ -964,6 +963,11 @@
         </footer>
       </div>
     </main>
+
+    <div id="image-upload-toast" class="image-upload-toast" role="alert" aria-live="assertive" aria-atomic="true" hidden>
+      <span class="image-upload-toast-icon" aria-hidden="true">↑</span>
+      <span id="image-upload-toast-message"></span>
+    </div>
 
     <input id="image-upload" type="file" accept=".png,.svg,image/png,image/svg+xml" hidden />
     <input

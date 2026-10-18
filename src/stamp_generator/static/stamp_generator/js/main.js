@@ -70,6 +70,9 @@ let pendingImageUpload = null;
 let samplePreviewReference = null;
 let samplePreviewObjectUrl = null;
 let transformControlsExpanded = false;
+let imageUploadToastTimer = null;
+let imageUploadToastHideTimer = null;
+let imageUploadToastFrame = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
@@ -212,16 +215,35 @@ async function validateImageElement(element) {
   if (blockingIssue !== undefined) throw new Error(blockingIssue.message);
 }
 
-function showImageUploadError(message = "") {
-  const error = $("#image-upload-error");
-  error.textContent = message;
-  error.hidden = message === "";
+function showImageUploadToast(message = "") {
+  const toast = $("#image-upload-toast");
+  clearTimeout(imageUploadToastTimer);
+  clearTimeout(imageUploadToastHideTimer);
+  cancelAnimationFrame(imageUploadToastFrame);
+
+  toast.classList.remove("show");
+  if (message === "") {
+    toast.hidden = true;
+    return;
+  }
+
+  $("#image-upload-toast-message").textContent = message;
+  toast.hidden = false;
+  imageUploadToastFrame = requestAnimationFrame(() => {
+    imageUploadToastFrame = requestAnimationFrame(() => {
+      toast.classList.add("show");
+    });
+  });
+  imageUploadToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+    imageUploadToastHideTimer = setTimeout(() => {
+      toast.hidden = true;
+    }, 450);
+  }, 3600);
 }
 
-function readableImageUploadError(error, kind) {
-  const reason = (error?.cause?.message ?? error?.message ?? "the image could not be processed")
-    .replace(/[.\s]+$/, "");
-  return `Could not add ${kind.toUpperCase()}: ${reason}. Your existing design was not changed.`;
+function readableImageUploadError(kind) {
+  return `${kind.toUpperCase()} upload failed. Try a different image.`;
 }
 
 function logoPlaceholder(kind) {
@@ -857,7 +879,7 @@ $("#add-text").addEventListener("click", () => {
 
 function chooseImage(action, kind) {
   pendingImageUpload = { action, kind };
-  showImageUploadError();
+  showImageUploadToast();
   const input = $("#image-upload");
   input.accept =
     kind === "svg" ? ".svg,image/svg+xml" : ".png,image/png";
@@ -883,8 +905,8 @@ $("#image-upload").addEventListener("change", async (event) => {
   const request = pendingImageUpload;
   pendingImageUpload = null;
   if (kind === null || request === null || kind !== request.kind) {
-    showImageUploadError(
-      `Choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file. Your existing design was not changed.`,
+    showImageUploadToast(
+      `Please choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file.`,
     );
     event.target.value = "";
     return;
@@ -892,9 +914,7 @@ $("#image-upload").addEventListener("change", async (event) => {
 
   const selected = request.action === "replace" ? selectedElement() : null;
   if (request.action === "replace" && selected?.kind !== kind) {
-    showImageUploadError(
-      `The selected ${kind.toUpperCase()} is no longer available. Your existing design was not changed.`,
-    );
+    showImageUploadToast("Could not replace the image. Please try again.");
     event.target.value = "";
     return;
   }
@@ -923,8 +943,8 @@ $("#image-upload").addEventListener("change", async (event) => {
 
   try {
     await validateImageElement(candidate);
-  } catch (error) {
-    showImageUploadError(readableImageUploadError(error, kind));
+  } catch {
+    showImageUploadToast(readableImageUploadError(kind));
     event.target.value = "";
     return;
   }
@@ -938,9 +958,7 @@ $("#image-upload").addEventListener("change", async (event) => {
       designModel.updateElement(selected.id, { source });
       editor.select(selected.id);
     } else {
-      showImageUploadError(
-        `The selected ${kind.toUpperCase()} is no longer available. Your existing design was not changed.`,
-      );
+      showImageUploadToast("Could not replace the image. Please try again.");
       event.target.value = "";
       return;
     }
@@ -948,7 +966,7 @@ $("#image-upload").addEventListener("change", async (event) => {
     designControls.addElement(kind, imageSource(kind, file));
   }
 
-  showImageUploadError();
+  showImageUploadToast();
   event.target.value = "";
   render();
 });
