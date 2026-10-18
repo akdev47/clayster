@@ -30,7 +30,7 @@ button, input, select, textarea { font: inherit; }
 .nav-link { padding: .5rem .9rem !important; color: var(--muted); border-radius: 999px; font-weight: 600; }
 .nav-link:hover, .nav-link.active { color: var(--ink) !important; background: rgb(139 223 221 / 35%); }
 .workflow-progress-wrap { max-width: 1700px; padding-top: .75rem; }
-.workflow-progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.workflow-progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .workflow-progress li { display: flex; min-width: 0; align-items: center; justify-content: center; gap: .45rem; padding: .4rem .3rem .55rem; color: var(--muted); border-bottom: 2px solid var(--border); font-size: .78rem; font-weight: 600; white-space: nowrap; }
 .workflow-progress li.current { color: var(--ink); border-color: var(--aqua-dark); }
 .workflow-progress li.complete { color: var(--aqua-dark); border-color: var(--aqua); }
@@ -361,7 +361,8 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 }
 
 @media (max-width: 575.98px) {
-  .workflow-progress li { gap: .3rem; font-size: .68rem; }
+  .workflow-progress { gap: .2rem; }
+  .workflow-progress li { gap: .2rem; padding-inline: .1rem; font-size: .61rem; }
   .workflow-step-number { width: 1.15rem; height: 1.15rem; font-size: .6rem; }
   .review-heading { padding: 1.25rem; }
   .review-preview-column { padding: 1rem; }

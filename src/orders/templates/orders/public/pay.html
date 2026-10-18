@@ -2,6 +2,17 @@
 
 {% block title %}Pay for your order — Clayster{% endblock %}
 
+{% block progress %}
+  <div class="workflow-progress-wrap container-fluid px-3 px-lg-5">
+    <ol class="workflow-progress" aria-label="Order progress">
+      <li class="complete"><span class="workflow-step-number">1</span>Design</li>
+      <li class="complete"><span class="workflow-step-number">2</span>Review</li>
+      <li class="current" aria-current="step"><span class="workflow-step-number">3</span>Order details</li>
+      <li><span class="workflow-step-number">4</span>Confirmation</li>
+    </ol>
+  </div>
+{% endblock %}
+
 {% block content %}
   <h1 class="h3 fw-bold mb-1">Pay for your order</h1>
   <p class="text-secondary">Order #{{ order.pk }}</p>

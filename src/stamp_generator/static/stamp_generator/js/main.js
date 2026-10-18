@@ -1260,7 +1260,7 @@ function showPage(name) {
   designPage.hidden = review || order;
   reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  const steps = ["design", "review", "order"];
+  const steps = ["design", "review", "order", "confirmation"];
   const currentIndex = steps.indexOf(name);
   $$('[data-workflow-step]').forEach((step) => {
     const index = steps.indexOf(step.dataset.workflowStep);
