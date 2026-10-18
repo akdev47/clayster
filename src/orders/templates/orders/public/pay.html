@@ -50,9 +50,80 @@
       Demo payment: payments are not connected yet. Pressing the button accepts
       your order as paid and no money is charged.
     </p>
-    <form method="post">
+    <form id="payment-form" method="post">
       {% csrf_token %}
-      <button class="btn primary-button w-100" type="submit">Pay €{{ order.total_price|floatformat:2 }}</button>
+      <button id="payment-submit" class="btn primary-button w-100" type="submit">Pay €{{ order.total_price|floatformat:2 }}</button>
     </form>
   </section>
+
+  <div id="payment-success" class="payment-success-overlay" role="status" aria-live="assertive" hidden>
+    <div class="payment-success-card">
+      <div class="payment-success-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m5 12 4 4L19 6" />
+        </svg>
+      </div>
+      <strong>Payment successful</strong>
+      <span>Your order is confirmed</span>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const form = document.querySelector("#payment-form");
+      const button = document.querySelector("#payment-submit");
+      const success = document.querySelector("#payment-success");
+      let submitting = false;
+
+      function prepareSuccessSound() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return null;
+        const context = new AudioContext();
+        context.resume().catch(() => {});
+        return context;
+      }
+
+      function playSuccessSound(context) {
+        if (!context) return;
+        const start = context.currentTime;
+        for (const [frequency, offset, duration] of [[523.25, 0, .13], [659.25, .12, .24]]) {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(.0001, start + offset);
+          gain.gain.exponentialRampToValueAtTime(.055, start + offset + .025);
+          gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration);
+          oscillator.connect(gain).connect(context.destination);
+          oscillator.start(start + offset);
+          oscillator.stop(start + offset + duration);
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (submitting) return;
+        submitting = true;
+        const sound = prepareSuccessSound();
+        button.disabled = true;
+        button.textContent = "Processing payment…";
+
+        try {
+          const response = await fetch(form.action || window.location.href, {
+            method: "POST",
+            body: new FormData(form),
+            credentials: "same-origin",
+          });
+          if (!response.ok || !response.redirected) throw new Error("Payment did not complete");
+
+          success.hidden = false;
+          requestAnimationFrame(() => success.classList.add("show"));
+          playSuccessSound(sound);
+          window.setTimeout(() => window.location.assign(response.url), 1850);
+        } catch (error) {
+          form.submit();
+        }
+      });
+    })();
+  </script>
 {% endblock %}
