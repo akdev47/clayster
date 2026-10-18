@@ -56,15 +56,7 @@
         <!-- Current job actions -->
         <div class="d-flex gap-2">
 
-          {% if current_job.product.file %}
-            <a
-              href="{% url 'products:download_stl' current_job.product.id %}"
-              class="btn btn-outline-secondary"
-            >
-              <i class="bi bi-download me-1"></i>
-              Download STL
-            </a>
-          {% endif %}
+          {% include "production/_stl_download.html" with job=current_job only %}
 
           <!-- Open stop modal -->
           <button
@@ -84,7 +76,7 @@
           >
             {% csrf_token %}
 
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-ready">
               <i class="bi bi-check-lg me-1"></i>
               Mark as ready
             </button>
@@ -153,6 +145,8 @@
 
               <td class="text-end">
                 <div class="d-flex justify-content-end gap-2">
+
+                  {% include "production/_stl_download.html" with job=job small=True only %}
 
                   <!-- Open cancel modal -->
                   <button
@@ -252,22 +246,25 @@
               </td>
 
               <td class="text-end">
+                <div class="d-flex justify-content-end gap-2">
+                  {% include "production/_stl_download.html" with job=job small=True only %}
 
-                <form
-                  method="post"
-                  action="{% url 'production:complete' job.id %}"
-                >
-                  {% csrf_token %}
-
-                  <button
-                    type="submit"
-                    class="btn btn-sm btn-outline-success"
+                  <form
+                    method="post"
+                    action="{% url 'production:complete' job.id %}"
                   >
-                    <i class="bi bi-check-lg me-1"></i>
-                    Complete
-                  </button>
-                </form>
+                    {% csrf_token %}
 
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-success"
+                    >
+                      <i class="bi bi-check-lg me-1"></i>
+                      Complete
+                    </button>
+                  </form>
+
+                </div>
               </td>
 
             </tr>
@@ -310,6 +307,7 @@
             <th>Product</th>
             <th>Quantity</th>
             <th>Completed</th>
+            <th></th>
           </tr>
         </thead>
 
@@ -331,13 +329,17 @@
                 {{ job.completed_at|date:"d M Y, H:i" }}
               </td>
 
+              <td class="text-end">
+                {% include "production/_stl_download.html" with job=job small=True only %}
+              </td>
+
             </tr>
 
           {% empty %}
 
             <tr>
               <td
-                colspan="3"
+                colspan="4"
                 class="text-center text-secondary py-4"
               >
                 No completed production jobs yet.

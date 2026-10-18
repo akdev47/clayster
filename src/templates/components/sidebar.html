@@ -1,39 +1,18 @@
-<nav class="sidebar">
-  <a href="" class="fs-4 fw-bold text-dark text-decoration-none mb-5">
-    Clayster
-  </a>
-
-  <div class="nav nav-pills flex-column gap-1">
-    <a class="nav-link" href="{% url 'index' %}">
-      <i class="bi bi-house me-2"></i>
-      Home
-    </a>
-
-    <a class="nav-link" href="{% url 'orders:index' %}">
-      <i class="bi bi-receipt me-2"></i>
-      Orders
-    </a>
-
-    <a class="nav-link" href="{% url 'products:index' %}">
-      <i class="bi bi-box-seam me-2"></i>
-      Products
-    </a>
-
-    <a class="nav-link" href="{% url 'production:index' %}">
-      <i class="bi bi-printer me-2"></i>
-      Production
-    </a>
-  </div>
-
-  <div class="sidebar_account">
-    <a href="" class="sidebar_account-link">
-      <i class="bi bi-person"></i>
-      <span>Profile</span>
-    </a>
-
-    <a href="" class="sidebar_account-link">
-      <i class="bi bi-box-arrow-right"></i>
-      <span>Logout</span>
-    </a>
+<nav class="sidebar" aria-label="Main navigation">
+  <a href="{% url 'index' %}" class="sidebar-brand">Clayster<span>STUDIO MANAGER</span></a>
+  <button class="btn btn-outline-secondary sidebar-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-navigation" aria-expanded="false" aria-controls="sidebar-navigation"><i class="bi bi-list" aria-hidden="true"></i> Menu</button>
+  <div class="collapse sidebar-navigation" id="sidebar-navigation">
+    <div class="sidebar-label">WORKSPACE</div>
+    <div class="nav flex-column gap-1">
+      <a class="nav-link {% if request.resolver_match.url_name == 'index' and not request.resolver_match.namespace %}active{% endif %}" href="{% url 'index' %}" {% if request.resolver_match.url_name == 'index' and not request.resolver_match.namespace %}aria-current="page"{% endif %}><i class="bi bi-house" aria-hidden="true"></i> Home</a>
+      <a class="nav-link {% if request.resolver_match.namespace == 'orders' %}active{% endif %}" href="{% url 'orders:index' %}" {% if request.resolver_match.namespace == 'orders' %}aria-current="page"{% endif %}><i class="bi bi-receipt" aria-hidden="true"></i> Orders</a>
+      <a class="nav-link {% if request.resolver_match.namespace == 'products' %}active{% endif %}" href="{% url 'products:index' %}" {% if request.resolver_match.namespace == 'products' %}aria-current="page"{% endif %}><i class="bi bi-box-seam" aria-hidden="true"></i> Products</a>
+      <a class="nav-link {% if request.resolver_match.namespace == 'production' %}active{% endif %}" href="{% url 'production:index' %}" {% if request.resolver_match.namespace == 'production' %}aria-current="page"{% endif %}><i class="bi bi-printer" aria-hidden="true"></i> Production</a>
+    </div>
+    <div class="sidebar_account">
+      <div class="account-identity"><span class="account-avatar" aria-hidden="true">{{ request.user.get_username|first|upper }}</span><div><strong>{{ request.user.get_short_name|default:request.user.get_username }}</strong><span>Clayster workspace</span></div></div>
+      <span class="sidebar_account-link" aria-disabled="true"><i class="bi bi-person" aria-hidden="true"></i> Profile <small>Unavailable</small></span>
+      <span class="sidebar_account-link" aria-disabled="true"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Logout <small>Unavailable</small></span>
+    </div>
   </div>
 </nav>

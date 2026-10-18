@@ -5,7 +5,7 @@
 {% block content %}
 
 <!-- Header -->
-<div class="mb-4">
+<div class="page-header mb-4">
   <h1 class="fw-semibold mb-1">Orders</h1>
   <p class="text-secondary mb-0">
     View and manage customer orders.
@@ -14,13 +14,13 @@
 
 
 <!-- Summary -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4 order-summary">
 
   <div class="col-md-4">
     <div class="card h-100">
       <div class="card-body">
         <div class="text-secondary small mb-1">
-          Processing
+          <i class="bi bi-hourglass-split stat-icon" aria-hidden="true"></i> Processing
         </div>
 
         <div class="fs-3 fw-semibold">
@@ -34,7 +34,7 @@
     <div class="card h-100">
       <div class="card-body">
         <div class="text-secondary small mb-1">
-          Ready to ship
+          <i class="bi bi-box-seam stat-icon" aria-hidden="true"></i> Ready to ship
         </div>
 
         <div class="fs-3 fw-semibold">
@@ -48,7 +48,7 @@
     <div class="card h-100">
       <div class="card-body">
         <div class="text-secondary small mb-1">
-          Orders today
+          <i class="bi bi-calendar3 stat-icon" aria-hidden="true"></i> Orders today
         </div>
 
         <div class="fs-3 fw-semibold">
@@ -62,54 +62,53 @@
 
 
 <!-- Filters + search -->
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+<section class="orders-workspace" aria-label="Order management">
+<div class="orders-toolbar d-flex flex-wrap justify-content-between align-items-center gap-3">
 
   <!-- Status filters -->
-  <div class="d-flex flex-wrap gap-2">
+  <nav class="status-filters d-flex flex-wrap gap-1" aria-label="Order status">
 
     <a
-      href="{% url 'orders:index' %}"
-      class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=open{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'open' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      {% if current_status == 'open' %}aria-current="page"{% endif %}
     >
-      All
+      Open ({{ open_count }})
     </a>
 
     <a
-      href="{% url 'orders:index' %}?status=PR"
-      class="btn btn-sm {% if current_status == 'PR' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=shipped{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'shipped' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      {% if current_status == 'shipped' %}aria-current="page"{% endif %}
     >
-      Processing
+      Shipped ({{ shipped_count }})
     </a>
 
     <a
-      href="{% url 'orders:index' %}?status=RE"
-      class="btn btn-sm {% if current_status == 'RE' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
-    >
-      Ready to ship
-    </a>
-
-    <a
-      href="{% url 'orders:index' %}?status=SH"
-      class="btn btn-sm {% if current_status == 'SH' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
-    >
-      Shipped
-    </a>
-
-    <a
-      href="{% url 'orders:index' %}?status=CO"
-      class="btn btn-sm {% if current_status == 'CO' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=completed{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'completed' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      {% if current_status == 'completed' %}aria-current="page"{% endif %}
     >
       Completed
     </a>
 
     <a
-      href="{% url 'orders:index' %}?status=CA"
-      class="btn btn-sm {% if current_status == 'CA' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=cancelled{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'cancelled' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      {% if current_status == 'cancelled' %}aria-current="page"{% endif %}
     >
       Cancelled
     </a>
 
-  </div>
+    <a
+      href="{% url 'orders:index' %}?status=all{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      {% if current_status == 'all' %}aria-current="page"{% endif %}
+    >
+      All
+    </a>
+
+  </nav>
 
 
   <!-- Search -->
@@ -127,10 +126,10 @@
       >
     {% endif %}
 
-    <div class="input-group input-group-sm">
+    <div class="input-group order-search">
 
       <span class="input-group-text bg-body">
-        <i class="bi bi-search"></i>
+        <i class="bi bi-search" aria-hidden="true"></i>
       </span>
 
       <input
@@ -166,13 +165,13 @@
 
         <thead>
           <tr>
-            <th>Order</th>
-            <th>Customer</th>
-            <th>Date</th>
-            <th>Items</th>
-            <th>Total</th>
-            <th>Status</th>
-            <th></th>
+            <th scope="col">Order</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Date</th>
+            <th scope="col">Items</th>
+            <th scope="col" class="numeric">Total</th>
+            <th scope="col">Status</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
           </tr>
         </thead>
 
@@ -183,7 +182,7 @@
             <tr>
 
               <td class="fw-semibold">
-                #{{ order.id }}
+                <a class="order-number" href="{% url 'orders:order' order.id %}">#{{ order.id }}</a>
               </td>
 
               <td>
@@ -205,49 +204,13 @@
                 {{ order.item_count }}
               </td>
 
-              <td class="fw-medium">
+              <td class="fw-medium numeric">
                 €{{ order.total_price|floatformat:2 }}
               </td>
 
               <td>
 
-                {% if order.order_status == "PR" %}
-
-                  <span class="badge text-bg-primary">
-                    {{ order.get_order_status_display }}
-                  </span>
-
-                {% elif order.order_status == "RE" %}
-
-                  <span class="badge text-bg-warning">
-                    {{ order.get_order_status_display }}
-                  </span>
-
-                {% elif order.order_status == "SH" %}
-
-                  <span class="badge text-bg-info">
-                    {{ order.get_order_status_display }}
-                  </span>
-
-                {% elif order.order_status == "CO" %}
-
-                  <span class="badge text-bg-success">
-                    {{ order.get_order_status_display }}
-                  </span>
-
-                {% elif order.order_status == "CA" %}
-
-                  <span class="badge text-bg-danger">
-                    {{ order.get_order_status_display }}
-                  </span>
-
-                {% else %}
-
-                  <span class="badge text-bg-secondary">
-                    {{ order.get_order_status_display }}
-                  </span>
-
-                {% endif %}
+                {% include "components/order_status.html" with order=order only %}
 
               </td>
 
@@ -256,6 +219,7 @@
                 <a
                   href="{% url 'orders:order' order.id %}"
                   class="btn btn-sm btn-outline-secondary"
+                  aria-label="View order #{{ order.id }}"
                 >
                   Details
                   <i class="bi bi-chevron-right ms-1"></i>
@@ -276,6 +240,7 @@
 
                 <div class="text-secondary mt-2">
                   No orders found.
+                  {% if search %}<div class="mt-2"><a href="{% url 'orders:index' %}?status={{ current_status }}">Clear search</a></div>{% endif %}
                 </div>
               </td>
             </tr>
@@ -291,4 +256,5 @@
   </div>
 </div>
 
+</section>
 {% endblock %}

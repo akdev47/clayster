@@ -1,8 +1,9 @@
 {% load static %}
 
 <!doctype html>
-<html>
+<html lang="en">
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
@@ -17,11 +18,21 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Clayster{% endblock %}</title>
   </head>
-  <body>
+  <body class="clayster-admin">
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="dashboard">
       {% include "components/sidebar.html" %}
 
-      <main class="dashboard_content">{% block content %} {% endblock %}</main>
+      <main id="main-content" class="dashboard_content" tabindex="-1">
+        {% if messages %}
+          <div class="feedback" aria-live="polite">
+            {% for message in messages %}
+              <div class="alert {% if message.level_tag == 'error' %}alert-danger{% else %}alert-{{ message.level_tag|default:'info' }}{% endif %}" role="status">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% block content %} {% endblock %}
+      </main>
     </div>
   </body>
 </html>

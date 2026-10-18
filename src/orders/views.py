@@ -1,4 +1,5 @@
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
@@ -64,8 +65,24 @@ def test_standard_order(request):
 
 @staff_member_required
 def index(request):
-    current_status = request.GET.get("status", "")
+    open_statuses = (
+        Order.OrderStatus.AWAITING_PAYMENT,
+        Order.OrderStatus.PROCESSING,
+        Order.OrderStatus.READY,
+    )
+    status_filters = {
+        "open": open_statuses,
+        "shipped": (Order.OrderStatus.SHIPPED,),
+        "completed": (Order.OrderStatus.COMPLETED,),
+        "cancelled": (Order.OrderStatus.CANCELLED,),
+        "all": (),
+    }
+    current_status = request.GET.get("status", "open")
+    if current_status not in status_filters:
+        current_status = "open"
     search = request.GET.get("search", "")
+    overview_query = urlencode({"status": current_status, "search": search})
+    request.session["orders_overview_query"] = overview_query
 
     orders = (
         Order.objects
@@ -80,9 +97,9 @@ def index(request):
     )
 
     # Filter by status
-    if current_status:
+    if current_status != "all":
         orders = orders.filter(
-            order_status=current_status
+            order_status__in=status_filters[current_status]
         )
 
     # Search by customer or order number
@@ -115,6 +132,8 @@ def index(request):
         "orders/index.html",
         {
             "orders": orders,
+            "open_count": Order.objects.filter(order_status__in=open_statuses).count(),
+            "shipped_count": Order.objects.filter(order_status=Order.OrderStatus.SHIPPED).count(),
             "processing_count": processing_count,
             "ready_count": ready_count,
             "today_count": today_count,
@@ -146,6 +165,7 @@ def order(request, order_id):
         {
             "order": order,
             "order_statuses": Order.OrderStatus.choices,
+            "overview_query": request.session.get("orders_overview_query", "status=open"),
         },
     )
 
@@ -362,9 +382,13 @@ def download_item_stl(request, item_id):
     item = get_object_or_404(OrderItem, pk=item_id)
     if not item.stl_file:
         raise Http404()
+    try:
+        file = item.stl_file.open("rb")
+    except FileNotFoundError:
+        raise Http404() from None
 
     return FileResponse(
-        item.stl_file.open("rb"),
+        file,
         as_attachment=True,
         filename=f"order-{item.order_id}-item-{item.pk}.stl",
     )

@@ -151,11 +151,11 @@
             <!-- Product type -->
             <td>
               {% if product.product_type == "ST" %}
-                <span class="badge text-bg-light border">
+                <span class="status-badge status-neutral">
                   Standard
                 </span>
               {% else %}
-                <span class="badge text-bg-info">
+                <span class="status-badge status-custom">
                   Custom
                 </span>
               {% endif %}
@@ -173,7 +173,7 @@
             <!-- In production -->
             <td>
               {% if product.in_production > 0 %}
-                <span class="badge text-bg-primary">
+                <span class="status-badge status-processing">
                   <i class="bi bi-printer me-1"></i>
                   {{ product.in_production }}
                 </span>
@@ -190,12 +190,12 @@
             <!-- Website visibility -->
             <td>
               {% if product.on_website %}
-                <span class="badge rounded-pill text-bg-success">
+                <span class="status-badge status-ready">
                   <i class="bi bi-check-lg me-1"></i>
                   Visible
                 </span>
               {% else %}
-                <span class="badge rounded-pill text-bg-secondary">
+                <span class="status-badge status-neutral">
                   <i class="bi bi-x-lg me-1"></i>
                   Hidden
                 </span>

@@ -1,17 +1,67 @@
-{% extends "base.html" %} {% block title %} Products | Clayster {% endblock %}
+{% extends "base.html" %}
+{% block title %}Dashboard | Clayster{% endblock %}
 {% block content %}
+<div class="home-dashboard">
+  <header class="page-header dashboard-header mb-4">
+    <div><h1 class="fw-semibold mb-1">Dashboard</h1><p class="text-secondary mb-0">Here's what's happening at Clayster today.</p></div>
+    <time class="text-secondary small" datetime="{{ today|date:'Y-m-d' }}">{{ today|date:"l, j F Y" }}</time>
+  </header>
 
-{% if debug %}
+  <div class="row g-3 mb-4 dashboard-summary">
+    <div class="col-6 col-xl-3"><a class="card dashboard-stat h-100" href="{% url 'orders:index' %}?status=all">
+      <div class="card-body"><i class="bi bi-calendar3 stat-icon" aria-hidden="true"></i><h2>Orders today</h2><div class="dashboard-stat-value">{{ order_counts.today }}</div><span class="dashboard-stat-destination">View all orders <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div>
+    </a></div>
+    <div class="col-6 col-xl-3"><a class="card dashboard-stat h-100" href="{% url 'orders:index' %}?status=open">
+      <div class="card-body"><i class="bi bi-receipt stat-icon" aria-hidden="true"></i><h2>Open orders</h2><div class="dashboard-stat-value">{{ order_counts.open }}</div><span class="dashboard-stat-destination">View open orders <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div>
+    </a></div>
+    <div class="col-6 col-xl-3"><a class="card dashboard-stat h-100" href="{% url 'production:index' %}">
+      <div class="card-body"><i class="bi bi-printer stat-icon" aria-hidden="true"></i><h2>Waiting for production</h2><div class="dashboard-stat-value">{{ production_counts.waiting }}</div><span class="dashboard-stat-destination">View production jobs <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div>
+    </a></div>
+    <div class="col-6 col-xl-3"><a class="card dashboard-stat h-100" href="{% url 'orders:index' %}?status=open">
+      <div class="card-body"><i class="bi bi-box-seam stat-icon" aria-hidden="true"></i><h2>Ready to ship</h2><div class="dashboard-stat-value">{{ order_counts.ready }}</div><span class="dashboard-stat-destination">View open orders <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div>
+    </a></div>
+  </div>
 
-<div class="card mt-4">
-  <div class="card-body">
+  <div class="row g-4 mb-4">
+    <section class="col-lg-6" aria-labelledby="attention-title"><div class="card h-100"><div class="card-body">
+      <h2 id="attention-title" class="h5 fw-semibold mb-3">Needs attention</h2>
+      {% if needs_attention %}
+      <ul class="dashboard-attention list-unstyled mb-0">
+        {% if order_counts.processing %}<li><a href="{% url 'orders:index' %}?status=open"><span class="dashboard-task-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span><span class="dashboard-task-copy"><strong>Orders processing</strong><small>View open orders</small></span><span class="status-badge status-pending">{{ order_counts.processing }}</span><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}
+        {% if production_counts.waiting %}<li><a href="{% url 'production:index' %}"><span class="dashboard-task-icon"><i class="bi bi-printer" aria-hidden="true"></i></span><span class="dashboard-task-copy"><strong>Production jobs waiting</strong><small>View production queue</small></span><span class="status-badge status-pending">{{ production_counts.waiting }}</span><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}
+        {% if order_counts.ready %}<li><a href="{% url 'orders:index' %}?status=open"><span class="dashboard-task-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span><span class="dashboard-task-copy"><strong>Orders ready to ship</strong><small>View open orders</small></span><span class="status-badge status-ready">{{ order_counts.ready }}</span><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}
+      </ul>
+      {% else %}<div class="dashboard-empty"><i class="bi bi-check-circle" aria-hidden="true"></i><h3 class="h6 mt-3">All caught up!</h3><p class="text-secondary mb-0">No production or fulfillment tasks need attention.</p></div>{% endif %}
+    </div></div></section>
 
-    <div class="d-flex align-items-center gap-2 mb-3">
-      <i class="bi bi-tools text-secondary"></i>
-      <h2 class="h5 fw-semibold mb-0">
-        Development tools
-      </h2>
+    <section class="col-lg-6" aria-labelledby="production-title"><div class="card h-100"><div class="card-body">
+      <div class="dashboard-section-heading mb-3"><h2 id="production-title" class="h5 fw-semibold mb-0">Production overview</h2><a href="{% url 'production:index' %}">View production <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
+      <p class="text-secondary small">Production jobs by stage</p>
+      <dl class="dashboard-workflow">
+        <div><dt>Waiting</dt><dd>{{ production_counts.waiting }} <span>job{{ production_counts.waiting|pluralize }}</span></dd></div>
+        <div><dt>Printing</dt><dd>{{ production_counts.printing }} <span>job{{ production_counts.printing|pluralize }}</span></dd></div>
+        <div><dt>Ready</dt><dd>{{ production_counts.ready }} <span>job{{ production_counts.ready|pluralize }}</span></dd></div>
+      </dl>
+      <div class="dashboard-current-print">
+        {% if current_job %}<h3 class="small fw-semibold">Currently printing</h3><div class="dashboard-print-name">{{ current_job.product.name }}</div><div class="text-secondary small">Quantity: {{ current_job.quantity }}{% if current_job.order_item_id %} · <a href="{% url 'orders:order' current_job.order_item.order_id %}">Order #{{ current_job.order_item.order_id }}</a>{% else %} · Stock production{% endif %}</div>
+        {% else %}<p class="text-secondary small mb-0"><i class="bi bi-printer me-1" aria-hidden="true"></i> Nothing is currently printing.</p>{% endif %}
+      </div>
+    </div></div></section>
+  </div>
+
+  <section class="card" aria-labelledby="recent-orders-title">
+    <div class="card-body dashboard-section-heading"><h2 id="recent-orders-title" class="h5 fw-semibold mb-0">Recent orders</h2><a href="{% url 'orders:index' %}?status=all">View all orders <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
+    <div class="table-responsive dashboard-recent-orders" tabindex="0" role="region" aria-label="Recent orders table">
+      <table class="table table-hover align-middle mb-0"><thead><tr><th scope="col">Order</th><th scope="col">Customer</th><th scope="col">Date</th><th scope="col" class="numeric">Total</th><th scope="col">Status</th></tr></thead><tbody>
+        {% for order in recent_orders %}<tr><th scope="row"><a class="order-number" href="{% url 'orders:order' order.id %}">#{{ order.id }}</a></th><td class="dashboard-customer-name">{{ order.customer.first_name }} {{ order.customer.last_name }}</td><td class="text-secondary text-nowrap">{{ order.created_at|date:"d M Y, H:i" }}</td><td class="numeric">€{{ order.total_price|floatformat:2 }}</td><td>{% include "components/order_status.html" with order=order only %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-center py-5"><i class="bi bi-inbox text-secondary fs-3" aria-hidden="true"></i><p class="fw-medium mt-2 mb-1">No orders yet</p><p class="text-secondary mb-0">New customer orders will appear here.</p></td></tr>{% endfor %}
+      </tbody></table>
     </div>
+  </section>
+  {% if debug %}
+<details class="card mt-4 dashboard-dev-tools">
+  <summary>Development tools</summary>
+  <div class="card-body">
 
     <p class="text-secondary small mb-4">
       Create test orders to try the order and production workflows.
@@ -70,6 +120,7 @@
             <div class="mb-3">
               <select
                 name="product_id"
+                aria-label="Product for test order"
                 class="form-select"
                 required
               >
@@ -91,21 +142,13 @@
               type="submit"
               class="btn btn-outline-primary"
               {% if not standard_products %}disabled{% endif %}
-            >
-              <i class="bi bi-plus-lg me-1"></i>
-              Create standard order
-            </button>
-
+            ><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Create standard order</button>
           </form>
-
         </div>
       </div>
-
     </div>
-
   </div>
+</details>
+  {% endif %}
 </div>
-
-{% endif %}
-
 {% endblock %}

@@ -542,3 +542,86 @@ class StaffOrderViewTests(OrderMixin, MediaTestCase):
         self.assertContains(detail, reverse("orders:download_item_stl", args=[self.item.pk]))
         listing = self.client.get(reverse("orders:index"))
         self.assertContains(listing, "Awaiting payment")
+
+
+class OrderOverviewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = get_user_model().objects.create_user("overview-staff", is_staff=True)
+        customer = Customer.objects.create(
+            first_name="Overview", last_name="Customer", email="overview@example.com"
+        )
+        cls.orders = {
+            status: Order.objects.create(
+                customer=customer,
+                order_status=status,
+                subtotal_price=Decimal("10.00"),
+                shipping_costs=Decimal("5.00"),
+                total_price=Decimal("15.00"),
+            )
+            for status in Order.OrderStatus
+        }
+
+    def setUp(self):
+        self.client.force_login(self.staff)
+
+    def test_default_open_includes_all_active_statuses_and_has_global_count(self):
+        response = self.client.get(reverse("orders:index"))
+        self.assertEqual(response.context["current_status"], "open")
+        self.assertEqual(response.context["open_count"], 3)
+        self.assertEqual(
+            {order.order_status for order in response.context["orders"]},
+            {Order.OrderStatus.AWAITING_PAYMENT, Order.OrderStatus.PROCESSING, Order.OrderStatus.READY},
+        )
+        self.assertContains(response, "Open (3)")
+        self.assertContains(response, 'class="btn btn-sm btn-primary"', count=1)
+
+    def test_each_filter_and_invalid_filter(self):
+        expected = {
+            "shipped": {Order.OrderStatus.SHIPPED},
+            "completed": {Order.OrderStatus.COMPLETED},
+            "cancelled": {Order.OrderStatus.CANCELLED},
+            "all": set(Order.OrderStatus.values),
+            "invalid": {Order.OrderStatus.AWAITING_PAYMENT, Order.OrderStatus.PROCESSING, Order.OrderStatus.READY},
+        }
+        for status, statuses in expected.items():
+            with self.subTest(status=status):
+                response = self.client.get(reverse("orders:index"), {"status": status})
+                self.assertEqual(
+                    {order.order_status for order in response.context["orders"]}, statuses
+                )
+
+    def test_shipped_count_stays_visible_outside_shipped_filter_and_search(self):
+        for params in ({}, {"status": "shipped"}, {"status": "completed", "search": "missing"}):
+            with self.subTest(params=params):
+                response = self.client.get(reverse("orders:index"), params)
+                self.assertEqual(response.context["shipped_count"], 1)
+                self.assertContains(response, "Shipped (1)")
+        self.orders[Order.OrderStatus.SHIPPED].delete()
+        response = self.client.get(reverse("orders:index"))
+        self.assertContains(response, "Shipped (0)")
+
+    def test_search_combines_with_status_and_survives_filter_links(self):
+        response = self.client.get(
+            reverse("orders:index"), {"status": "completed", "search": "overview@example.com"}
+        )
+        self.assertEqual(list(response.context["orders"]), [self.orders[Order.OrderStatus.COMPLETED]])
+        self.assertContains(response, 'name="status"\n        value="completed"')
+        self.assertContains(response, '?status=all&amp;search=overview%40example.com')
+        response = self.client.get(reverse("orders:index"), {"search": "missing"})
+        self.assertEqual(response.context["orders"].count(), 0)
+        self.assertEqual(response.context["open_count"], 3)
+
+    def test_back_link_remembers_filter_and_search_after_detail_reload(self):
+        self.client.get(reverse("orders:index"), {"status": "completed", "search": "Overview"})
+        for _ in range(2):
+            response = self.client.get(
+                reverse("orders:order", args=[self.orders[Order.OrderStatus.COMPLETED].pk])
+            )
+            self.assertContains(response, '/orders/?status=completed&amp;search=Overview')
+
+    def test_direct_detail_visit_returns_to_open(self):
+        response = self.client.get(
+            reverse("orders:order", args=[self.orders[Order.OrderStatus.PROCESSING].pk])
+        )
+        self.assertContains(response, '/orders/?status=open')
