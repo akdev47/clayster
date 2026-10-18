@@ -317,7 +317,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .review-heading > div > p:last-child { margin: 0; color: var(--muted); font-size: .88rem; }
 .review-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr); }
 .review-preview-column { min-width: 0; padding: 1.4rem; background: var(--surface); }
-.review-preview-toolbar, .review-preview-switches, .review-preview-footer, .review-section-top, .review-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.review-preview-toolbar, .review-preview-switches, .review-preview-footer, .review-section-top, .review-actions, .order-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .review-preview-toolbar { margin-bottom: .9rem; }
 .review-preview-label { margin: 0; font-weight: 700; }
 .review-preview-switches { flex-wrap: wrap; justify-content: flex-end; }
@@ -349,7 +349,8 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .review-extra-block { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .review-extra-block h3 { margin: 0 0 .5rem; font-size: .85rem; font-weight: 700; }
 .review-extra-block p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.5; }
-.review-actions { position: sticky; z-index: 2; bottom: 0; padding: 1rem 1.4rem; background: var(--white); border-top: 1px solid var(--border); }
+.review-actions, .order-actions { position: sticky; z-index: 2; bottom: 0; padding: 1rem 1.4rem; background: var(--white); border-top: 1px solid var(--border); }
+.review-actions .primary-button, .order-actions .primary-button { min-width: 190px; margin-top: 0; }
 .review-actions-next { display: flex; align-items: center; gap: 1rem; }
 .review-actions-next .pipeline-note { max-width: 16rem; margin: 0; text-align: right; }
 
@@ -366,7 +367,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
   .workflow-step-number { width: 1.15rem; height: 1.15rem; font-size: .6rem; }
   .review-heading { padding: 1.25rem; }
   .review-preview-column { padding: 1rem; }
-  .review-preview-toolbar, .review-preview-footer, .review-actions, .review-actions-next { align-items: stretch; flex-direction: column; }
+  .review-preview-toolbar, .review-preview-footer, .review-actions, .review-actions-next, .order-actions { align-items: stretch; flex-direction: column; }
   .review-preview-switches { justify-content: flex-start; }
   .review-preview-frame, .review-stamp-3d { min-height: 320px; height: 320px; }
   .review-preview-footer .dimension-pill { justify-content: space-between; }

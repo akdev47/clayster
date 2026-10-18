@@ -834,7 +834,6 @@
                       These details are saved on this device and sent with your stamp once ordering is available.
                     </p>
                   </div>
-                  <button id="order-back" class="btn subtle-button" type="button">← Back to review</button>
                 </div>
 
                 <label class="control-label" for="order-title">Name</label>
@@ -910,9 +909,8 @@
                 </div>
 
                 <p id="order-status" class="pipeline-control-status ok" role="status" hidden></p>
-
-                <button id="order-save" class="btn primary-button w-100 mt-3" type="submit">Continue to payment</button>
               </div>
+
             </form>
           </section>
 
@@ -958,6 +956,11 @@
             </section>
           </aside>
         </div>
+
+        <footer class="order-actions">
+          <button id="order-back" class="btn subtle-button" type="button">← Back to review</button>
+          <button id="order-save" class="btn primary-button" type="submit" form="order-form">Continue to payment <span>→</span></button>
+        </footer>
       </div>
     </main>
 
