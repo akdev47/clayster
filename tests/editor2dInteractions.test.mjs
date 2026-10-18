@@ -15,6 +15,7 @@ import {
   fitElementTransform,
   fitsFace,
   shouldHandleElementArrowKey,
+  shouldHandleElementDeleteKey,
   screenDeltaToMillimetres,
   textResizePreview,
 } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
@@ -121,6 +122,29 @@ test("element arrow handling ignores form fields and modifier shortcuts", () => 
     shouldHandleElementArrowKey({ ...event(element), target: input }),
     false,
   );
+});
+
+test("Backspace and Delete remove elements only outside editable fields", () => {
+  const canvas = { tagName: "DIV", isContentEditable: false };
+  const input = { tagName: "INPUT", isContentEditable: false };
+  const event = (key, target = canvas, overrides = {}) => ({
+    key,
+    target,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...overrides,
+  });
+
+  assert.equal(shouldHandleElementDeleteKey(event("Backspace")), true);
+  assert.equal(shouldHandleElementDeleteKey(event("Delete")), true);
+  assert.equal(shouldHandleElementDeleteKey(event("Backspace", input)), false);
+  assert.equal(
+    shouldHandleElementDeleteKey(event("Backspace", canvas, { metaKey: true })),
+    false,
+  );
+  assert.equal(shouldHandleElementDeleteKey(event("Enter")), false);
 });
 
 test("dragging follows the pointer through fitted and mirrored display space", () => {

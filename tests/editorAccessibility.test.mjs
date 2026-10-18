@@ -178,3 +178,16 @@ test("new Text uses the safer thickness and shows it in the control", async () =
     /#font-weight"\)\.value = element\.source\.thicknessMm/,
   );
 });
+
+test("failed image uploads use an accessible self-dismissing toast", async () => {
+  const [html, css, main] = await Promise.all([
+    projectFile("index.html"),
+    projectFile("style.css"),
+    projectFile("main.js"),
+  ]);
+
+  assert.match(html, /id="image-upload-toast"[^>]*role="alert"/);
+  assert.match(html, /class="image-upload-toast-icon"[^>]*>↑<\/span>/);
+  assert.match(css, /\.image-upload-toast\.show\s*\{/);
+  assert.match(main, /setTimeout\(\(\) => \{[\s\S]*toast\.classList\.remove\("show"\)/);
+});

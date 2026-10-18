@@ -9,7 +9,7 @@ import { createOrderPage } from "./orderPage.js";
 import { createSTL } from "./exporters.js";
 import { readServerConfig } from "./serverConfig.js";
 import { DesignHistory } from "./designHistory.js";
-import { DesignModel } from "./designModel.js";
+import { createDesignElement, DesignModel } from "./designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
@@ -19,6 +19,7 @@ import {
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
   shouldHandleElementArrowKey,
+  shouldHandleElementDeleteKey,
   textResizePreview,
 } from "./editor2dInteractions.js";
 import { SharedDesignControls } from "./sharedDesignControls.js";
@@ -29,6 +30,7 @@ import {
 } from "./pipeline/stampLayout.js";
 import { bounds, transform } from "./pipeline/canonical.js";
 import { readableStampDisplay } from "./stamp2dDisplay.js";
+import { ArtworkComposer } from "./pipeline/artworkComposition.js";
 
 const state = {
   width: 60,
@@ -68,6 +70,9 @@ let pendingImageUpload = null;
 let samplePreviewReference = null;
 let samplePreviewObjectUrl = null;
 let transformControlsExpanded = false;
+let imageUploadToastTimer = null;
+let imageUploadToastHideTimer = null;
+let imageUploadToastFrame = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
@@ -199,6 +204,46 @@ function imageSource(kind, file) {
         },
       }
     : { reference: file, baseSizeMm: 30 };
+}
+
+async function validateImageElement(element) {
+  const validator = new ArtworkComposer((candidate) =>
+    pipeline.buildElementArtwork(candidate),
+  );
+  const result = await validator.compose([element]);
+  const blockingIssue = result.issues.find(({ level }) => level === "error");
+  if (blockingIssue !== undefined) throw new Error(blockingIssue.message);
+}
+
+function showImageUploadToast(message = "") {
+  const toast = $("#image-upload-toast");
+  clearTimeout(imageUploadToastTimer);
+  clearTimeout(imageUploadToastHideTimer);
+  cancelAnimationFrame(imageUploadToastFrame);
+
+  toast.classList.remove("show");
+  if (message === "") {
+    toast.hidden = true;
+    return;
+  }
+
+  $("#image-upload-toast-message").textContent = message;
+  toast.hidden = false;
+  imageUploadToastFrame = requestAnimationFrame(() => {
+    imageUploadToastFrame = requestAnimationFrame(() => {
+      toast.classList.add("show");
+    });
+  });
+  imageUploadToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+    imageUploadToastHideTimer = setTimeout(() => {
+      toast.hidden = true;
+    }, 450);
+  }, 3600);
+}
+
+function readableImageUploadError(kind) {
+  return `${kind.toUpperCase()} upload failed. Try a different image.`;
 }
 
 function logoPlaceholder(kind) {
@@ -834,6 +879,7 @@ $("#add-text").addEventListener("click", () => {
 
 function chooseImage(action, kind) {
   pendingImageUpload = { action, kind };
+  showImageUploadToast();
   const input = $("#image-upload");
   input.accept =
     kind === "svg" ? ".svg,image/svg+xml" : ".png,image/png";
@@ -850,7 +896,7 @@ $("#replace-image").addEventListener("click", () => {
   }
 });
 
-$("#image-upload").addEventListener("change", (event) => {
+$("#image-upload").addEventListener("change", async (event) => {
   const file = event.target.files[0];
 
   if (!file) return;
@@ -859,28 +905,68 @@ $("#image-upload").addEventListener("change", (event) => {
   const request = pendingImageUpload;
   pendingImageUpload = null;
   if (kind === null || request === null || kind !== request.kind) {
-    alert(`Choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file.`);
+    showImageUploadToast(
+      `Please choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file.`,
+    );
     event.target.value = "";
     return;
   }
 
-  if (request.action === "replace") {
-    const selected = selectedElement();
-    if (kind === "png" && selected?.kind === "png") {
-      designControls.updateSelectedSource("png", {
-        reference: file,
-        tracing: {
-          ...selected.source.tracing,
-          backgroundSamples: [],
-        },
-      });
+  const selected = request.action === "replace" ? selectedElement() : null;
+  if (request.action === "replace" && selected?.kind !== kind) {
+    showImageUploadToast("Could not replace the image. Please try again.");
+    event.target.value = "";
+    return;
+  }
+
+  let source;
+  if (selected !== null) {
+    source = kind === "png"
+      ? {
+          ...selected.source,
+          reference: file,
+          tracing: {
+            ...selected.source.tracing,
+            backgroundSamples: [],
+          },
+        }
+      : { ...selected.source, reference: file };
+  } else {
+    source = imageSource(kind, file);
+  }
+
+  const candidate = createDesignElement(
+    selected === null
+      ? { kind, source }
+      : { ...selected, source },
+  );
+
+  try {
+    await validateImageElement(candidate);
+  } catch {
+    showImageUploadToast(readableImageUploadError(kind));
+    event.target.value = "";
+    return;
+  }
+
+  if (selected !== null) {
+    // The user may have interacted with the design while the image decoded.
+    // Update the original target, never whichever element happens to be
+    // selected when validation finishes.
+    const target = designModel.getElement(selected.id);
+    if (target?.kind === kind) {
+      designModel.updateElement(selected.id, { source });
+      editor.select(selected.id);
     } else {
-      designControls.replaceSelectedReference(kind, file);
+      showImageUploadToast("Could not replace the image. Please try again.");
+      event.target.value = "";
+      return;
     }
   } else {
     designControls.addElement(kind, imageSource(kind, file));
   }
 
+  showImageUploadToast();
   event.target.value = "";
   render();
 });
@@ -936,11 +1022,9 @@ $("#delete-element").addEventListener("click", () => {
   deleteSelectedElement();
 });
 
-// Only the Delete key removes the selected element: Backspace is what people
-// press to edit text, and it must never delete the design.
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Delete") {
-    if (isEditingField(event.target) || !selectedElement()) return;
+  if (shouldHandleElementDeleteKey(event)) {
+    if (!selectedElement()) return;
     event.preventDefault();
     deleteSelectedElement();
     return;
@@ -1260,7 +1344,7 @@ function showPage(name) {
   designPage.hidden = review || order;
   reviewPageElement.hidden = !review;
   orderPageElement.hidden = !order;
-  const steps = ["design", "review", "order"];
+  const steps = ["design", "review", "order", "confirmation"];
   const currentIndex = steps.indexOf(name);
   $$('[data-workflow-step]').forEach((step) => {
     const index = steps.indexOf(step.dataset.workflowStep);

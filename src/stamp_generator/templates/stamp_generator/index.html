@@ -50,7 +50,8 @@
       <ol class="workflow-progress" aria-label="Order progress">
         <li data-workflow-step="design" class="current" aria-current="step"><span class="workflow-step-number">1</span>Design</li>
         <li data-workflow-step="review"><span class="workflow-step-number">2</span>Review</li>
-        <li data-workflow-step="order"><span class="workflow-step-number">3</span>Order details</li>
+        <li data-workflow-step="order"><span class="workflow-step-number">3</span>Order &amp; payment</li>
+        <li data-workflow-step="confirmation"><span class="workflow-step-number">4</span>Confirmation</li>
       </ol>
     </div>
 
@@ -833,10 +834,9 @@
                       These details are saved on this device and sent with your stamp once ordering is available.
                     </p>
                   </div>
-                  <button id="order-back" class="btn subtle-button" type="button">← Back to review</button>
                 </div>
 
-                <label class="control-label" for="order-title">Name</label>
+                <label class="control-label" for="order-title">Stamp name</label>
                 <input id="order-title" class="form-control clay-input" type="text" maxlength="80" placeholder="e.g. Bakery logo stamp" autocomplete="off" />
                 <p class="order-error" id="order-title-error" role="alert"></p>
 
@@ -909,9 +909,8 @@
                 </div>
 
                 <p id="order-status" class="pipeline-control-status ok" role="status" hidden></p>
-
-                <button id="order-save" class="btn primary-button w-100 mt-3" type="submit">Continue to payment</button>
               </div>
+
             </form>
           </section>
 
@@ -957,8 +956,18 @@
             </section>
           </aside>
         </div>
+
+        <footer class="order-actions">
+          <button id="order-back" class="btn subtle-button" type="button">← Back to review</button>
+          <button id="order-save" class="btn primary-button" type="submit" form="order-form">Continue to payment <span>→</span></button>
+        </footer>
       </div>
     </main>
+
+    <div id="image-upload-toast" class="image-upload-toast" role="alert" aria-live="assertive" aria-atomic="true" hidden>
+      <span class="image-upload-toast-icon" aria-hidden="true">↑</span>
+      <span id="image-upload-toast-message"></span>
+    </div>
 
     <input id="image-upload" type="file" accept=".png,.svg,image/png,image/svg+xml" hidden />
     <input
