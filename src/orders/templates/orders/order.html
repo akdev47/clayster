@@ -27,43 +27,7 @@
         Order #{{ order.id }}
       </h1>
 
-      {% if order.order_status == "PR" %}
-
-        <span class="badge text-bg-primary">
-          {{ order.get_order_status_display }}
-        </span>
-
-      {% elif order.order_status == "RE" %}
-
-        <span class="badge text-bg-warning">
-          {{ order.get_order_status_display }}
-        </span>
-
-      {% elif order.order_status == "SH" %}
-
-        <span class="badge text-bg-info">
-          {{ order.get_order_status_display }}
-        </span>
-
-      {% elif order.order_status == "CO" %}
-
-        <span class="badge text-bg-success">
-          {{ order.get_order_status_display }}
-        </span>
-
-      {% elif order.order_status == "CA" %}
-
-        <span class="badge text-bg-danger">
-          {{ order.get_order_status_display }}
-        </span>
-
-      {% else %}
-
-        <span class="badge text-bg-secondary">
-          {{ order.get_order_status_display }}
-        </span>
-
-      {% endif %}
+      {% include "components/order_status.html" with order=order only %}
 
     </div>
 
@@ -277,7 +241,7 @@
 
                 {% if item.product.product_type == "CS" %}
 
-                  <span class="badge text-bg-secondary">
+                  <span class="status-badge status-pending">
                     Custom stamp
                   </span>
 
@@ -299,11 +263,11 @@
               <td>
                 {% if item.available_stock is not None %}
                   {% if item.available_stock >= item.quantity %}
-                    <span class="badge text-bg-success">
+                    <span class="status-badge status-completed">
                       {{ item.available_stock }} available
                     </span>
                   {% else %}
-                    <span class="badge text-bg-warning">
+                    <span class="status-badge status-pending">
                       {{ item.available_stock }} available
                     </span>
                   {% endif %}
@@ -315,11 +279,11 @@
               <!-- Quantity to produce -->
               <td>
                 {% if item.quantity_to_produce > 0 %}
-                  <span class="badge text-bg-warning">
+                  <span class="status-badge status-pending">
                     {{ item.quantity_to_produce }} needed
                   </span>
                 {% else %}
-                  <span class="badge text-bg-success">
+                  <span class="status-badge status-completed">
                     <i class="bi bi-check-lg me-1"></i>
                     Covered
                   </span>
@@ -382,28 +346,28 @@
 
                       {% if job.status == "WA" %}
 
-                        <span class="badge text-bg-secondary">
+                        <span class="status-badge status-pending">
                           <i class="bi bi-clock me-1"></i>
                           Waiting
                         </span>
 
                       {% elif job.status == "PR" %}
 
-                        <span class="badge text-bg-primary">
+                        <span class="status-badge status-processing">
                           <i class="bi bi-printer me-1"></i>
                           Printing
                         </span>
 
                       {% elif job.status == "RE" %}
 
-                        <span class="badge text-bg-warning">
+                        <span class="status-badge status-ready">
                           <i class="bi bi-check-lg me-1"></i>
                           Ready
                         </span>
 
                       {% elif job.status == "CO" %}
 
-                        <span class="badge text-bg-success">
+                        <span class="status-badge status-completed">
                           <i class="bi bi-check-circle me-1"></i>
                           Completed
                         </span>
@@ -412,7 +376,7 @@
 
                         <div class="d-flex align-items-center gap-2">
 
-                          <span class="badge text-bg-danger">
+                          <span class="status-badge status-cancelled">
                             Cancelled
                           </span>
 
@@ -465,7 +429,7 @@
 
                   <div class="d-flex align-items-center gap-2">
 
-                    <span class="badge text-bg-success">
+                    <span class="status-badge status-completed">
                       <i class="bi bi-check-circle me-1"></i>
                       Ready
                     </span>
@@ -500,7 +464,7 @@
 
                       <button
                         type="submit"
-                        class="btn btn-sm btn-outline-success"
+                        class="btn btn-sm btn-ready"
                       >
                         <i class="bi bi-check-lg me-1"></i>
                         Mark ready

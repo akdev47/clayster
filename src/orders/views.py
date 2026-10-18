@@ -133,6 +133,7 @@ def index(request):
         {
             "orders": orders,
             "open_count": Order.objects.filter(order_status__in=open_statuses).count(),
+            "shipped_count": Order.objects.filter(order_status=Order.OrderStatus.SHIPPED).count(),
             "processing_count": processing_count,
             "ready_count": ready_count,
             "today_count": today_count,

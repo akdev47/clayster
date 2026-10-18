@@ -66,12 +66,12 @@
         <div class="text-secondary small mb-1">On website</div>
 
         {% if product.on_website %}
-          <span class="badge text-bg-success">
+          <span class="status-badge status-completed">
             <i class="bi bi-check-lg me-1"></i>
             Visible
           </span>
         {% else %}
-          <span class="badge text-bg-secondary">
+          <span class="status-badge status-neutral">
             <i class="bi bi-x-lg me-1"></i>
             Hidden
           </span>
@@ -248,23 +248,23 @@
             <!-- Status -->
             <td>
               {% if job.status == "WA" %}
-                <span class="badge text-bg-warning">
+                <span class="status-badge status-pending">
                   Waiting
                 </span>
               {% elif job.status == "PR" %}
-                <span class="badge text-bg-primary">
+                <span class="status-badge status-processing">
                   Printing
                 </span>
               {% elif job.status == "RE" %}
-                <span class="badge text-bg-info">
+                <span class="status-badge status-ready">
                   Ready
                 </span>
               {% elif job.status == "CO" %}
-                <span class="badge text-bg-success">
+                <span class="status-badge status-completed">
                   Completed
                 </span>
               {% elif job.status == "CA" %}
-                <span class="badge text-bg-secondary">
+                <span class="status-badge status-cancelled">
                   Cancelled
                 </span>
               {% endif %}

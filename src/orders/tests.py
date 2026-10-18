@@ -591,6 +591,16 @@ class OrderOverviewTests(TestCase):
                     {order.order_status for order in response.context["orders"]}, statuses
                 )
 
+    def test_shipped_count_stays_visible_outside_shipped_filter_and_search(self):
+        for params in ({}, {"status": "shipped"}, {"status": "completed", "search": "missing"}):
+            with self.subTest(params=params):
+                response = self.client.get(reverse("orders:index"), params)
+                self.assertEqual(response.context["shipped_count"], 1)
+                self.assertContains(response, "Shipped (1)")
+        self.orders[Order.OrderStatus.SHIPPED].delete()
+        response = self.client.get(reverse("orders:index"))
+        self.assertContains(response, "Shipped (0)")
+
     def test_search_combines_with_status_and_survives_filter_links(self):
         response = self.client.get(
             reverse("orders:index"), {"status": "completed", "search": "overview@example.com"}
