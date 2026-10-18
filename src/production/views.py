@@ -7,19 +7,20 @@ from .forms import ProductionJobForm
 from .models import ProductionJob
 
 def index(request):
-    current_job = ProductionJob.objects.filter(
+    jobs = ProductionJob.objects.select_related("product", "order_item__product")
+    current_job = jobs.filter(
         status=ProductionJob.ProductionStatus.PRINTING
     ).first()
 
-    waiting_jobs = ProductionJob.objects.filter(
+    waiting_jobs = jobs.filter(
         status=ProductionJob.ProductionStatus.WAITING
     ).order_by("created_at")
 
-    ready_jobs = ProductionJob.objects.filter(
+    ready_jobs = jobs.filter(
         status=ProductionJob.ProductionStatus.READY
     ).order_by("created_at")
 
-    completed_jobs = ProductionJob.objects.filter(
+    completed_jobs = jobs.filter(
         status=ProductionJob.ProductionStatus.COMPLETED
     ).order_by("-completed_at")[:10]
 

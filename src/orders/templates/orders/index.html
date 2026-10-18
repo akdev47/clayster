@@ -68,45 +68,38 @@
   <div class="d-flex flex-wrap gap-2">
 
     <a
-      href="{% url 'orders:index' %}"
-      class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=open{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'open' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
     >
-      All
+      Open ({{ open_count }})
     </a>
 
     <a
-      href="{% url 'orders:index' %}?status=PR"
-      class="btn btn-sm {% if current_status == 'PR' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
-    >
-      Processing
-    </a>
-
-    <a
-      href="{% url 'orders:index' %}?status=RE"
-      class="btn btn-sm {% if current_status == 'RE' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
-    >
-      Ready to ship
-    </a>
-
-    <a
-      href="{% url 'orders:index' %}?status=SH"
-      class="btn btn-sm {% if current_status == 'SH' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=shipped{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'shipped' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
     >
       Shipped
     </a>
 
     <a
-      href="{% url 'orders:index' %}?status=CO"
-      class="btn btn-sm {% if current_status == 'CO' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=completed{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'completed' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
     >
       Completed
     </a>
 
     <a
-      href="{% url 'orders:index' %}?status=CA"
-      class="btn btn-sm {% if current_status == 'CA' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+      href="{% url 'orders:index' %}?status=cancelled{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'cancelled' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
     >
       Cancelled
+    </a>
+
+    <a
+      href="{% url 'orders:index' %}?status=all{% if search %}&amp;search={{ search|urlencode }}{% endif %}"
+      class="btn btn-sm {% if current_status == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+    >
+      All
     </a>
 
   </div>

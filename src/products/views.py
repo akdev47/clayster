@@ -11,7 +11,7 @@ from django.db.models.deletion import ProtectedError
 from .models import Product
 from production.models import ProductionJob
 
-from django.http import FileResponse
+from django.http import FileResponse, Http404
 
 from .forms import ProductForm
 
@@ -140,10 +140,14 @@ def delete(request, product_id):
 @staff_member_required
 def download_stl(request, product_id):
     product = get_object_or_404(Product, id=product_id)
-
-    
+    if not product.file:
+        raise Http404()
+    try:
+        file = product.file.open("rb")
+    except FileNotFoundError:
+        raise Http404() from None
     return FileResponse(
-        product.file.open("rb"),
+        file,
         as_attachment=True,
         filename=product.file.name,
     )
