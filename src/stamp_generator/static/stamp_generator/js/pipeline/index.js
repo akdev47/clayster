@@ -12,8 +12,8 @@ import {
 } from "../pngTrace.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
+import { createSmallHandle } from "./handle.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
-import { loadSTLGeometry } from "../loaders.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
 import { prepareClosedStamp } from "../exportValidation.js";
 import { DesignModel } from "../designModel.js";
@@ -26,8 +26,6 @@ import {
 // Resolved through the import map in the browser and by Node itself in tests.
 const wasmUrl = import.meta.resolve("manifold-3d/manifold.wasm");
 
-const SAMPLE_HANDLE = new URL("../../models/StampHandle.stl", import.meta.url)
-  .href;
 const DEBOUNCE_MS = 300;
 
 export const DEFAULT_SOURCE = {
@@ -84,7 +82,7 @@ export class Pipeline extends EventTarget {
     );
     this.onDesignChange = () => this.schedule();
     this.diagnostics = null;
-    this.handles = new Map();
+    this.handle = null;
 
     this.timer = null;
     this.token = 0;
@@ -399,18 +397,11 @@ export class Pipeline extends EventTarget {
   }
 
   async handleGeometry() {
-    const choice = this.stamp.handle;
-    if (choice === "none") return null;
+    if (this.stamp.handle === "none") return null;
 
-    const source = choice === "sample" ? SAMPLE_HANDLE : choice;
-    const key =
-      source instanceof File ? `${source.name}:${source.size}` : source;
-
-    if (!this.handles.has(key)) {
-      this.handles.set(key, loadSTLGeometry(source));
-    }
-
-    return this.handles.get(key);
+    // One shared copy at full size; buildStamp shrinks its own copy to fit.
+    this.handle ??= createSmallHandle();
+    return this.handle;
   }
 
   sourceKey() {

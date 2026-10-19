@@ -6,6 +6,7 @@ import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { thinFeatureIssues } from "./validate.js";
 import { createStampLayout } from "./stampLayout.js";
+import { fitHandleToFace } from "./handle.js";
 
 export { fitToFace } from "./stampLayout.js";
 
@@ -18,7 +19,7 @@ export const DEFAULT_STAMP = {
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
   margin: 3,
-  handle: "none", // 'none' | 'sample'
+  handle: "small", // 'small' | 'none'
 };
 
 const GAP = 10; // Space between the stamp and the mug in the preview.
@@ -98,6 +99,8 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   const stamp = attachHandle(face, handleGeometry, {
     x: layout.minX + layout.widthMm / 2,
     y: layout.minY + layout.heightMm / 2,
+    widthMm: layout.widthMm,
+    heightMm: layout.heightMm,
   });
 
   relief.dispose();
@@ -189,18 +192,23 @@ function buildRelief(artwork, settings) {
 }
 
 // The handle hangs below the plate, so the finished stamp stands on it the way
-// it would on a table, with the artwork facing up where you can see it.
-function attachHandle(face, handleGeometry, faceCentre) {
+// it would on a table, with the artwork facing up where you can see it. The
+// footprint is the plate's centre and size; the handle is centred on it.
+function attachHandle(face, handleGeometry, footprint) {
   if (handleGeometry === null) return face.clone();
 
-  const handle = handleGeometry.clone();
-  handle.computeBoundingBox();
+  // A copy, so the shared handle stays full size for the next, larger face.
+  const handle = fitHandleToFace(
+    handleGeometry.clone(),
+    footprint.widthMm,
+    footprint.heightMm,
+  );
 
   const box = handle.boundingBox;
   const centre = box.getCenter(new THREE.Vector3());
   handle.translate(
-    faceCentre.x - centre.x,
-    faceCentre.y - centre.y,
+    footprint.x - centre.x,
+    footprint.y - centre.y,
     -box.max.z + OVERLAP,
   ); // Overlap, not butt.
 

@@ -14,7 +14,6 @@ PRICING = {
     "vat_rate": 0.21,  # prices below already include VAT
     "base_cents": 850,  # one stamp, before size/extras
     "per_cm2_cents": 6,  # per cm² of stamp face
-    "handle_cents": 300,
     # Highest matching threshold wins; applied to the item total only.
     "quantity_discounts": [
         {"min_quantity": 10, "rate": 0.10},
@@ -90,8 +89,6 @@ def estimate_price(stamp, info, quantity, country):
 
     area = face_area_cm2(stamp, info)
     unit_cents = PRICING["base_cents"] + js_round(area * PRICING["per_cm2_cents"])
-    if stamp.get("handle") != "none":
-        unit_cents += PRICING["handle_cents"]
 
     items_cents = unit_cents * quantity
     discount_rate = max(
@@ -131,7 +128,6 @@ def pricing_for_page():
         "vatRate": PRICING["vat_rate"],
         "baseCents": PRICING["base_cents"],
         "perCm2Cents": PRICING["per_cm2_cents"],
-        "handleCents": PRICING["handle_cents"],
         "quantityDiscounts": [
             {"minQuantity": d["min_quantity"], "rate": d["rate"]}
             for d in PRICING["quantity_discounts"]
