@@ -4,7 +4,6 @@
     "vatRate": 0.21,
     "baseCents": 850,
     "perCm2Cents": 6,
-    "handleCents": 300,
     "quantityDiscounts": [
       {
         "minQuantity": 10,
@@ -53,11 +52,11 @@
       }
     },
     {
-      "name": "round stamp with handle, two pieces",
+      "name": "round stamp with the default handle, two pieces (the handle is free)",
       "stamp": {
         "faceShape": "round",
         "faceSize": 40,
-        "handle": "sample"
+        "handle": "small"
       },
       "info": {
         "width": 40,
@@ -66,11 +65,11 @@
       "quantity": 2,
       "country": "NL",
       "expected": {
-        "unitCents": 1225,
-        "itemsCents": 2450,
+        "unitCents": 925,
+        "itemsCents": 1850,
         "discountCents": 0,
         "shippingCents": 495,
-        "totalCents": 2945
+        "totalCents": 2345
       }
     },
     {
@@ -222,7 +221,7 @@
       "stamp": {
         "faceShape": "round",
         "faceSize": 40,
-        "handle": "sample"
+        "handle": "small"
       },
       "info": {
         "width": 60,
@@ -231,11 +230,11 @@
       "quantity": 50,
       "country": "NL",
       "expected": {
-        "unitCents": 1277,
-        "itemsCents": 63850,
-        "discountCents": 12770,
+        "unitCents": 977,
+        "itemsCents": 48850,
+        "discountCents": 9770,
         "shippingCents": 0,
-        "totalCents": 51080
+        "totalCents": 39080
       }
     },
     {

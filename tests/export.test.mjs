@@ -12,6 +12,7 @@ import { create3MF, createSTL } from "../src/stamp_generator/static/stamp_genera
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
 import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
 import { buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
+import { createSmallHandle } from "../src/stamp_generator/static/stamp_generator/js/pipeline/handle.js";
 
 await initializeSolids();
 const buffer = (path) => {
@@ -22,7 +23,7 @@ const buffer = (path) => {
   );
 };
 const font = opentype.parse(buffer("../src/stamp_generator/static/stamp_generator/fonts/NotoSans-Bold.ttf"));
-const handle = new STLLoader().parse(buffer("../src/stamp_generator/static/stamp_generator/models/StampHandle.stl"));
+const handle = createSmallHandle();
 const artwork = (text) =>
   validate(layoutText(font, { text, size: 16 })).artwork;
 const reverseTriangles = (geometry) => {
@@ -60,7 +61,7 @@ for (const text of ["CLAY", "BOA8", "i j !"]) {
   }
 }
 
-test("handle attachment supports a closed internal cavity", () => {
+test("handle attachment gives a closed stamp", () => {
   const built = buildStamp(artwork("CLAY"), {}, handle);
   assert.ok(verifiedSTL(built.stamp).size > 84);
   built.stamp.dispose();

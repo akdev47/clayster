@@ -14,13 +14,20 @@ test("prices a single stamp from base cost and face area", () => {
   assert.equal(price.totalCents, price.unitCents + price.shippingCents);
 });
 
-test("round faces use the circle area, and extras are added per stamp", () => {
-  const round = { ...stamp, faceShape: "round", handle: "sample" };
+test("round faces use the circle area, and the total is per stamp", () => {
+  const round = { ...stamp, faceShape: "round" };
   assert.ok(Math.abs(faceAreaCm2(round, { width: 40, depth: 40 }) - 12.566) < 0.01);
 
   const price = estimatePrice({ stamp: round, info, quantity: 2 });
-  assert.ok(price.unitLines.some(({ id }) => id === "handle"));
   assert.equal(price.itemsCents, price.unitCents * 2);
+});
+
+test("the handle is free: it changes neither the price nor the price lines", () => {
+  const withHandle = estimatePrice({ stamp: { ...stamp, handle: "small" }, info, quantity: 2 });
+  const without = estimatePrice({ stamp: { ...stamp, handle: "none" }, info, quantity: 2 });
+  assert.deepEqual(withHandle, without);
+  assert.ok(!withHandle.unitLines.some(({ id }) => id === "handle"));
+  assert.ok(!("handleCents" in PRICING));
 });
 
 test("quantity discounts, free shipping and shipping zones", () => {

@@ -85,7 +85,7 @@ export function createReviewPage({ designModel, pipeline, diagnostics, renderPre
     );
     byId("review-handle").textContent = pipeline.stamp.handle === "none"
       ? "No handle — face only"
-      : "Sample handle · included with the stamp";
+      : "Small handle · included with the stamp";
   };
 
   const refresh = () => {

@@ -67,19 +67,36 @@ class PricingTests(SimpleTestCase):
                 self.assertEqual(price["total_cents"], expected["totalCents"])
 
     def test_cases_from_the_first_python_port(self):
-        # Kept from the original pricing tests; the numbers must not change.
-        knob = {"faceShape": "square", "faceSize": 40, "handle": "knob"}
+        # Kept from the original pricing tests. The handle used to cost 3.00
+        # extra, so the two cases that had one are now 3.00 per stamp cheaper.
+        small = {"faceShape": "square", "faceSize": 40, "handle": "small"}
         plain = {"faceShape": "square", "faceSize": 40, "handle": "none"}
         cases = [
-            ("square with a handle, no measurements", knob, None, 1, "NL", "total_cents", 1741),
+            ("square with a handle, no measurements", small, None, 1, "NL", "total_cents", 1441),
             ("round without handle, Belgium", {**plain, "faceShape": "round"}, None, 1, "BE", "total_cents", 1620),
-            ("discount and free shipping", {**knob, "faceSize": 30}, None, 10, "DE", "total_cents", 10836),
+            ("discount and free shipping", {**small, "faceSize": 30}, None, 10, "DE", "total_cents", 8136),
             ("unknown country uses the other zone", plain, {"width": 52.5, "depth": 31}, 1, "US", "total_cents", 2243),
             ("rounds half up like JavaScript", plain, {"width": 50, "depth": 15.5}, 1, "NL", "unit_cents", 897),
         ]
         for name, stamp, info, quantity, country, key, expected in cases:
             with self.subTest(name):
                 self.assertEqual(estimate_price(stamp, info, quantity, country)[key], expected)
+
+    def test_the_handle_is_free(self):
+        info = {"width": 40, "depth": 40}
+        for shape in ("round", "square"):
+            prices = {
+                handle: estimate_price(
+                    {"faceShape": shape, "faceSize": 40, "handle": handle}, info, 3, "NL"
+                )
+                for handle in ("small", "none")
+            }
+            with self.subTest(shape=shape):
+                self.assertEqual(prices["small"], prices["none"])
+
+    def test_the_page_price_list_has_no_handle_price(self):
+        self.assertNotIn("handle_cents", pricing.PRICING)
+        self.assertNotIn("handleCents", pricing.pricing_for_page())
 
     def test_countries_and_shipping_zones_agree(self):
         zones = set(pricing.PRICING["shipping"]["by_country_cents"])

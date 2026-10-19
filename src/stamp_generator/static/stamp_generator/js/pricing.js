@@ -10,7 +10,6 @@ export const PRICING = Object.freeze({
   vatRate: 0.21, // prices below already include VAT
   baseCents: 850, // one stamp, before size/extras
   perCm2Cents: 6, // per cm² of stamp face
-  handleCents: 300,
   // Highest matching threshold wins; applied to the item total only.
   quantityDiscounts: Object.freeze([
     { minQuantity: 10, rate: 0.1 },
@@ -52,9 +51,6 @@ export function estimatePrice(
       cents: Math.round(area * pricing.perCm2Cents),
     },
   ];
-  if (stamp.handle !== "none") {
-    unitLines.push({ id: "handle", label: "Handle", cents: pricing.handleCents });
-  }
 
   const unitCents = unitLines.reduce((sum, { cents }) => sum + cents, 0);
   const itemsCents = unitCents * count;

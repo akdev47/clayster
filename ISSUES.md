@@ -4,10 +4,11 @@ Keep this file up to date: tick items when done (and move them to **Done**),
 add new ones as they come up. Tags: **[bug]**, **[ux]**, **[backend]**,
 **[idea]**, **[tech]**. Items marked *decide* need a decision before work starts.
 
-Last updated: 2026-10-12
+Last updated: 2026-10-19
 
 ## Done
 
+- [x] **[ux] Small handle on every stamp.** New stamps start with a really small rectangular handle (free, no price line); "No handle" is still in the Handle dropdown. The old 21 mm sample handle and its €3 price are gone. The handle's shape and size are the constants in `pipeline/handle.js`; replace them once the reference picture's measurements are known.
 - [x] **[ux] PNG photos give poor results.** Help text explains it; a preview of the traced shape or a warning on very detailed images would be better.
 - [x] **[ux] Keyboard use.** Elements cannot be moved with the arrow keys, visible focus outlines are removed on design elements, and the alignment buttons are not labelled correctly.
 - [x] **[ux] Text alignment moved the whole element.** Alignment now positions the text lines inside the text box instead of moving the text around the stamp.
@@ -40,7 +41,7 @@ Last updated: 2026-10-12
 
 ### Language and wording
 - [ ] **[ux] Translate everything to Dutch.** *Planned.* All UI text is currently English and written directly in `index.html` and the JS files; collect strings in one place before translating.
-- [ ] **[ux] Jargon.** "Relief", "Emboss/Deboss", "Margin", "Base thickness", "Face", "Sample handle", "Triangles", "Diagnostic messages". The "?" buttons cover some of them; rename the rest.
+- [ ] **[ux] Jargon.** "Relief", "Emboss/Deboss", "Margin", "Base thickness", "Face", "Triangles", "Diagnostic messages". The "?" buttons cover some of them; rename the rest.
 - [ ] **[ux] Printability Check wording.** Show a plain status such as "Is my stamp ready?" and put the technical messages behind "Show details".
 
 ## Postponed on purpose
