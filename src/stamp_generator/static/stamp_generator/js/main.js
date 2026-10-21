@@ -587,6 +587,7 @@ function updateElementDimensions() {
   const dimensions = element === null ? null : elementDimensionsCm(
     displayGeometry.get(element.id),
   );
+  $("#center-element").disabled = pipeline.busy || dimensions === null;
   $("#element-dimensions").textContent = dimensions === null
     ? "Width × Height: —"
     : `Width × Height: ${dimensions.width.toFixed(2)} × ${dimensions.height.toFixed(2)} cm`;
@@ -1249,6 +1250,11 @@ bindTransformNumber("#element-rotation", "rotationDeg");
 
 $("#transform-controls-toggle").addEventListener("click", () => {
   setTransformControlsExpanded(!transformControlsExpanded);
+});
+
+$("#center-element").addEventListener("click", () => {
+  if (pipeline.busy || lastScene === null) return;
+  if (editor.centerSelectedOnStamp(lastScene.face) !== null) render();
 });
 
 $("#element-mirror-x").addEventListener("change", (event) => {

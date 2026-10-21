@@ -385,6 +385,24 @@ export class DesignEditorController {
     });
   }
 
+  /** Aligns to the current backing in readable canonical coordinates (mm). */
+  centerSelectedOnStamp(stampFace) {
+    const element = this.selectedElement();
+    const canonical = element === null ? undefined : this.canonicalFor(element.id);
+    if (!element || !canonical?.length || !stampFace?.length) return null;
+
+    const face = bounds(stampFace);
+    const centered = centeredTransform(canonical, element.transform);
+    const xMm = centered.xMm + (face.minX + face.maxX) / 2;
+    const yMm = centered.yMm + (face.minY + face.maxY) / 2;
+    if (
+      Math.abs(xMm - element.transform.xMm) <= EPSILON &&
+      Math.abs(yMm - element.transform.yMm) <= EPSILON
+    ) return element;
+
+    return this.model.updateElement(element.id, { transform: { xMm, yMm } });
+  }
+
   fitToStamp(id) {
     const element = this.model.getElement(id);
     const canonical = this.canonicalFor(id);
