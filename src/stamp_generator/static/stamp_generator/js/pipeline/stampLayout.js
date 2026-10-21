@@ -1,6 +1,13 @@
 import { bounds, transform } from "./canonical.js";
 
 const FACE_SEGMENTS = 96;
+export const MIN_STAMP_MARGIN_MM = 2;
+
+export function stampMargin(settings) {
+  const margin = settings.margin ?? MIN_STAMP_MARGIN_MM;
+  if (!Number.isFinite(margin)) throw new Error("Stamp margin must be finite.");
+  return Math.max(MIN_STAMP_MARGIN_MM, margin);
+}
 
 /** Computes the final physical artwork and face shown by both 2D and 3D. */
 export function createStampLayout(artwork, settings, notes = []) {
@@ -14,8 +21,8 @@ export function createStampLayout(artwork, settings, notes = []) {
     xMm: fitted.transform.xMm,
     yMm: fitted.transform.yMm,
   };
-  const overflows = Boolean(fitted.overflows);
   const face = stampFace(fitted.art, fitted.faceSize, settings);
+  const overflows = extendsBeyond(fitted.art, face, stampMargin(settings));
   const faceBounds = bounds(face);
   const faceSize =
     settings.faceShape === "outline"
@@ -48,40 +55,30 @@ export function layoutRenderElements(elements, artworkTransform) {
   }));
 }
 
-// Auto sizing grows a face centred on the shared origin, preserving element
-// coordinates. Fixed sizing keeps the face and artwork as they are and only reports overflow.
+// The backing follows the artwork at its existing physical coordinates. Legacy
+// autoFaceSize/faceSize settings never scale or constrain an existing design.
 export function fitToFace(artwork, settings, notes = []) {
+  const margin = stampMargin(settings);
   if (artwork.length === 0) {
     return {
       art: [],
-      faceSize: settings.faceSize,
+      faceSize: 50,
       transform: { scale: 1, xMm: 0, yMm: 0 },
     };
   }
 
-  const artSize = sizeAroundOrigin(artwork, settings.faceShape);
-
-  if (settings.autoFaceSize) {
-    const applied = { scale: 1, xMm: 0, yMm: 0 };
-    return {
-      art: transform(artwork, applied),
-      faceSize: artSize + settings.margin * 2,
-      transform: applied,
-    };
+  let faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+  if (settings.faceShape === "round") {
+    // The rendered/exported circle has straight chords. Compensate for their
+    // inset so even the actual 96-sided backing retains the full clearance.
+    faceSize /= Math.cos(Math.PI / FACE_SEGMENTS);
   }
 
-  // The face keeps the size the user set and the artwork is never rescaled, so
-  // dragging an element toward the edge changes nothing but its own position.
-  // Anything past the face is reported instead.
-  const applied = { scale: 1, xMm: 0, yMm: 0 };
-  const faceSize = settings.faceSize;
-  const overflows = extendsBeyond(artwork, settings, faceSize);
-
   return {
-    art: transform(artwork, applied),
+    art: transform(artwork, { scale: 1, xMm: 0, yMm: 0 }),
     faceSize,
-    transform: applied,
-    overflows,
+    transform: { scale: 1, xMm: 0, yMm: 0 },
+    overflows: false,
   };
 }
 
@@ -105,23 +102,30 @@ export function stampFace(artwork, faceSize, settings) {
   }
 
   const points = artwork.flatMap((polygon) => polygon[0]);
-  const hull = expand(convexHull(points), settings.margin);
+  const hull = expand(convexHull(points), stampMargin(settings));
   if (hull.length < 3) {
     return stampFace([], 10, { ...settings, faceShape: "square" });
   }
   return [[hull]];
 }
 
-function extendsBeyond(artwork, settings, faceSize) {
-  const half = (faceSize - settings.margin * 2) / 2;
-  const limit = half + 1e-6;
-  return artwork.some((polygon) =>
-    polygon[0].some(([x, y]) =>
-      settings.faceShape === "round"
-        ? Math.hypot(x, y) > limit
-        : Math.abs(x) > limit || Math.abs(y) > limit,
-    ),
-  );
+// Independently check the generated backing, including circular chords and
+// offset outline edges. Automatic sizing must not mask an actual overflow.
+function extendsBeyond(artwork, face, margin) {
+  const boundary = face[0][0];
+  for (let index = 0; index < boundary.length; index++) {
+    const [x, y] = boundary[index];
+    const next = boundary[(index + 1) % boundary.length];
+    const dx = next[0] - x;
+    const dy = next[1] - y;
+    const length = Math.hypot(dx, dy);
+    for (const polygon of artwork) {
+      for (const [px, py] of polygon[0]) {
+        if ((dx * (py - y) - dy * (px - x)) / length < margin - 1e-6) return true;
+      }
+    }
+  }
+  return false;
 }
 
 function sizeAroundOrigin(artwork, faceShape) {
@@ -137,14 +141,11 @@ function sizeAroundOrigin(artwork, faceShape) {
     );
   }
 
-  return (
-    Math.max(
-      Math.hypot(box.minX, box.minY),
-      Math.hypot(box.minX, box.maxY),
-      Math.hypot(box.maxX, box.minY),
-      Math.hypot(box.maxX, box.maxY),
-    ) * 2
-  );
+  let radius = 0;
+  for (const polygon of artwork) {
+    for (const [x, y] of polygon[0]) radius = Math.max(radius, Math.hypot(x, y));
+  }
+  return radius * 2;
 }
 
 // Find the outer envelope, like stretching a rubber band around all points.
@@ -178,14 +179,27 @@ function cross(origin, a, b) {
 }
 
 function expand(hull, margin) {
-  if (hull.length === 0) return [];
-  const centreX = hull.reduce((total, [x]) => total + x, 0) / hull.length;
-  const centreY = hull.reduce((total, [, y]) => total + y, 0) / hull.length;
-
-  return hull.map(([x, y]) => {
-    const dx = x - centreX;
-    const dy = y - centreY;
-    const length = Math.hypot(dx, dy) || 1;
-    return [x + (dx / length) * margin, y + (dy / length) * margin];
+  if (hull.length < 3) return hull;
+  // A convex hull is CCW. Offset each supporting edge outwards by margin,
+  // then intersect adjacent offset lines. Radial vertex growth would leave
+  // less than margin along the edges of long, narrow or acute artwork.
+  const normals = hull.map(([x, y], index) => {
+    const next = hull[(index + 1) % hull.length];
+    const dx = next[0] - x;
+    const dy = next[1] - y;
+    const length = Math.hypot(dx, dy);
+    return [dy / length, -dx / length];
+  });
+  return hull.map(([x, y], index) => {
+    const previous = normals[(index + hull.length - 1) % hull.length];
+    const next = normals[index];
+    const denominator = 1 + previous[0] * next[0] + previous[1] * next[1];
+    if (denominator <= 1e-12) {
+      throw new Error("Artwork outline is too acute to create a safe backing.");
+    }
+    return [
+      x + margin * (previous[0] + next[0]) / denominator,
+      y + margin * (previous[1] + next[1]) / denominator,
+    ];
   });
 }

@@ -12,13 +12,11 @@ export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "round", // 'round' | 'square' | 'outline'
-  autoFaceSize: false,
-  faceSize: 50,
   faceThickness: 4,
   reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
-  margin: 3,
+  margin: 2,
   handle: "small", // 'small' | 'none'
 };
 
@@ -39,9 +37,6 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
     settings.reliefDepth >= settings.faceThickness
   ) {
     throw new Error("Recess depth must be smaller than the backing thickness.");
-  }
-  if (!settings.autoFaceSize && settings.faceSize <= settings.margin * 2) {
-    throw new Error("The face must be wider than twice the margin.");
   }
   const notes = [];
 

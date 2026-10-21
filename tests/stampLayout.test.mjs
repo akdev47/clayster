@@ -84,10 +84,10 @@ test("rectangular face outline and 3D square face match", () => {
     built.stamp.computeBoundingBox();
     const meshSize = built.stamp.boundingBox.getSize(new THREE.Vector3());
 
-    assert.equal(scene.viewBox, "-20 -20 40 40");
-    assert.equal(scene.facePaths[0].d, "M -20 20 L 20 20 L 20 -20 L -20 -20 Z");
-    assertClose(meshSize.x, 40);
-    assertClose(meshSize.y, 40);
+    assert.equal(scene.viewBox, "-10 -10 20 20");
+    assert.equal(scene.facePaths[0].d, "M -10 10 L 10 10 L 10 -10 L -10 -10 Z");
+    assertClose(meshSize.x, 20);
+    assertClose(meshSize.y, 20);
   } finally {
     built.stamp.dispose();
     built.clay.dispose();
@@ -229,7 +229,7 @@ test("glyph substitutions without a reliable character mapping remain unattribut
   assert.equal(glyphOutlines[0].character, null);
 });
 
-test("overflowing artwork neither rescales nor grows the fixed face", () => {
+test("legacy manual sizing grows the backing without rescaling or moving artwork", () => {
   const local = rectangle(-10, -2, 10, 2);
   const element = {
     id: "png-1",
@@ -252,6 +252,6 @@ test("overflowing artwork neither rescales nor grows the fixed face", () => {
   assert.equal(layout.artworkTransform.scale, 1);
   assert.deepEqual(displayed[0].canonical, layout.artwork);
   assert.deepEqual(bounds(displayed[0].canonical), bounds(composed));
-  assert.equal(layout.faceSize, 20);
-  assert.equal(layout.overflows, true);
+  assert.equal(layout.faceSize, 34);
+  assert.equal(layout.overflows, false);
 });

@@ -111,6 +111,9 @@ export function createOrderPage({
   // --- price ---------------------------------------------------------------
 
   const currentPrice = () => {
+    // Automatic sizing has no manual face-size fallback to price. Wait for
+    // the authoritative generated dimensions before showing an estimate.
+    if (!pipeline.result?.info) return null;
     const details = readDetails();
     return estimatePrice(
       {
@@ -230,7 +233,7 @@ export function createOrderPage({
     const info = result?.info ?? null;
     const rows = [
       ["Elements", String(designModel.elements.length)],
-      ["Face", `${stamp.faceShape}, ${stamp.autoFaceSize ? "auto" : `${stamp.faceSize} mm`}`],
+      ["Face", `${stamp.faceShape}, automatic size`],
       ["Relief", stamp.mode === "emboss" ? "Raised" : "Recessed"],
       ["Size", info === null ? "—" : `${info.width.toFixed(1)} × ${info.depth.toFixed(1)} mm`],
     ];

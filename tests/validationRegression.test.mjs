@@ -513,7 +513,7 @@ test("thin letter positions survive transforms and cached text conversion", asyn
   }
 });
 
-test("manual face overflow keeps artwork scale and reaches unified diagnostics", async () => {
+test("automatic face resolves former overflow without rescaling and reaches shared diagnostics", async () => {
   const { pipeline, sidebar } = setup([
     { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
   ], () => ({ canonical: [rectangle(-10, -2, 10, 2)], issues: [] }));
@@ -524,14 +524,13 @@ test("manual face overflow keeps artwork scale and reaches unified diagnostics",
   try {
     await pipeline.run();
     assert.equal(pipeline.error, null);
-    assert.equal(pipeline.result.layout.faceSize, 12);
-    assert.equal(pipeline.result.layout.widthMm, 12);
+    assert.equal(pipeline.result.layout.faceSize, 24);
+    assert.equal(pipeline.result.layout.widthMm, 24);
     assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
     assert.equal(bounds(pipeline.result.layout.artwork).width, 20);
-    assert.equal(pipeline.result.layout.overflows, true);
-    assert.ok(sidebar.state.rows.some(({ level, message }) =>
-      level === "warning" && /extends beyond/i.test(message)));
-    assert.equal(sidebar.state.overall.message, "Ready with warnings");
+    assert.equal(pipeline.result.layout.overflows, false);
+    assert.equal(sidebar.state.rows.some(({ message }) => /extends beyond/i.test(message)), false);
+    assert.equal(sidebar.state.overall.message, "Ready to export");
     assert.equal(sidebar.state.export.ready, true);
     assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
   } finally {
@@ -539,7 +538,7 @@ test("manual face overflow keeps artwork scale and reaches unified diagnostics",
   }
 });
 
-test("failed oversized artwork stays editable and recovers after moving onto the face", async () => {
+test("off-centre artwork grows the backing and stays editable after moving", async () => {
   const { model, pipeline, sidebar } = setup(
     [
       {
@@ -557,15 +556,17 @@ test("failed oversized artwork stays editable and recovers after moving onto the
   pipeline.stamp.margin = 3;
 
   try {
-    await rejectedRun(pipeline);
-    assert.equal(pipeline.result, null);
-    assert.equal(sidebar.state.overall.message, "Build failed");
+    await pipeline.run();
+    assert.equal(pipeline.error, null);
+    assert.ok(pipeline.result.stamp);
+    assert.ok(pipeline.result.layout.faceSize > 90);
     assert.equal(pipeline.artworkPreview.renderElements[0].id, "oversized-text");
     assert.deepEqual(
       pipeline.artworkPreview.renderElements[0].canonical,
       [rectangle(-4, -2, 4, 2)],
     );
 
+    dispose(pipeline);
     model.updateElement("oversized-text", { transform: { xMm: 0 } });
     await pipeline.run();
 

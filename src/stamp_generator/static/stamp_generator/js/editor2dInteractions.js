@@ -373,7 +373,12 @@ export class DesignEditorController {
   setTextSize(id, fontSizeMm, transformPatch = {}) {
     const element = this.model.getElement(id);
     if (element === null || element.kind !== "text") return null;
-    const size = textSizeFromScale(fontSizeMm, 1);
+    if (!Number.isFinite(fontSizeMm) || !(fontSizeMm > 0)) {
+      throw new RangeError("Text size must be a finite positive number.");
+    }
+    // Typed point sizes must retain their exact physical conversion. Corner
+    // gestures already quantize their transient preview before committing.
+    const size = Math.min(MAX_TEXT_SIZE_MM, Math.max(MIN_TEXT_SIZE_MM, fontSizeMm));
     return this.model.updateElement(id, {
       source: { fontSizeMm: size },
       transform: { ...transformPatch, scale: 1 },

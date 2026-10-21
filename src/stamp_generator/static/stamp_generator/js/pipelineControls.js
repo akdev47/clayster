@@ -1,11 +1,9 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
 import { enableDragResize } from "./resize.js";
 import { exportSTL } from "./exporters.js";
-
-const SIZE_FIELDS = {
-  elementScale: "elementScale",
-  faceSize: "faceSize",
-};
+import { MIN_STAMP_MARGIN_MM, stampMargin } from "./pipeline/stampLayout.js";
+import { MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE } from "./editor2dInteractions.js";
+import { millimetresToPoints } from "./sizing.js";
 
 export function createPipelineControls(
   viewer,
@@ -18,31 +16,20 @@ export function createPipelineControls(
   segmented(dom.faceShape, "shape", (faceShape) =>
     pipeline.setStamp({ faceShape }),
   );
-  dom.autoFace.addEventListener("change", () => {
-    dom.faceSize.disabled = dom.faceSizeRange.disabled = dom.autoFace.checked;
-    pipeline.setStamp({ autoFaceSize: dom.autoFace.checked });
-  });
-  bindNumber(
-    dom.faceSize,
-    (value) => {
-      const faceSize = Math.min(120, value);
-      if (faceSize !== value) dom.faceSize.value = String(faceSize);
-      dom.faceSizeRange.value = String(faceSize);
-      pipeline.setStamp({ faceSize });
-    },
-    10,
-  );
-  dom.faceSizeRange.addEventListener("input", () => {
-    const faceSize = Number(dom.faceSizeRange.value);
-    dom.faceSize.value = String(faceSize);
-    pipeline.setStamp({ faceSize });
-  });
   bindNumber(
     dom.faceThickness,
     (faceThickness) => pipeline.setStamp({ faceThickness }),
     0.2,
   );
-  bindNumber(dom.margin, (margin) => pipeline.setStamp({ margin }), 0);
+  bindNumber(dom.margin, (margin) => pipeline.setStamp({ margin }), MIN_STAMP_MARGIN_MM);
+  dom.margin.addEventListener("change", () => {
+    const entered = Number(dom.margin.value);
+    const margin = Number.isFinite(entered) && dom.margin.value !== ""
+      ? stampMargin({ margin: entered })
+      : stampMargin(pipeline.stamp);
+    dom.margin.value = String(margin);
+    if (margin !== pipeline.stamp.margin) pipeline.setStamp({ margin });
+  });
 
   segmented(dom.reliefMode, "mode", (mode) => pipeline.setStamp({ mode }));
   dom.reliefDepth.addEventListener("input", () => {
@@ -69,17 +56,26 @@ export function createPipelineControls(
   });
   pipeline.addEventListener("result", () => {
     dom.exportSTL.disabled = !pipeline.result?.stamp;
+    const layout = pipeline.result?.layout;
+    dom.faceDimensions.textContent = layout
+      ? `${layout.widthMm.toFixed(1)} × ${layout.heightMm.toFixed(1)} mm`
+      : "—";
   });
   pipeline.addEventListener("failed", () => {
     dom.exportSTL.disabled = true;
+    dom.faceDimensions.textContent = "—";
   });
 
   const resizeTarget = createResizeTarget(pipeline, designControls);
   enableDragResize(viewer, resizeTarget, {
     onSize: (value) => {
-      const input = dom[SIZE_FIELDS[resizeTarget.sizeDriver.field]];
-      if (input !== undefined) input.value = String(round1(value));
-      if (input === dom.faceSize) dom.faceSizeRange.value = String(round1(value));
+      if (resizeTarget.sizeDriver?.field === "textSizeMm") {
+        const points = Math.round(millimetresToPoints(value) * 100) / 100;
+        dom.textSize.value = dom.textSizeInput.value = String(points);
+        dom.textSizeOutput.textContent = `${points} pt`;
+      } else {
+        dom.elementScale.value = String(round1(value));
+      }
     },
   });
 }
@@ -87,11 +83,8 @@ export function createPipelineControls(
 function syncControls(dom, pipeline) {
   const stamp = pipeline.stamp;
 
-  dom.autoFace.checked = stamp.autoFaceSize;
-  dom.faceSize.value = dom.faceSizeRange.value = stamp.faceSize;
-  dom.faceSize.disabled = dom.faceSizeRange.disabled = stamp.autoFaceSize;
   dom.faceThickness.value = stamp.faceThickness;
-  dom.margin.value = stamp.margin;
+  dom.margin.value = stampMargin(stamp);
   dom.reliefDepth.value = stamp.reliefDepth;
   dom.reliefReadout.textContent = `${stamp.reliefDepth} mm`;
   dom.mirror.checked = stamp.mirror;
@@ -161,25 +154,25 @@ function round1(value) {
   return Math.round(value * 10) / 10;
 }
 
-function createResizeTarget(pipeline, designControls) {
+export function createResizeTarget(pipeline, designControls) {
   return {
     get sizeDriver() {
-      const selected = designControls?.selectedElement();
-      if (!pipeline.stamp.autoFaceSize || selected === null) {
-        return { field: "faceSize", value: pipeline.stamp.faceSize };
+      const selected = designControls?.selectedElement() ?? null;
+      if (selected === null) return null;
+      if (selected.kind === "text") {
+        return { field: "textSizeMm", value: selected.source.fontSizeMm * selected.transform.scale };
       }
       return { field: "elementScale", value: selected.transform.scale };
     },
 
     applySize(value) {
-      const { field } = this.sizeDriver;
-      if (field === "faceSize") {
-        const faceSize = clamp(value, 1, 400);
-        pipeline.setStamp({ faceSize });
-        return faceSize;
+      const driver = this.sizeDriver;
+      if (driver === null) return null;
+      if (driver.field === "textSizeMm") {
+        return designControls.updateSelectedTextSize(value).source.fontSizeMm;
       }
 
-      const scale = clamp(value, 0.05, 20);
+      const scale = clamp(value, MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE);
       designControls.updateSelectedTransform({ scale });
       return scale;
     },
@@ -194,10 +187,11 @@ function collectDOM() {
   const byId = (id) => document.getElementById(id);
   return {
     elementScale: byId("element-scale"),
+    textSize: byId("font-size"),
+    textSizeInput: byId("font-size-input"),
+    textSizeOutput: byId("font-size-value"),
     faceShape: byId("pipeline-face-shape"),
-    autoFace: byId("pipeline-auto-face"),
-    faceSize: byId("pipeline-face-size"),
-    faceSizeRange: byId("pipeline-face-size-range"),
+    faceDimensions: byId("pipeline-face-dimensions"),
     faceThickness: byId("pipeline-face-thickness"),
     margin: byId("pipeline-margin"),
     reliefMode: byId("pipeline-relief-mode"),

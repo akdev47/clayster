@@ -122,6 +122,8 @@
                 </div>
               </div>
 
+              <p id="element-dimensions" class="pipeline-note">Width × Height: —</p>
+
               <div id="text-controls">
                 <label class="control-label" for="text-input">Text</label>
                 <textarea
@@ -186,16 +188,16 @@
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="font-size">Text size (mm)</label>
-                    <output id="font-size-value">7.5 mm</output>
+                    <label for="font-size-input">Text size (pt)</label>
+                    <output id="font-size-value" for="font-size font-size-input">21.26 pt</output>
                   </div>
+                  <input id="font-size-input" class="form-control clay-input" type="number" step="any" />
                   <input
                     id="font-size"
                     class="form-range clay-range"
                     type="range"
-                    min="0.5"
-                    max="60"
-                    step="0.5"
+                    aria-label="Text size in points"
+                    step="any"
                   />
                 </div>
 
@@ -465,48 +467,10 @@
                   <button class="segment" type="button" data-shape="outline">Artwork</button>
                 </div>
 
-                <div class="setting-row">
-                  <div>
-                    <span class="setting-label">Automatic face size</span>
-                    <small>Fit the backing to the artwork</small>
-                  </div>
-                  <div class="form-check form-switch mb-0">
-                    <input
-                      id="pipeline-auto-face"
-                      class="form-check-input clay-switch"
-                      type="checkbox"
-                      role="switch"
-                    />
-                  </div>
-                </div>
-
-                <label class="control-label mt-3" for="pipeline-face-size-range">
-                  Stamp size
-                  <input
-                    id="pipeline-face-size-range"
-                    class="form-range"
-                    type="range"
-                    min="10"
-                    max="120"
-                    step="1"
-                  />
-                </label>
+                <p class="pipeline-note mt-3">The backing fits your artwork automatically, with at least 2 mm of clear space around it.</p>
+                <p class="control-label">Stamp width × height: <output id="pipeline-face-dimensions">—</output></p>
 
                 <div class="pipeline-field-grid mt-3">
-                  <label class="control-label" for="pipeline-face-size">
-                    Face size
-                    <span class="pipeline-input-unit">
-                      <input
-                        id="pipeline-face-size"
-                        class="form-control clay-input"
-                        type="number"
-                        max="120"
-                        min="10"
-                        step="1"
-                      />
-                      <span>mm</span>
-                    </span>
-                  </label>
                   <label class="control-label" for="pipeline-face-thickness">
                     Base thickness
                     <span class="pipeline-input-unit">
@@ -527,7 +491,7 @@
                         id="pipeline-margin"
                         class="form-control clay-input"
                         type="number"
-                        min="0"
+                        min="2"
                         step="0.5"
                       />
                       <span>mm</span>

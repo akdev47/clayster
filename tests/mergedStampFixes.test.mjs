@@ -56,11 +56,12 @@ test("oversized elements are detected by drag bounds without discarding their ge
   const layout = createStampLayout(canonical, {
     ...DEFAULT_STAMP, faceShape: "round", autoFaceSize: false, faceSize: 30, margin: 0,
   });
-  assert.equal(layout.overflows, true);
+  assert.equal(layout.overflows, false);
+  assert.ok(layout.faceSize > 60);
   assert.equal(layout.artworkTransform.scale, 1);
 });
 
-test("moving artwork on a manual stamp never changes its scale or the face size", () => {
+test("moving artwork grows an automatic stamp without changing artwork scale or position", () => {
   const canonical = [rectangle(-5, -2, 5, 2)];
   const settings = {
     ...DEFAULT_STAMP, faceShape: "round", autoFaceSize: false, faceSize: 30, mirror: false,
@@ -70,8 +71,9 @@ test("moving artwork on a manual stamp never changes its scale or the face size"
     const layout = createStampLayout(moved, settings);
     assert.deepEqual(layout.artwork, moved);
     assert.equal(layout.artworkTransform.scale, 1);
-    assert.equal(layout.faceSize, 30);
-    assert.equal(layout.overflows, yMm === 20);
+    const radius = Math.max(...moved[0][0].map(([x, y]) => Math.hypot(x, y)));
+    assert.ok(layout.faceSize / 2 - radius >= 2);
+    assert.equal(layout.overflows, false);
   }
 });
 
