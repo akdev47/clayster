@@ -39,7 +39,7 @@ const reverseTriangles = (geometry) => {
 };
 
 for (const text of ["CLAY", "BOA8", "i j !"]) {
-  for (const faceShape of ["round", "square", "outline"]) {
+  for (const faceShape of ["round", "square"]) {
     for (const mode of ["emboss", "deboss"]) {
       test(`${text}: ${faceShape}, ${mode}, verified STL`, async () => {
         const built = buildStamp(artwork(text), { faceShape, mode });

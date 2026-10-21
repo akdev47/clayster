@@ -86,7 +86,7 @@ test("centering waits for a selection, canonical geometry and a stamp face", () 
   assert.equal(model.getElement("text"), original);
 });
 
-for (const faceShape of ["round", "square", "outline"]) {
+for (const faceShape of ["round", "square"]) {
   test(`centering on the current ${faceShape} backing reuses conversion and synchronizes shared layout/STL`, async () => {
     for (const kind of ["text", "svg", "png"]) {
       const model = new DesignModel({ elements: [

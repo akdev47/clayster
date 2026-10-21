@@ -3,6 +3,13 @@ import { bounds, transform } from "./canonical.js";
 const FACE_SEGMENTS = 96;
 export const MIN_STAMP_MARGIN_MM = 2;
 
+export function stampFaceShape(shape = "round") {
+  // Designs made before Artwork was removed retain their artwork unchanged.
+  if (shape === "outline") return "square";
+  if (shape === "round" || shape === "square") return shape;
+  throw new Error("Unsupported stamp shape. Choose Round or Square.");
+}
+
 export function stampMargin(settings) {
   const margin = settings.margin ?? MIN_STAMP_MARGIN_MM;
   if (!Number.isFinite(margin)) throw new Error("Stamp margin must be finite.");
@@ -11,6 +18,7 @@ export function stampMargin(settings) {
 
 /** Computes the final physical artwork and face shown by both 2D and 3D. */
 export function createStampLayout(artwork, settings, notes = []) {
+  settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const mirrored = settings.mirror
     ? transform(artwork, { mirrorX: true })
     : artwork;
@@ -24,10 +32,7 @@ export function createStampLayout(artwork, settings, notes = []) {
   const face = stampFace(fitted.art, fitted.faceSize, settings);
   const overflows = extendsBeyond(fitted.art, face, stampMargin(settings));
   const faceBounds = bounds(face);
-  const faceSize =
-    settings.faceShape === "outline"
-      ? Math.max(faceBounds.width, faceBounds.height)
-      : fitted.faceSize;
+  const faceSize = fitted.faceSize;
 
   return {
     artwork: fitted.art,
@@ -58,6 +63,7 @@ export function layoutRenderElements(elements, artworkTransform) {
 // The backing follows the artwork at its existing physical coordinates. Legacy
 // autoFaceSize/faceSize settings never scale or constrain an existing design.
 export function fitToFace(artwork, settings, notes = []) {
+  settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const margin = stampMargin(settings);
   if (artwork.length === 0) {
     return {
@@ -83,7 +89,7 @@ export function fitToFace(artwork, settings, notes = []) {
 }
 
 export function stampFace(artwork, faceSize, settings) {
-  if (settings.faceShape === "round") {
+  if (stampFaceShape(settings.faceShape) === "round") {
     const radius = faceSize / 2;
     return [[Array.from({ length: FACE_SEGMENTS }, (_, index) => {
       const angle = (index / FACE_SEGMENTS) * Math.PI * 2;
@@ -91,26 +97,17 @@ export function stampFace(artwork, faceSize, settings) {
     })]];
   }
 
-  if (settings.faceShape === "square") {
-    const half = faceSize / 2;
-    return [[[
-      [-half, -half],
-      [half, -half],
-      [half, half],
-      [-half, half],
-    ]]];
-  }
-
-  const points = artwork.flatMap((polygon) => polygon[0]);
-  const hull = expand(convexHull(points), stampMargin(settings));
-  if (hull.length < 3) {
-    return stampFace([], 10, { ...settings, faceShape: "square" });
-  }
-  return [[hull]];
+  const half = faceSize / 2;
+  return [[[
+    [-half, -half],
+    [half, -half],
+    [half, half],
+    [-half, half],
+  ]]];
 }
 
 // Independently check the generated backing, including circular chords and
-// offset outline edges. Automatic sizing must not mask an actual overflow.
+// square edges. Automatic sizing must not mask an actual overflow.
 function extendsBeyond(artwork, face, margin) {
   const boundary = face[0][0];
   for (let index = 0; index < boundary.length; index++) {
@@ -146,60 +143,4 @@ function sizeAroundOrigin(artwork, faceShape) {
     for (const [x, y] of polygon[0]) radius = Math.max(radius, Math.hypot(x, y));
   }
   return radius * 2;
-}
-
-// Find the outer envelope, like stretching a rubber band around all points.
-function convexHull(points) {
-  if (points.length < 3) return points;
-
-  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const half = (input) => {
-    const stack = [];
-    for (const point of input) {
-      while (
-        stack.length >= 2 &&
-        cross(stack[stack.length - 2], stack[stack.length - 1], point) <= 0
-      ) {
-        stack.pop();
-      }
-      stack.push(point);
-    }
-    stack.pop();
-    return stack;
-  };
-
-  return [...half(sorted), ...half([...sorted].reverse())];
-}
-
-function cross(origin, a, b) {
-  return (
-    (a[0] - origin[0]) * (b[1] - origin[1]) -
-    (a[1] - origin[1]) * (b[0] - origin[0])
-  );
-}
-
-function expand(hull, margin) {
-  if (hull.length < 3) return hull;
-  // A convex hull is CCW. Offset each supporting edge outwards by margin,
-  // then intersect adjacent offset lines. Radial vertex growth would leave
-  // less than margin along the edges of long, narrow or acute artwork.
-  const normals = hull.map(([x, y], index) => {
-    const next = hull[(index + 1) % hull.length];
-    const dx = next[0] - x;
-    const dy = next[1] - y;
-    const length = Math.hypot(dx, dy);
-    return [dy / length, -dx / length];
-  });
-  return hull.map(([x, y], index) => {
-    const previous = normals[(index + hull.length - 1) % hull.length];
-    const next = normals[index];
-    const denominator = 1 + previous[0] * next[0] + previous[1] * next[1];
-    if (denominator <= 1e-12) {
-      throw new Error("Artwork outline is too acute to create a safe backing.");
-    }
-    return [
-      x + margin * (previous[0] + next[0]) / denominator,
-      y + margin * (previous[1] + next[1]) / denominator,
-    ];
-  });
 }

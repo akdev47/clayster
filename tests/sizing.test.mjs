@@ -14,6 +14,7 @@ import { ArtworkComposer } from "../src/stamp_generator/static/stamp_generator/j
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
 import { DEFAULT_STAMP, buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
 import { createStampLayout, layoutRenderElements } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
+import { Pipeline } from "../src/stamp_generator/static/stamp_generator/js/pipeline/index.js";
 import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 import { prepareClosedStamp, verifiedSTL } from "../src/stamp_generator/static/stamp_generator/js/exportValidation.js";
 
@@ -173,6 +174,40 @@ test("3D resize drives Text size or image scale without a manual face-size path"
   }
 });
 
+test("legacy Artwork settings become Square without resizing or moving artwork", async () => {
+  const artwork = rectangle(-12, -3, 8, 5);
+  const settings = { ...DEFAULT_STAMP, faceShape: "outline", mirror: false, handle: "none" };
+  const layout = createStampLayout(artwork, settings);
+  assert.deepEqual(layout, createStampLayout(artwork, { ...settings, faceShape: "square" }));
+  assert.deepEqual(layout.artwork, artwork);
+  assertClearance(layout, 2);
+  assert.equal(settings.faceShape, "outline");
+
+  const pipeline = { stamp: {}, schedule() { this.scheduled = true; } };
+  Pipeline.prototype.setStamp.call(pipeline, { faceShape: "outline" });
+  assert.equal(pipeline.stamp.faceShape, "square");
+  assert.equal(pipeline.scheduled, true);
+  assert.throws(() => Pipeline.prototype.setStamp.call(pipeline, { faceShape: "triangle" }), /Unsupported stamp shape/);
+  assert.equal(pipeline.stamp.faceShape, "square");
+
+  for (const mode of ["emboss", "deboss"]) {
+    const built = buildStamp(artwork, { ...settings, mode });
+    try {
+      assert.deepEqual(built.layout, layout);
+      const reloaded = new STLLoader().parse(await verifiedSTL(built.stamp).arrayBuffer());
+      try {
+        const checked = prepareClosedStamp(reloaded);
+        checked.dispose();
+      } finally {
+        reloaded.dispose();
+      }
+    } finally {
+      built.stamp.dispose();
+      built.clay.dispose();
+    }
+  }
+});
+
 test("round automatic sizing measures artwork radius rather than unused bounding-box corners", () => {
   const diamond = [[[[0, 10], [-10, 0], [0, -10], [10, 0]]]];
   const layout = createStampLayout(diamond, { ...DEFAULT_STAMP, mirror: false });
@@ -181,13 +216,13 @@ test("round automatic sizing measures artwork radius rather than unused bounding
   assertClearance(layout, 2);
 });
 
-test("all face shapes keep at least 2 mm clearance, including acute outlines and off-centre artwork", () => {
+test("both face shapes keep at least 2 mm clearance, including acute and off-centre artwork", () => {
   const shapes = [
     rectangle(-20, -1, 20, 1),
     [[[[0, 0], [40, 0], [0, 2]]]],
     [...rectangle(-22, -5, -12, 5), ...rectangle(15, -3, 25, 4)],
   ];
-  for (const faceShape of ["round", "square", "outline"]) {
+  for (const faceShape of ["round", "square"]) {
     for (const artwork of shapes) {
       const snapshot = structuredClone(artwork);
       for (const margin of [0, 2, 5]) {
@@ -202,7 +237,7 @@ test("all face shapes keep at least 2 mm clearance, including acute outlines and
   }
 });
 
-for (const faceShape of ["round", "square", "outline"]) {
+for (const faceShape of ["round", "square"]) {
   for (const mode of ["emboss", "deboss"]) {
     test(`mixed Text/SVG/PNG automatic ${faceShape} ${mode} preserves holes, layout and verified STL`, async () => {
       const ring = rectangle(-4, -3, 4, 3);

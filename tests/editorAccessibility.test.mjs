@@ -71,12 +71,14 @@ test("Text exposes one synchronized size control while images keep Scale", async
   assert.match(main, /resizePreviewTransforms\.get\(element\.id\) \?\? element\.transform/);
 });
 
-test("stamp sizing has one automatic mode and retains all three face shapes", async () => {
+test("stamp sizing has one automatic mode and only Round and Square face shapes", async () => {
   const html = await projectFile("index.html");
   assert.doesNotMatch(html, /id="pipeline-(?:auto-face|face-size|face-size-range)"/);
   assert.match(html, /id="pipeline-face-dimensions"/);
   assert.match(html, /id="pipeline-margin"[\s\S]*?min="2"/);
-  for (const shape of ["round", "square", "outline"]) {
+  assert.deepEqual([...html.matchAll(/data-shape="([^"]+)"/g)].map((match) => match[1]), ["round", "square"]);
+  assert.doesNotMatch(html, /<strong>Artwork<\/strong>/);
+  for (const shape of ["round", "square"]) {
     assert.match(html, new RegExp(`data-shape="${shape}"`));
   }
 });

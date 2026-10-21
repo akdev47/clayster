@@ -12,6 +12,7 @@ import {
 } from "../pngTrace.js";
 import { validate } from "./validate.js";
 import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
+import { stampFaceShape } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
@@ -101,6 +102,9 @@ export class Pipeline extends EventTarget {
   }
 
   setStamp(patch) {
+    if (Object.hasOwn(patch, "faceShape")) {
+      patch = { ...patch, faceShape: stampFaceShape(patch.faceShape) };
+    }
     Object.assign(this.stamp, patch);
     this.schedule();
   }

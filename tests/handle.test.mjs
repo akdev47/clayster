@@ -65,7 +65,7 @@ test("the DEFAULT_STAMP and a new pipeline start with the small handle", async (
   assert.equal(await pipeline.handleGeometry(), null);
 });
 
-for (const faceShape of ["round", "square", "outline"]) {
+for (const faceShape of ["round", "square"]) {
   for (const mode of ["emboss", "deboss"]) {
     test(`a ${faceShape} ${mode} stamp with the handle exports as one closed solid`, () => {
       const handle = createSmallHandle();
