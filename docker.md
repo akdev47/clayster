@@ -37,7 +37,7 @@ The normal image has your code baked in, so code changes need
 
 ## Development mode
 
-    docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 This turns on Django's debug page (the stack trace in the browser) and mounts
 `./src` into the container, so code and template changes show up in about a

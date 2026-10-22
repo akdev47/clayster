@@ -203,7 +203,7 @@ test("PNG segmentation review metadata reaches diagnostics without blocking expo
   assert.match(controller.state.rows[0].message, /logo-png.*review the traced result/i);
 });
 
-test("Fit to stamp buttons appear only on overflow warnings", () => {
+test("Fit to stamp buttons appear only on overflow errors", () => {
   const node = () => ({
     textContent: "",
     className: "",
@@ -256,7 +256,7 @@ test("Fit to stamp buttons appear only on overflow warnings", () => {
 
     pipeline.complete({
       issues: [{
-        level: "warning",
+        level: "error",
         code: "artwork-overflow",
         message: "Some artwork extends beyond the face.",
       }],
@@ -277,7 +277,7 @@ test("Fit to stamp buttons appear only on overflow warnings", () => {
     overflowingIds = [];
     pipeline.complete({
       issues: [{
-        level: "warning",
+        level: "error",
         code: "artwork-overflow",
         message: "Some artwork extends beyond the face.",
       }],

@@ -73,7 +73,7 @@ export function createPipelineDiagnostics(
     // Offer the same recovery action for Text, SVG and PNG in that case.
     if (phase === "failed" && getOverflowElementIds().length > 0) {
       state.rows.push({
-        level: "warning",
+        level: "error",
         code: "artwork-overflow",
         message: "Some artwork extends beyond the usable stamp area.",
       });
@@ -347,7 +347,7 @@ function renderDOM(dom, state, actions) {
 function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGlyphs }) {
   const level = LEVELS[row.level] ?? LEVELS.warning;
   const item = document.createElement("div");
-  item.className = "validation-row";
+  item.className = `validation-row validation-row-${row.level}`;
   if (row.level === "warning" && row.elementKind === "text" && row.thinGlyphs?.length) {
     item.tabIndex = 0;
     let hovered = false;

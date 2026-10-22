@@ -283,6 +283,10 @@ export class DesignEditorController {
     this.faceLimit = null;
     // Set by the app: id => canonical geometry of that element, or undefined.
     this.canonicalFor = () => undefined;
+    // Text may be automatically reduced before its canonical geometry is
+    // produced. Fitting must scale from that rendered size, not the larger
+    // size that was originally requested.
+    this.renderedTextSizeFor = () => undefined;
   }
 
   selectedElement() {
@@ -420,16 +424,15 @@ export class DesignEditorController {
       return this.model.updateElement(id, { transform: fitted });
     }
 
-    let fontSizeMm = textSizeFromScale(
-      element.source.fontSizeMm,
-      fitted.scale,
-    );
-    if (fontSizeMm / element.source.fontSizeMm > fitted.scale + EPSILON) {
+    const renderedFontSizeMm =
+      this.renderedTextSizeFor(id) ?? element.source.fontSizeMm;
+    let fontSizeMm = textSizeFromScale(renderedFontSizeMm, fitted.scale);
+    if (fontSizeMm / renderedFontSizeMm > fitted.scale + EPSILON) {
       fontSizeMm = Math.max(MIN_TEXT_SIZE_MM, fontSizeMm - TEXT_SIZE_STEP_MM);
     }
     const previewTransform = centeredTransform(canonical, {
       ...element.transform,
-      scale: fontSizeMm / element.source.fontSizeMm,
+      scale: fontSizeMm / renderedFontSizeMm,
     });
     return this.setTextSize(id, fontSizeMm, {
       xMm: previewTransform.xMm,

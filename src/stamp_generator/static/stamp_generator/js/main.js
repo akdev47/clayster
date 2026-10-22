@@ -62,6 +62,7 @@ let hasFramedPreview = false;
 let interactionActive = false;
 let interactionViewport = null;
 let renderGeometry = new Map();
+let renderedTextSizes = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
 let overflowingIds = new Set();
@@ -83,6 +84,7 @@ artboard.classList.add("canonical-rendering-enabled");
 // The backing grows around physical artwork; moving an element does not clamp
 // it to an obsolete face size.
 editor.canonicalFor = (id) => renderGeometry.get(id);
+editor.renderedTextSizeFor = (id) => renderedTextSizes.get(id);
 editor.faceLimit = null;
 
 const textSizeControls = createTextSizeControls({
@@ -144,7 +146,7 @@ pipeline.addEventListener("failed", () => {
 const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
   getOverflowElementIds: () => [...overflowingIds],
   onFitToStamp: (elementId) => {
-    if (editor.fitToStamp(elementId) !== null) render();
+    void fitElementToStamp(elementId);
   },
   onHighlightThinGlyphs: (glyphs) => {
     if (editor.view !== "2d" || pipeline.busy || !lastScene || !pipeline.result?.layout) {
@@ -159,9 +161,52 @@ const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
   },
 });
 
+function waitForPipelineOutcome() {
+  return new Promise((resolve) => {
+    const finish = () => {
+      pipeline.removeEventListener("result", finish);
+      pipeline.removeEventListener("failed", finish);
+      resolve();
+    };
+    pipeline.addEventListener("result", finish);
+    pipeline.addEventListener("failed", finish);
+  });
+}
+
+function fitSignature(element) {
+  return JSON.stringify({
+    fontSizeMm: element?.source.fontSizeMm,
+    transform: element?.transform,
+  });
+}
+
+async function fitElementToStamp(elementId) {
+  // Text can reflow after its size changes, so its rebuilt outline may need
+  // another pass. SVG and PNG normally finish on the first pass.
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const before = designModel.getElement(elementId);
+    if (before === null || !overflowingIds.has(elementId)) return;
+
+    const signature = fitSignature(before);
+    const fitted = editor.fitToStamp(elementId);
+    if (fitted === null) return;
+    render();
+    await waitForPipelineOutcome();
+
+    const after = designModel.getElement(elementId);
+    if (after === null || !overflowingIds.has(elementId)) return;
+    if (fitSignature(after) === signature) return;
+  }
+}
+
 function setRenderGeometry(renderElements) {
   renderGeometry = new Map(
     (renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  renderedTextSizes = new Map(
+    (renderElements ?? []).flatMap(({ id, renderedFontSizeMm }) =>
+      renderedFontSizeMm === undefined ? [] : [[id, renderedFontSizeMm]],
+    ),
   );
   if (renderGeometry.size === 0) displayGeometry = new Map();
 }

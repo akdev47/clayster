@@ -1,6 +1,7 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
 import { enableDragResize } from "./resize.js";
 import { exportSTL } from "./exporters.js";
+import { FACE_THICKNESS_LIMITS } from "./pipeline/stamp.js";
 import { MIN_STAMP_MARGIN_MM, stampMargin } from "./pipeline/stampLayout.js";
 import { MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE } from "./editor2dInteractions.js";
 import { millimetresToPoints } from "./sizing.js";
@@ -18,8 +19,18 @@ export function createPipelineControls(
   );
   bindNumber(
     dom.faceThickness,
-    (faceThickness) => pipeline.setStamp({ faceThickness }),
-    0.2,
+    (value) => {
+      const faceThickness = clamp(
+        value,
+        FACE_THICKNESS_LIMITS.min,
+        FACE_THICKNESS_LIMITS.max,
+      );
+      if (faceThickness !== value) {
+        dom.faceThickness.value = String(faceThickness);
+      }
+      pipeline.setStamp({ faceThickness });
+    },
+    -Infinity,
   );
   bindNumber(dom.margin, (margin) => pipeline.setStamp({ margin }), MIN_STAMP_MARGIN_MM);
   dom.margin.addEventListener("change", () => {
@@ -55,7 +66,8 @@ export function createPipelineControls(
     dom.exportSTL.disabled = true;
   });
   pipeline.addEventListener("result", () => {
-    dom.exportSTL.disabled = !pipeline.result?.stamp;
+    dom.exportSTL.disabled =
+      !pipeline.result?.stamp || hasBlockingIssue(pipeline);
     const layout = pipeline.result?.layout;
     dom.faceDimensions.textContent = layout
       ? `${layout.widthMm.toFixed(1)} × ${layout.heightMm.toFixed(1)} mm`
@@ -126,6 +138,9 @@ export function exportable(viewer, pipeline) {
   if (!pipeline.result?.stamp) {
     throw new Error("There is no stamp to export yet.");
   }
+  if (hasBlockingIssue(pipeline)) {
+    throw new Error("Fix the design errors before exporting.");
+  }
 
   return [
     {
@@ -134,6 +149,13 @@ export function exportable(viewer, pipeline) {
       geometry: pipeline.result.stamp,
     },
   ];
+}
+
+function hasBlockingIssue(pipeline) {
+  return (
+    pipeline.result?.issues?.some(({ level }) => level === "error") ||
+    pipeline.diagnostics?.level === "error"
+  );
 }
 
 function run(dom, action) {

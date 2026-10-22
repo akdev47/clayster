@@ -20,6 +20,21 @@ export const DEFAULT_STAMP = {
   handle: "small", // 'small' | 'none'
 };
 
+export const FACE_THICKNESS_LIMITS = Object.freeze({ min: 1, max: 20 });
+
+export function assertFaceThickness(value) {
+  if (
+    !Number.isFinite(value) ||
+    value < FACE_THICKNESS_LIMITS.min ||
+    value > FACE_THICKNESS_LIMITS.max
+  ) {
+    throw new RangeError(
+      `Base thickness must be between ${FACE_THICKNESS_LIMITS.min} and ${FACE_THICKNESS_LIMITS.max} mm.`,
+    );
+  }
+  return value;
+}
+
 const GAP = 10; // Space between the stamp and the mug in the preview.
 const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
 
@@ -32,6 +47,7 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
  */
 export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs = [] } = {}) {
   const settings = { ...DEFAULT_STAMP, ...params };
+  assertFaceThickness(settings.faceThickness);
   settings.faceShape = stampFaceShape(settings.faceShape);
   if (
     settings.mode === "deboss" &&
@@ -53,7 +69,7 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   });
   if (layout.overflows) {
     thinIssues.push({
-      level: "warning",
+      level: "error",
       code: "artwork-overflow",
       message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
     });
