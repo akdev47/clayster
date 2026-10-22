@@ -202,6 +202,7 @@ test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified S
       issues: [],
     };
   });
+  pipeline.stamp.autoFaceSize = true;
   try {
     await pipeline.run();
     assert.equal(pipeline.error, null);
@@ -513,7 +514,7 @@ test("thin letter positions survive transforms and cached text conversion", asyn
   }
 });
 
-test("manual face overflow keeps artwork scale and reaches unified diagnostics", async () => {
+test("manual face overflow keeps artwork editable but blocks review and export", async () => {
   const { pipeline, sidebar } = setup([
     { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
   ], () => ({ canonical: [rectangle(-10, -2, 10, 2)], issues: [] }));
@@ -530,9 +531,9 @@ test("manual face overflow keeps artwork scale and reaches unified diagnostics",
     assert.equal(bounds(pipeline.result.layout.artwork).width, 20);
     assert.equal(pipeline.result.layout.overflows, true);
     assert.ok(sidebar.state.rows.some(({ level, message }) =>
-      level === "warning" && /extends beyond/i.test(message)));
-    assert.equal(sidebar.state.overall.message, "Ready with warnings");
-    assert.equal(sidebar.state.export.ready, true);
+      level === "error" && /extends beyond/i.test(message)));
+    assert.equal(sidebar.state.overall.message, "Not ready to export");
+    assert.equal(sidebar.state.export.ready, false);
     assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
   } finally {
     dispose(pipeline);
@@ -616,6 +617,7 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
   const previousDocument = globalThis.document;
   globalThis.document = { createElement: node, getElementById: byId };
   const { pipeline } = setup([text()]);
+  pipeline.stamp.autoFaceSize = true;
   createPipelineDiagnostics(pipeline);
   const textOf = (node) => [node.textContent, ...node.children.flatMap(textOf)];
   const messages = () => textOf(byId("pipeline-diagnostic-list"));

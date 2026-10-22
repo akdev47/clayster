@@ -70,12 +70,12 @@ test("identical warnings for different elements stay distinguishable", () => {
   assert.match(rows[1].details[0], /second/);
 });
 
-test("Details and Checks passed start collapsed while warnings and quick fixes stay visible", () => {
+test("Details and Checks passed start collapsed while issues and quick fixes stay visible", () => {
   withDOM((byId) => {
     const pipeline = pipelineWith([
       { level: "ok", message: "Stamp surface checks passed: closed, consistently oriented edges." },
       { level: "info", message: "Wrapped onto 2 rows to keep each one inside 60 mm." },
-      { level: "warning", code: "artwork-overflow", message: "Some artwork extends beyond the 50 mm face (or into its margin)." },
+      { level: "error", code: "artwork-overflow", message: "Some artwork extends beyond the 50 mm face (or into its margin)." },
     ]);
     let fitted = null;
     createPipelineDiagnostics(pipeline, {

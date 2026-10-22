@@ -68,7 +68,8 @@ export function createPipelineControls(
     dom.exportSTL.disabled = true;
   });
   pipeline.addEventListener("result", () => {
-    dom.exportSTL.disabled = !pipeline.result?.stamp;
+    dom.exportSTL.disabled =
+      !pipeline.result?.stamp || hasBlockingIssue(pipeline);
   });
   pipeline.addEventListener("failed", () => {
     dom.exportSTL.disabled = true;
@@ -133,6 +134,9 @@ export function exportable(viewer, pipeline) {
   if (!pipeline.result?.stamp) {
     throw new Error("There is no stamp to export yet.");
   }
+  if (hasBlockingIssue(pipeline)) {
+    throw new Error("Fix the design errors before exporting.");
+  }
 
   return [
     {
@@ -141,6 +145,13 @@ export function exportable(viewer, pipeline) {
       geometry: pipeline.result.stamp,
     },
   ];
+}
+
+function hasBlockingIssue(pipeline) {
+  return (
+    pipeline.result?.issues?.some(({ level }) => level === "error") ||
+    pipeline.diagnostics?.level === "error"
+  );
 }
 
 function run(dom, action) {

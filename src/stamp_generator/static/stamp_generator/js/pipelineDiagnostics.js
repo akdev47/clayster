@@ -73,7 +73,7 @@ export function createPipelineDiagnostics(
     // Offer the same recovery action for Text, SVG and PNG in that case.
     if (phase === "failed" && getOverflowElementIds().length > 0) {
       state.rows.push({
-        level: "warning",
+        level: "error",
         code: "artwork-overflow",
         message: "Some artwork extends beyond the usable stamp area.",
       });
