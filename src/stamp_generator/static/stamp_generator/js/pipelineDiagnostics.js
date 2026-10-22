@@ -347,7 +347,7 @@ function renderDOM(dom, state, actions) {
 function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGlyphs }) {
   const level = LEVELS[row.level] ?? LEVELS.warning;
   const item = document.createElement("div");
-  item.className = "validation-row";
+  item.className = `validation-row validation-row-${row.level}`;
   if (row.level === "warning" && row.elementKind === "text" && row.thinGlyphs?.length) {
     item.tabIndex = 0;
     let hovered = false;

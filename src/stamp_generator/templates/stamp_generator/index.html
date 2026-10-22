@@ -5,6 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'stamp_generator/images/favicon-32.png' %}" />
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'stamp_generator/images/favicon-16.png' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'stamp_generator/images/apple-touch-icon.png' %}" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -36,8 +40,17 @@
     <nav class="navbar clayster-navbar">
       <div class="container-fluid px-3 px-lg-5">
         <a class="navbar-brand clayster-logo" href="#">
-          <span class="logo-text">Logo Here</span>
-          <span>Clayster</span>
+          <picture>
+            <source
+              media="(max-width: 575.98px)"
+              srcset="{% static 'stamp_generator/images/clayster-mobile-logo.png' %}"
+            />
+            <img
+              class="clayster-logo-image"
+              src="{% static 'stamp_generator/images/clayster-desktop-logo.png' %}"
+              alt="Clayster"
+            />
+          </picture>
         </a>
 
         <div class="navbar-nav ms-auto">
