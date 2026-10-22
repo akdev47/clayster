@@ -279,10 +279,12 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 
 @media (min-width: 1200px) {
   .workflow-progress-wrap { position: sticky; z-index: 20; top: 0; padding-bottom: .5rem; background: var(--cream); }
-  .canvas-column { position: sticky; top: 4.25rem; display: flex; max-height: calc(100dvh - 6.25rem); flex-direction: column; align-self: flex-start; }
-  .canvas-area { min-height: 0; flex: 1 1 680px; }
+  #design-page .workspace-shell > .row { height: max(560px, calc(100dvh - 9.25rem)); }
+  #design-page .editor-sidebar { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+  .canvas-column { position: sticky; top: 4.25rem; display: flex; height: 100%; max-height: none; flex-direction: column; align-self: flex-start; }
+  .canvas-area { min-height: 0; flex: 1 1 auto; }
   .canvas-column, .print-sidebar { transition: width .38s ease, opacity .24s ease, border-color .24s ease; }
-  .print-sidebar { position: sticky; top: 4.25rem; min-width: 0; height: calc(100dvh - 6.25rem); min-height: 0; overflow-x: hidden; overflow-y: auto; align-self: flex-start; }
+  .print-sidebar { position: sticky; top: 4.25rem; min-width: 0; height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; align-self: flex-start; }
   .print-sidebar > * { min-width: 280px; }
   .print-panel-toggle-rail { position: absolute; z-index: 8; inset-block: 0; right: calc(25% + .65rem); display: block; width: 34px; transition: right .38s ease; pointer-events: none; }
   .print-panel-toggle { position: sticky; top: 50vh; display: grid; width: 34px; height: 48px; padding: 0; translate: 0 -50%; place-items: center; color: var(--aqua-dark); background: var(--white); border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 3px 10px rgb(84 65 43 / 12%); pointer-events: auto; transition: background-color .2s ease, box-shadow .2s ease; }
