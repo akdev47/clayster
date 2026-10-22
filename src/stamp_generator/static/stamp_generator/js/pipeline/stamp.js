@@ -12,6 +12,8 @@ export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "round", // 'round' | 'square'
+  autoFaceSize: false,
+  faceSize: 50,
   faceThickness: 4,
   reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
@@ -21,6 +23,20 @@ export const DEFAULT_STAMP = {
 };
 
 export const FACE_THICKNESS_LIMITS = Object.freeze({ min: 1, max: 20 });
+export const FACE_SIZE_LIMITS = Object.freeze({ min: 10, max: 120 });
+
+export function assertFaceSize(value) {
+  if (
+    !Number.isFinite(value) ||
+    value < FACE_SIZE_LIMITS.min ||
+    value > FACE_SIZE_LIMITS.max
+  ) {
+    throw new RangeError(
+      `Face size must be between ${FACE_SIZE_LIMITS.min} and ${FACE_SIZE_LIMITS.max} mm.`,
+    );
+  }
+  return value;
+}
 
 export function assertFaceThickness(value) {
   if (
@@ -47,6 +63,7 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
  */
 export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs = [] } = {}) {
   const settings = { ...DEFAULT_STAMP, ...params };
+  assertFaceSize(settings.faceSize);
   assertFaceThickness(settings.faceThickness);
   settings.faceShape = stampFaceShape(settings.faceShape);
   if (

@@ -1,4 +1,4 @@
-// Loads fonts, fits text into rows, and converts the letter outlines into 2D polygons.
+// Loads fonts, validates user-entered rows, and converts letter outlines into 2D polygons.
 import * as THREE from "three";
 import * as opentypeModule from "opentype.js";
 import { fromShapes } from "./canonical.js";
@@ -36,11 +36,10 @@ export function fontName(font) {
   return names.fontFamily?.en ?? "Uploaded font";
 }
 
-const SHRINK = 0.94; // How much smaller each attempt is.
-
 /**
- * Keeps the user's line breaks exactly as entered, reducing the font size only
- * when one of those lines is wider than the configured row width.
+ * Keeps the user's line breaks and requested physical size exactly as entered.
+ * Oversized text is handled by the shared stamp overflow diagnostics instead
+ * of being silently reduced here.
  */
 export function fitText(
   font,
@@ -49,29 +48,8 @@ export function fitText(
 ) {
   const value = String(text);
   const lines = value.split("\n");
-  const measured = lines.map((line) => measure(font, line));
-  const widthAt = (line, millimetres) =>
-    (total(line.units) * millimetres) / font.unitsPerEm +
-    line.units.length * letterSpacing;
-  const fits = (millimetres) =>
-    measured.every((line) => widthAt(line, millimetres) <= limits.rowWidth);
-
-  let chosen = size;
-  while (!fits(chosen) && chosen > limits.minSize) {
-    const smaller = Math.max(limits.minSize, round(chosen * SHRINK));
-    if (smaller >= chosen) break;
-    chosen = smaller;
-  }
 
   const issues = [];
-  if (chosen < size) {
-    issues.push({
-      level: "fixed",
-      message:
-        `Set at ${chosen} mm rather than ${size} mm, which is the largest that fits ` +
-        `${limits.rowWidth} mm rows.`,
-    });
-  }
   if (lines.length > limits.rows) {
     issues.push({
       level: "warning",
@@ -81,30 +59,7 @@ export function fitText(
     });
   }
 
-  return { text: value, size: chosen, issues };
-}
-
-// What each glyph advances in font units, kerning included, which scales to
-// millimetres at any size.
-function measure(font, word) {
-  const glyphs = font.stringToGlyphs(word);
-
-  return {
-    text: word,
-    units: glyphs.map(
-      (glyph, index) =>
-        glyph.advanceWidth +
-        (index > 0 ? font.getKerningValue(glyphs[index - 1], glyph) : 0),
-    ),
-  };
-}
-
-function total(units) {
-  return units.reduce((sum, value) => sum + value, 0);
-}
-
-function round(millimetres) {
-  return Math.round(millimetres * 10) / 10;
+  return { text: value, size, issues };
 }
 
 /**
