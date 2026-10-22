@@ -1,5 +1,6 @@
+{% load static %}
 <nav class="sidebar" aria-label="Main navigation">
-  <a href="{% url 'index' %}" class="sidebar-brand">Clayster<span>STUDIO MANAGER</span></a>
+  <a href="{% url 'index' %}" class="sidebar-brand"><img src="{% static 'images/Clayster_Primary_Textuur_MARGE(1).png' %}" alt="Clayster" width="2627" height="1189" /><span>STUDIO MANAGER</span></a>
   <button class="btn btn-outline-secondary sidebar-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-navigation" aria-expanded="false" aria-controls="sidebar-navigation"><i class="bi bi-list" aria-hidden="true"></i> Menu</button>
   <div class="collapse sidebar-navigation" id="sidebar-navigation">
     <div class="sidebar-label">WORKSPACE</div>

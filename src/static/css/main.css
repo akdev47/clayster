@@ -169,6 +169,7 @@
 .clayster-admin .sidebar { background: var(--linen); padding: 32px 16px 20px; border-color: var(--border); }
 .sidebar-brand { color: var(--ink); font-size: 28px; font-weight: 700; letter-spacing: -.05em; text-decoration: none; padding: 0 12px; }
 .sidebar-brand:hover { color: var(--clay); }
+.sidebar-brand img { display: block; width: 180px; max-width: 100%; height: auto; }
 .sidebar-brand span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .13em; }
 .sidebar-navigation { display: flex !important; flex: 1; flex-direction: column; margin-top: 44px; }
 .sidebar-label { padding: 0 14px; margin-bottom: 12px; font-size: 10px; letter-spacing: .12em; color: var(--muted); font-weight: 600; }
