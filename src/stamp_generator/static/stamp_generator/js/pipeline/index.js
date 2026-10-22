@@ -393,7 +393,12 @@ export class Pipeline extends EventTarget {
       }
     }
 
-    return { canonical, issues: wrapped.issues, textGlyphs: glyphOutlines };
+    return {
+      canonical,
+      issues: wrapped.issues,
+      textGlyphs: glyphOutlines,
+      renderedFontSizeMm: wrapped.size,
+    };
   }
 
   async handleGeometry() {

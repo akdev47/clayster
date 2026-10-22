@@ -88,6 +88,7 @@ export class ArtworkComposer {
         kind: element.kind,
         canonical: conversion.canonical,
         transform: element.transform,
+        renderedFontSizeMm: conversion.renderedFontSizeMm,
       });
       elementIssues.push(
         ...conversion.issues.map((issue) => ({
@@ -296,6 +297,7 @@ function normalizeConversion(conversion) {
     segmentation: conversion.segmentation ?? null,
     validationTolerance: conversion.validationTolerance,
     textGlyphs: conversion.textGlyphs ?? [],
+    renderedFontSizeMm: conversion.renderedFontSizeMm,
   };
 }
 
