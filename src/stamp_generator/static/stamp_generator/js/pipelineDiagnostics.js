@@ -282,8 +282,6 @@ export function presentDiagnosticRows(rows) {
       message = "Artwork extends beyond the usable stamp area.";
     } else if (/^Wrapped onto (\d+) rows/.test(message)) {
       message = `Text wrapped onto ${message.match(/^Wrapped onto (\d+)/)[1]} lines.`;
-    } else if (/^Set at [\d.]+ mm rather than/.test(message)) {
-      message = "Text size was reduced to fit.";
     } else if (/^Merged overlapping and self-intersecting outlines/.test(message)) {
       message = "Overlapping outlines were cleaned up.";
     } else if (/^Separated \d+ isolated point/.test(message)) {
@@ -403,8 +401,9 @@ function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGl
       action.textContent = "Fit to stamp";
       action.setAttribute(
         "aria-label",
-        `Fit element ${elementId} to stamp`,
+        "Fix this issue by fitting the artwork inside the stamp",
       );
+      action.title = "Automatically resize this artwork to fit inside the stamp";
       action.addEventListener("click", () => onFitToStamp(elementId));
       content.append(action);
     }

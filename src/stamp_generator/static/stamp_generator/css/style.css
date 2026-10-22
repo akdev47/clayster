@@ -239,21 +239,53 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .validation-content > span { display: block; font-size: .73rem; font-weight: 600; }
 .validation-content small { display: block; margin-top: .3rem; font-size: .65rem; line-height: 1.4; }
 .status-badge { padding: .25rem .45rem; border-radius: 999px; font-size: .6rem; font-weight: 700; }
-.suggestion-button { padding: 0; margin-top: .35rem; color: var(--coral-dark); background: none; border: 0; font-size: .66rem; font-weight: 700; }
+.suggestion-button {
+  display: inline-flex;
+  gap: .4rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: .48rem .75rem;
+  margin-top: .55rem;
+  color: var(--white);
+  background: var(--coral-dark);
+  border: 1px solid rgb(122 31 23 / 35%);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 3px 8px rgb(122 31 23 / 20%);
+  cursor: pointer;
+  font-size: .7rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+  animation: suggestion-button-flicker .22s linear 8;
+}
+.suggestion-button:hover {
+  background: #9f291e;
+  box-shadow: 0 4px 12px rgb(122 31 23 / 30%);
+  transform: translateY(-1px);
+}
+.suggestion-button:active {
+  box-shadow: 0 2px 5px rgb(122 31 23 / 24%);
+  transform: translateY(1px);
+}
+.suggestion-button:focus-visible {
+  outline: 3px solid rgb(139 223 221 / 70%);
+  outline-offset: 2px;
+}
 
 @keyframes artwork-error-glow {
-  0%, 100% { fill: #a9231b; filter: drop-shadow(0 0 0 rgb(122 31 23 / 0%)); }
-  50% { fill: #c83426; filter: drop-shadow(0 0 7px rgb(122 31 23 / 72%)); }
+  0%, 100% { fill: #a9231b; filter: drop-shadow(0 0 2px rgb(122 31 23 / 35%)); }
+  50% { fill: #e04632; filter: drop-shadow(0 0 13px rgb(169 35 27 / 88%)); }
 }
 
 @keyframes element-error-glow {
-  0%, 100% { box-shadow: 0 0 0 2px rgb(244 143 104 / 32%); }
-  50% { box-shadow: 0 0 0 3px rgb(255 193 92 / 60%), 0 0 15px rgb(217 72 43 / 35%); }
+  0%, 100% { box-shadow: 0 0 0 2px rgb(244 143 104 / 42%); }
+  50% { box-shadow: 0 0 0 5px rgb(255 193 92 / 75%), 0 0 22px rgb(169 35 27 / 62%); }
 }
 
 @keyframes diagnostic-error-glow {
-  0%, 100% { box-shadow: inset 3px 0 0 rgb(201 87 56 / 55%); }
-  50% { box-shadow: inset 4px 0 0 rgb(239 106 67 / 90%), 0 0 12px rgb(244 143 104 / 20%); }
+  0%, 100% { box-shadow: inset 4px 0 0 rgb(201 87 56 / 70%), 0 0 4px rgb(169 35 27 / 16%); }
+  50% { box-shadow: inset 5px 0 0 rgb(239 106 67 / 100%), 0 0 18px rgb(169 35 27 / 42%); }
 }
 
 @keyframes error-icon-glow {
@@ -261,11 +293,17 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
   50% { box-shadow: 0 0 0 5px rgb(244 143 104 / 18%), 0 0 14px rgb(217 72 43 / 22%); }
 }
 
+@keyframes suggestion-button-flicker {
+  0%, 49%, 100% { opacity: 1; }
+  50%, 99% { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .canonical-artwork [data-element-kind="overflow"],
   .design-element.out-of-bounds,
   .validation-row-error,
-  .print-heading-icon.error-icon { animation: none; }
+  .print-heading-icon.error-icon,
+  .suggestion-button { animation: none; }
 }
 .print-actions { flex: 0 0 auto; padding: 1rem 1.4rem 1.4rem; background: var(--white); border-top: 1px solid var(--border); }
 .blocking-message { min-height: 34px; margin: 0 0 .6rem; font-size: .7rem; font-weight: 600; }

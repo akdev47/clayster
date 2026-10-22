@@ -13,22 +13,34 @@ export function elementDimensionsCm(canonical, elementTransform) {
 
 /** Points are presentation only: model callbacks and drag previews use mm. */
 export function createTextSizeControls({ range, input, output, minMm, maxMm, onChange }) {
+  const resolveMaxMm = () => typeof maxMm === "function" ? maxMm() : maxMm;
+  const refreshLimits = () => {
+    const maximumMm = resolveMaxMm();
+    for (const control of [range, input]) {
+      control.min = String(millimetresToPoints(minMm));
+      control.max = String(millimetresToPoints(maximumMm));
+    }
+    return maximumMm;
+  };
+
   for (const control of [range, input]) {
-    control.min = String(millimetresToPoints(minMm));
-    control.max = String(millimetresToPoints(maxMm));
     control.addEventListener("input", () => {
       if (control.value === "") return;
+      const maximumMm = refreshLimits();
       const sizeMm = pointsToMillimetres(Number(control.value));
-      if (Number.isFinite(sizeMm) && sizeMm >= minMm - 1e-9 && sizeMm <= maxMm + 1e-9) {
-        onChange(Math.min(maxMm, Math.max(minMm, sizeMm)));
+      if (Number.isFinite(sizeMm) && sizeMm >= minMm - 1e-9 && sizeMm <= maximumMm + 1e-9) {
+        onChange(Math.min(maximumMm, Math.max(minMm, sizeMm)));
       }
     });
   }
+  refreshLimits();
   range.step = "any";
   input.step = "any";
 
   return {
+    refreshLimits,
     update(sizeMm) {
+      refreshLimits();
       const points = millimetresToPoints(sizeMm);
       // Display rounding must never feed back into saved fontSizeMm.
       range.value = String(points);

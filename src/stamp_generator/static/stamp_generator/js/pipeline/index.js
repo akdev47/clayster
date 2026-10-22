@@ -12,11 +12,12 @@ import {
 } from "../pngTrace.js";
 import { validate } from "./validate.js";
 import {
+  assertFaceSize,
   assertFaceThickness,
   buildStamp,
   DEFAULT_STAMP,
 } from "./stamp.js";
-import { stampFaceShape } from "./stampLayout.js";
+import { stampFaceShape, stampMargin } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
@@ -106,11 +107,23 @@ export class Pipeline extends EventTarget {
   }
 
   setStamp(patch) {
+    if (patch.faceSize !== undefined) {
+      assertFaceSize(patch.faceSize);
+    }
     if (patch.faceThickness !== undefined) {
       assertFaceThickness(patch.faceThickness);
     }
     if (Object.hasOwn(patch, "faceShape")) {
       patch = { ...patch, faceShape: stampFaceShape(patch.faceShape) };
+    }
+    if (
+      Object.hasOwn(patch, "faceSize") ||
+      Object.hasOwn(patch, "margin")
+    ) {
+      patch = {
+        ...patch,
+        margin: stampMargin({ ...this.stamp, ...patch }),
+      };
     }
     Object.assign(this.stamp, patch);
     this.schedule();
@@ -347,8 +360,8 @@ export class Pipeline extends EventTarget {
       source.font.reference ?? fontURL(source.font.id ?? DEFAULT_FONT_ID),
     );
 
-    // Preserve the user's line breaks. Fitting may reduce the size, but it
-    // never inserts additional rows on their behalf.
+    // Preserve both the requested size and the user's explicit line breaks.
+    // Stamp overflow is reported later instead of silently resizing text.
     const fitted = fitText(font, {
       text: source.text,
       size: source.fontSizeMm,

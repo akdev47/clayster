@@ -2,6 +2,7 @@ import { bounds, transform } from "./canonical.js";
 
 const FACE_SEGMENTS = 96;
 export const MIN_STAMP_MARGIN_MM = 2;
+export const MAX_STAMP_MARGIN_MM = 20;
 
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
@@ -10,10 +11,21 @@ export function stampFaceShape(shape = "round") {
   throw new Error("Unsupported stamp shape. Choose Round or Square.");
 }
 
-export function stampMargin(settings) {
+export function stampMarginMaximum(settings = {}) {
+  const faceSize = Number.isFinite(settings.faceSize) ? settings.faceSize : 50;
+  return Math.max(
+    MIN_STAMP_MARGIN_MM,
+    Math.min(MAX_STAMP_MARGIN_MM, faceSize / 4),
+  );
+}
+
+export function stampMargin(settings = {}) {
   const margin = settings.margin ?? MIN_STAMP_MARGIN_MM;
   if (!Number.isFinite(margin)) throw new Error("Stamp margin must be finite.");
-  return Math.max(MIN_STAMP_MARGIN_MM, margin);
+  return Math.min(
+    stampMarginMaximum(settings),
+    Math.max(MIN_STAMP_MARGIN_MM, margin),
+  );
 }
 
 /** Computes the final physical artwork and face shown by both 2D and 3D. */
@@ -60,21 +72,24 @@ export function layoutRenderElements(elements, artworkTransform) {
   }));
 }
 
-// The backing follows the artwork at its existing physical coordinates. Legacy
-// autoFaceSize/faceSize settings never scale or constrain an existing design.
+// Fixed sizing keeps element movement independent from the backing dimensions.
+// Automatic sizing remains supported for existing designs, but is opt-in.
 export function fitToFace(artwork, settings, notes = []) {
   settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const margin = stampMargin(settings);
   if (artwork.length === 0) {
     return {
       art: [],
-      faceSize: 50,
+      faceSize: settings.faceSize ?? 50,
       transform: { scale: 1, xMm: 0, yMm: 0 },
     };
   }
 
-  let faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
-  if (settings.faceShape === "round") {
+  let faceSize = settings.faceSize ?? 50;
+  if (settings.autoFaceSize) {
+    faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+  }
+  if (settings.autoFaceSize && settings.faceShape === "round") {
     // The rendered/exported circle has straight chords. Compensate for their
     // inset so even the actual 96-sided backing retains the full clearance.
     faceSize /= Math.cos(Math.PI / FACE_SEGMENTS);
