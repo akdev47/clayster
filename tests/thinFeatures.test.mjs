@@ -199,7 +199,7 @@ test("artwork that becomes too thin after element scaling is warned in final lay
   assert.match(issues[0].message, /thinner than about 0\.8 mm/i);
 });
 
-test("fixed face sizing preserves safe feature widths without rescaling artwork", () => {
+test("automatic backing preserves safe widths, including legacy fixed-face settings", () => {
   assert.deepEqual(fit(10), artwork);
   assert.deepEqual(thinFeatureIssues(fit(10)), []);
   assert.deepEqual(thinFeatureIssues(fit(20)), []);

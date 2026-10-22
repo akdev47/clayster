@@ -18,6 +18,8 @@ import {
   isEditingField,
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
+  MAX_TEXT_SIZE_MM,
+  MIN_TEXT_SIZE_MM,
   shouldHandleElementArrowKey,
   shouldHandleElementDeleteKey,
   textResizePreview,
@@ -31,6 +33,7 @@ import {
 import { bounds, transform } from "./pipeline/canonical.js";
 import { readableStampDisplay } from "./stamp2dDisplay.js";
 import { ArtworkComposer } from "./pipeline/artworkComposition.js";
+import { createTextSizeControls, elementDimensionsCm } from "./sizing.js";
 
 const state = {
   width: 60,
@@ -57,6 +60,7 @@ const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
 const thinGlyphHighlight = createThinGlyphHighlight($("#thin-glyph-highlight"));
 let hasFramedPreview = false;
 let interactionActive = false;
+let interactionViewport = null;
 let renderGeometry = new Map();
 let renderedTextSizes = new Map();
 let displayGeometry = new Map();
@@ -77,18 +81,21 @@ let imageUploadToastFrame = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
-// Elements may not leave the stamp's usable area (face minus margin). Outline
-// and automatic faces are derived from the artwork, so they have no limit.
+// The backing grows around physical artwork; moving an element does not clamp
+// it to an obsolete face size.
 editor.canonicalFor = (id) => renderGeometry.get(id);
 editor.renderedTextSizeFor = (id) => renderedTextSizes.get(id);
-Object.defineProperty(editor, "faceLimit", {
-  get() {
-    const stamp = pipeline.stamp;
-    if (stamp.autoFaceSize || stamp.faceShape === "outline") return null;
-    const halfExtent = (stamp.faceSize - stamp.margin * 2) / 2;
-    return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
+editor.faceLimit = null;
+
+const textSizeControls = createTextSizeControls({
+  range: $("#font-size"),
+  input: $("#font-size-input"),
+  output: $("#font-size-value"),
+  minMm: MIN_TEXT_SIZE_MM,
+  maxMm: MAX_TEXT_SIZE_MM,
+  onChange: (sizeMm) => {
+    if (designControls.updateSelectedTextSize(sizeMm) !== null) render();
   },
-  set() {},
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
@@ -381,8 +388,9 @@ function renderCanonicalArtwork() {
   const combined = sourceElements.flatMap((element) =>
     transform(element.canonical, element.transform),
   );
-  const layout =
-    publishedLayout ?? createStampLayout(combined, pipeline.stamp, []);
+  const layout = publishedLayout !== null && resizePreviewTransforms.size === 0
+    ? publishedLayout
+    : createStampLayout(combined, pipeline.stamp, []);
   const physicalElements = layoutRenderElements(
     sourceElements,
     layout.artworkTransform,
@@ -392,10 +400,12 @@ function renderCanonicalArtwork() {
   displayGeometry = new Map(
     display.elements.map(({ id, canonical }) => [id, canonical]),
   );
-  state.width = display.widthMm;
-  state.height = display.heightMm;
-  state.minX = display.minX;
-  state.minY = display.minY;
+  // Keep the pointer's physical coordinate system steady until release even
+  // as the backing grows. The face itself still uses the shared live layout.
+  state.width = interactionViewport?.width ?? display.widthMm;
+  state.height = interactionViewport?.height ?? display.heightMm;
+  state.minX = interactionViewport?.minX ?? display.minX;
+  state.minY = interactionViewport?.minY ?? display.minY;
   artboard.dataset.faceShape = layout.faceShape;
 
   // Elements that stick out past the face are redrawn on top in a warning
@@ -439,7 +449,8 @@ function renderCanonicalArtwork() {
     },
     { face: display.face },
   );
-  updateDimensions();
+  updateDimensions(display);
+  updateElementDimensions();
 }
 
 function applyOverlayBounds(item, element) {
@@ -559,6 +570,7 @@ function updateControls() {
   $("#element-scale-control").classList.toggle("d-none", !element || isText);
   $("#duplicate-element").disabled = !element;
   $("#delete-element").disabled = !element;
+  updateElementDimensions();
 
   if (element) {
     $("#element-x").value = round2(element.transform.xMm);
@@ -610,9 +622,20 @@ function updateControls() {
 }
 
 function updateTextSizeControl(fontSizeMm) {
-  const displayedSizeMm = round2(fontSizeMm);
-  $("#font-size").value = displayedSizeMm;
-  $("#font-size-value").textContent = `${displayedSizeMm} mm`;
+  textSizeControls.update(fontSizeMm);
+}
+
+function updateElementDimensions() {
+  const element = selectedElement();
+  // Reuse the geometry already transformed for the 2D view, including cheap
+  // drag previews, rather than converting or transforming the source again.
+  const dimensions = element === null ? null : elementDimensionsCm(
+    displayGeometry.get(element.id),
+  );
+  $("#center-element").disabled = pipeline.busy || dimensions === null;
+  $("#element-dimensions").textContent = dimensions === null
+    ? "Width × Height: —"
+    : `Width × Height: ${dimensions.width.toFixed(2)} × ${dimensions.height.toFixed(2)} cm`;
 }
 
 function updatePNGSampleControls(element) {
@@ -701,9 +724,12 @@ function thicknessLabel(thicknessMm) {
   return `${thicknessMm > 0 ? "+" : "−"}${Math.abs(round2(thicknessMm))} mm`;
 }
 
-function updateDimensions() {
+function updateDimensions(dimensions) {
   artboard.style.aspectRatio = `${state.width} / ${state.height}`;
-  $("#dimension-text").textContent = `${round2(state.width)} × ${round2(state.height)} mm`;
+  $("#dimension-text").textContent = `${round2(dimensions.widthMm)} × ${round2(dimensions.heightMm)} mm`;
+  $("#pipeline-face-dimensions").textContent = lastScene.artwork.length
+    ? `${dimensions.widthMm.toFixed(1)} × ${dimensions.heightMm.toFixed(1)} mm`
+    : "—";
 }
 
 function updateSelectedText(sourcePatch) {
@@ -734,6 +760,7 @@ function startDrag(event) {
   if (!element) return;
 
   interactionActive = true;
+  interactionViewport = { ...state };
   item.focus({ preventScroll: true });
   selectElement(id);
   item.setPointerCapture(event.pointerId);
@@ -760,6 +787,7 @@ function startDrag(event) {
 
   const stop = () => {
     interactionActive = false;
+    interactionViewport = null;
     item.removeEventListener("pointermove", move);
     item.removeEventListener("pointerup", stop);
     item.removeEventListener("pointercancel", stop);
@@ -796,6 +824,7 @@ function startResize(event, element, item) {
   if (canonical === undefined) return;
 
   interactionActive = true;
+  interactionViewport = { ...state };
   selectElement(element.id);
   item.focus({ preventScroll: true });
   event.currentTarget.setPointerCapture(event.pointerId);
@@ -870,6 +899,7 @@ function startResize(event, element, item) {
     }
 
     interactionActive = false;
+    interactionViewport = null;
     render();
   };
 
@@ -1139,14 +1169,6 @@ $("#font-options").addEventListener("click", (event) => {
   });
 });
 
-$("#font-size").addEventListener("input", (event) => {
-  if (
-    designControls.updateSelectedTextSize(Number(event.target.value)) !== null
-  ) {
-    render();
-  }
-});
-
 $("#letter-spacing").addEventListener("input", (event) => {
   updateSelectedText({
     letterSpacingRatio: Number(event.target.value) / 100,
@@ -1273,6 +1295,11 @@ bindTransformNumber("#element-rotation", "rotationDeg");
 
 $("#transform-controls-toggle").addEventListener("click", () => {
   setTransformControlsExpanded(!transformControlsExpanded);
+});
+
+$("#center-element").addEventListener("click", () => {
+  if (pipeline.busy || lastScene === null) return;
+  if (editor.centerSelectedOnStamp(lastScene.face) !== null) render();
 });
 
 $("#element-mirror-x").addEventListener("change", (event) => {

@@ -58,6 +58,8 @@ export function enableDragResize(viewer, pipeline, { onSize } = {}) {
     (event) => {
       if (event.button !== 0 || drag !== null) return;
       if (!viewer.overStamp(event)) return;
+      const driver = pipeline.sizeDriver;
+      if (driver === null) return;
 
       const metrics = viewer.stampScreenMetrics();
       const offsetX = event.clientX - metrics.x;
@@ -71,7 +73,7 @@ export function enableDragResize(viewer, pipeline, { onSize } = {}) {
           offset < DIRECTION_EPSILON
             ? null
             : { x: offsetX / offset, y: offsetY / offset },
-        size: pipeline.sizeDriver.value,
+        size: driver.value,
         pointerId: event.pointerId,
       };
 
@@ -84,7 +86,7 @@ export function enableDragResize(viewer, pipeline, { onSize } = {}) {
 
   canvas.addEventListener("pointermove", (event) => {
     if (drag === null) {
-      canvas.style.cursor = viewer.overStamp(event) ? "nwse-resize" : "";
+      canvas.style.cursor = pipeline.sizeDriver !== null && viewer.overStamp(event) ? "nwse-resize" : "";
       return;
     }
 

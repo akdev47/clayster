@@ -39,7 +39,7 @@ const reverseTriangles = (geometry) => {
 };
 
 for (const text of ["CLAY", "BOA8", "i j !"]) {
-  for (const faceShape of ["round", "square", "outline"]) {
+  for (const faceShape of ["round", "square"]) {
     for (const mode of ["emboss", "deboss"]) {
       test(`${text}: ${faceShape}, ${mode}, verified STL`, async () => {
         const built = buildStamp(artwork(text), { faceShape, mode });
@@ -68,15 +68,15 @@ test("handle attachment gives a closed stamp", () => {
   built.clay.dispose();
 });
 
-test("unsafe recess and negative available face size are rejected", () => {
+test("unsafe recess and non-finite automatic margin are rejected", () => {
   assert.throws(
     () => buildStamp(artwork("A"), { mode: "deboss", reliefDepth: 4 }),
     /Recess depth/,
   );
   assert.throws(
     () =>
-      buildStamp(artwork("A"), { autoFaceSize: false, faceSize: 5, margin: 3 }),
-    /twice the margin/,
+      buildStamp(artwork("A"), { margin: NaN }),
+    /margin must be finite/,
   );
 });
 

@@ -5,20 +5,18 @@ import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { thinFeatureIssues } from "./validate.js";
-import { createStampLayout } from "./stampLayout.js";
+import { createStampLayout, stampFaceShape } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
 
 export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
-  faceShape: "round", // 'round' | 'square' | 'outline'
-  autoFaceSize: false,
-  faceSize: 50,
+  faceShape: "round", // 'round' | 'square'
   faceThickness: 4,
   reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
-  margin: 3,
+  margin: 2,
   handle: "small", // 'small' | 'none'
 };
 
@@ -50,14 +48,12 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
 export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs = [] } = {}) {
   const settings = { ...DEFAULT_STAMP, ...params };
   assertFaceThickness(settings.faceThickness);
+  settings.faceShape = stampFaceShape(settings.faceShape);
   if (
     settings.mode === "deboss" &&
     settings.reliefDepth >= settings.faceThickness
   ) {
     throw new Error("Recess depth must be smaller than the backing thickness.");
-  }
-  if (!settings.autoFaceSize && settings.faceSize <= settings.margin * 2) {
-    throw new Error("The face must be wider than twice the margin.");
   }
   const notes = [];
 
@@ -85,20 +81,18 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
     );
   }
 
-  const base = buildBase(layout.face, faceSize, settings);
+  const base = buildBase(faceSize, settings);
   const relief = buildRelief(art, settings);
 
   // The face is everything that touches clay: the plate plus its artwork.
   const face =
     settings.mode === "emboss"
       ? booleanGeometry(base, relief, UNION, {
-          firstLabel:
-            settings.faceShape === "outline" ? "custom face" : "stamp base",
+          firstLabel: "stamp base",
           secondLabel: "relief mesh",
         })
       : booleanGeometry(base, relief, SUBTRACT, {
-          firstLabel:
-            settings.faceShape === "outline" ? "custom face" : "stamp base",
+          firstLabel: "stamp base",
           secondLabel: "relief mesh",
         });
 
@@ -138,7 +132,7 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   };
 }
 
-function buildBase(faceArtwork, faceSize, settings) {
+function buildBase(faceSize, settings) {
   const thickness = settings.faceThickness;
   let geometry;
 
@@ -150,31 +144,13 @@ function buildBase(faceArtwork, faceSize, settings) {
       96,
     );
     geometry.rotateX(Math.PI / 2); // three builds cylinders Y-up; the app is Z-up.
-  } else if (settings.faceShape === "square") {
-    geometry = new THREE.BoxGeometry(faceSize, faceSize, thickness);
   } else {
-    geometry = extrudeOutline(faceArtwork, thickness);
+    geometry = new THREE.BoxGeometry(faceSize, faceSize, thickness);
   }
 
   geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
 
   return geometry;
-}
-
-function extrudeOutline(faceArtwork, thickness) {
-  const hull = faceArtwork[0]?.[0] ?? [];
-
-  if (hull.length < 3) {
-    return new THREE.BoxGeometry(10, 10, thickness);
-  }
-
-  const shape = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
-
-  // Match the centred box/cylinder: buildBase then moves the bottom to Z = 0.
-  return new THREE.ExtrudeGeometry(shape, {
-    depth: thickness,
-    bevelEnabled: false,
-  }).translate(0, 0, -thickness / 2);
 }
 
 // Raised artwork stands on top of the plate; recessed artwork is the volume

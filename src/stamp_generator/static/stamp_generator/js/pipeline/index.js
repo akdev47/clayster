@@ -16,6 +16,7 @@ import {
   buildStamp,
   DEFAULT_STAMP,
 } from "./stamp.js";
+import { stampFaceShape } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
@@ -108,39 +109,11 @@ export class Pipeline extends EventTarget {
     if (patch.faceThickness !== undefined) {
       assertFaceThickness(patch.faceThickness);
     }
+    if (Object.hasOwn(patch, "faceShape")) {
+      patch = { ...patch, faceShape: stampFaceShape(patch.faceShape) };
+    }
     Object.assign(this.stamp, patch);
     this.schedule();
-  }
-
-  /**
-   * The one number a resize gesture should drive — whatever currently decides
-   * how big the stamp comes out.
-   *
-   * With the face sized to the artwork, that is the artwork's own size and
-   * the face follows it. With a fixed face, it is the face itself.
-   */
-  get sizeDriver() {
-    if (!this.stamp.autoFaceSize) {
-      return { field: "faceSize", value: this.stamp.faceSize };
-    }
-
-    if (this.source.kind === "svg") {
-      return { field: "svgSize", value: this.source.svgSize };
-    }
-    if (this.source.kind === "png") {
-      return { field: "pngSize", value: this.source.pngSize };
-    }
-    return { field: "size", value: this.source.size };
-  }
-
-  applySize(millimetres) {
-    const { field } = this.sizeDriver;
-    const value = Math.min(Math.max(millimetres, 1), 400);
-
-    if (field === "faceSize") this.setStamp({ faceSize: value });
-    else this.setSource({ [field]: value });
-
-    return value;
   }
 
   schedule() {

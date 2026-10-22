@@ -377,11 +377,34 @@ export class DesignEditorController {
   setTextSize(id, fontSizeMm, transformPatch = {}) {
     const element = this.model.getElement(id);
     if (element === null || element.kind !== "text") return null;
-    const size = textSizeFromScale(fontSizeMm, 1);
+    if (!Number.isFinite(fontSizeMm) || !(fontSizeMm > 0)) {
+      throw new RangeError("Text size must be a finite positive number.");
+    }
+    // Typed point sizes must retain their exact physical conversion. Corner
+    // gestures already quantize their transient preview before committing.
+    const size = Math.min(MAX_TEXT_SIZE_MM, Math.max(MIN_TEXT_SIZE_MM, fontSizeMm));
     return this.model.updateElement(id, {
       source: { fontSizeMm: size },
       transform: { ...transformPatch, scale: 1 },
     });
+  }
+
+  /** Aligns to the current backing in readable canonical coordinates (mm). */
+  centerSelectedOnStamp(stampFace) {
+    const element = this.selectedElement();
+    const canonical = element === null ? undefined : this.canonicalFor(element.id);
+    if (!element || !canonical?.length || !stampFace?.length) return null;
+
+    const face = bounds(stampFace);
+    const centered = centeredTransform(canonical, element.transform);
+    const xMm = centered.xMm + (face.minX + face.maxX) / 2;
+    const yMm = centered.yMm + (face.minY + face.maxY) / 2;
+    if (
+      Math.abs(xMm - element.transform.xMm) <= EPSILON &&
+      Math.abs(yMm - element.transform.yMm) <= EPSILON
+    ) return element;
+
+    return this.model.updateElement(element.id, { transform: { xMm, yMm } });
   }
 
   fitToStamp(id) {

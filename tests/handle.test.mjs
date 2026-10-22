@@ -65,7 +65,7 @@ test("the DEFAULT_STAMP and a new pipeline start with the small handle", async (
   assert.equal(await pipeline.handleGeometry(), null);
 });
 
-for (const faceShape of ["round", "square", "outline"]) {
+for (const faceShape of ["round", "square"]) {
   for (const mode of ["emboss", "deboss"]) {
     test(`a ${faceShape} ${mode} stamp with the handle exports as one closed solid`, () => {
       const handle = createSmallHandle();
@@ -99,12 +99,12 @@ for (const faceShape of ["round", "square", "outline"]) {
 test("a small face gets a proportionally smaller handle, and the full handle stays full size", () => {
   const handle = createSmallHandle();
   const settings = { faceShape: "round", autoFaceSize: false, faceSize: 10, margin: 3 };
-  // Artwork that fits inside a 10 mm face, so the plate stays one piece.
+  // Small artwork derives a small backing, so its handle must shrink with it.
   const without = buildStamp(artwork("A", 3), settings);
   const built = buildStamp(artwork("A", 3), settings, handle);
   try {
     verifiedSTL(built.stamp);
-    const room = HANDLE_MAX_FACE_SHARE * 10;
+    const room = HANDLE_MAX_FACE_SHARE * Math.min(built.layout.widthMm, built.layout.heightMm);
     const scale = room / HANDLE.widthMm; // The long side decides.
     assert.ok(scale < 1);
     const grown = sizeOf(built.stamp).z - sizeOf(without.stamp).z;
