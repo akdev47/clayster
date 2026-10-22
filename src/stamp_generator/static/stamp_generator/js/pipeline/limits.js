@@ -1,4 +1,4 @@
-// Shared text-fitting settings, consumed by wrapText() in text.js.
+// Shared text-fitting settings, consumed by the text helpers in text.js.
 /**
  * The limits a piece of text is held to, in millimetres. Nothing in the app
  * exposes these — they are set here and the text pipeline follows them.

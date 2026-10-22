@@ -1,6 +1,6 @@
 // Coordinates input → 2D artwork → validation → 3D stamp and mug preview.
 // The UI listens for running/result/failed events rather than building geometry itself.
-import { loadFont, layoutText, wrapText } from "./text.js";
+import { fitText, loadFont, layoutText } from "./text.js";
 import {
   loadSVGArtworkDetails,
   SVG_SIMPLIFY_TOLERANCE_MM,
@@ -11,7 +11,11 @@ import {
   DEFAULT_PNG_BACKGROUND_TOLERANCE,
 } from "../pngTrace.js";
 import { validate } from "./validate.js";
-import { buildStamp, DEFAULT_STAMP } from "./stamp.js";
+import {
+  assertFaceThickness,
+  buildStamp,
+  DEFAULT_STAMP,
+} from "./stamp.js";
 import { createSmallHandle } from "./handle.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
@@ -101,6 +105,9 @@ export class Pipeline extends EventTarget {
   }
 
   setStamp(patch) {
+    if (patch.faceThickness !== undefined) {
+      assertFaceThickness(patch.faceThickness);
+    }
     Object.assign(this.stamp, patch);
     this.schedule();
   }
@@ -367,9 +374,9 @@ export class Pipeline extends EventTarget {
       source.font.reference ?? fontURL(source.font.id ?? DEFAULT_FONT_ID),
     );
 
-    // Rows are settled before anything is drawn: the wrap decides the
-    // breaks and the size, and the layout uses the same relative spacing.
-    const wrapped = wrapText(font, {
+    // Preserve the user's line breaks. Fitting may reduce the size, but it
+    // never inserts additional rows on their behalf.
+    const fitted = fitText(font, {
       text: source.text,
       size: source.fontSizeMm,
       letterSpacing: letterSpacingMm,
@@ -377,8 +384,8 @@ export class Pipeline extends EventTarget {
 
     const glyphOutlines = [];
     let canonical = layoutText(font, {
-      text: wrapped.text,
-      size: wrapped.size,
+      text: fitted.text,
+      size: fitted.size,
       letterSpacing: letterSpacingMm,
       lineSpacing: source.lineSpacing,
       align: source.alignment,
@@ -395,9 +402,9 @@ export class Pipeline extends EventTarget {
 
     return {
       canonical,
-      issues: wrapped.issues,
+      issues: fitted.issues,
       textGlyphs: glyphOutlines,
-      renderedFontSizeMm: wrapped.size,
+      renderedFontSizeMm: fitted.size,
     };
   }
 

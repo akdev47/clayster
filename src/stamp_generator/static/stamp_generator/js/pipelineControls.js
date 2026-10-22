@@ -1,6 +1,7 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
 import { enableDragResize } from "./resize.js";
 import { exportSTL } from "./exporters.js";
+import { FACE_THICKNESS_LIMITS } from "./pipeline/stamp.js";
 
 const SIZE_FIELDS = {
   elementScale: "elementScale",
@@ -39,8 +40,18 @@ export function createPipelineControls(
   });
   bindNumber(
     dom.faceThickness,
-    (faceThickness) => pipeline.setStamp({ faceThickness }),
-    0.2,
+    (value) => {
+      const faceThickness = clamp(
+        value,
+        FACE_THICKNESS_LIMITS.min,
+        FACE_THICKNESS_LIMITS.max,
+      );
+      if (faceThickness !== value) {
+        dom.faceThickness.value = String(faceThickness);
+      }
+      pipeline.setStamp({ faceThickness });
+    },
+    -Infinity,
   );
   bindNumber(dom.margin, (margin) => pipeline.setStamp({ margin }), 0);
 
