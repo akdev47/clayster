@@ -1,3 +1,5 @@
+import { DEFAULT_STAMP } from "./pipeline/stamp.js";
+
 function faceShapeLabel(faceShape) {
   if (faceShape === "outline") return "Artwork outline";
   if (faceShape === "square") return "Square";
@@ -23,6 +25,11 @@ export function reviewSummary(designModel, stamp, dimensions) {
     ["Images / logos", images.length ? images.join(", ") : "None"],
     ["Stamp dimensions", dimensions],
     ["Face shape", faceShapeLabel(stamp.faceShape)],
+    ["Rounded edges", (stamp.roundedEdges ?? DEFAULT_STAMP.roundedEdges) ? "Enabled" : "Disabled"],
+    // A round plate has no corners to round.
+    ...(faceShapeLabel(stamp.faceShape) === "Round"
+      ? []
+      : [["Rounded corners", stamp.roundedCorners ? "Enabled" : "Disabled"]]),
     ["Base thickness", `${stamp.faceThickness} mm`],
     ["Relief", `${stamp.mode === "emboss" ? "Raised" : "Recessed"} · ${stamp.reliefDepth} mm`],
     ["Mirror design", stamp.mirror ? "Enabled" : "Disabled"],

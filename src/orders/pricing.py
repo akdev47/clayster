@@ -42,7 +42,13 @@ COUNTRIES = {
 }
 
 MAX_QUANTITY = 999
-MAX_FACE_MM = 250  # sanity limit on the measurements a client may claim
+# The largest stamp the shop makes, in millimetres: width is the stamp's X
+# size, length its Y size (the "depth" of the measurements the browser sends).
+# Keep these equal to stamp.maxWidthMm and stamp.maxLengthMm in
+# stamp_generator/static/stamp_generator/js/settings.js; a test checks it.
+# Sizes are compared to 0.01 mm, the same as the browser does.
+MAX_STAMP_WIDTH_MM = 200
+MAX_STAMP_LENGTH_MM = 200
 
 
 class PricingError(ValueError):
@@ -54,14 +60,18 @@ def js_round(value):
     return math.floor(value + 0.5)
 
 
-def _size_mm(value, name):
+def _size_mm(value, name, maximum):
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
         or not math.isfinite(value)
-        or not 0 < value <= MAX_FACE_MM
+        or value <= 0
     ):
         raise PricingError(f"{name} must be a size in millimetres.")
+    if round(value, 2) > maximum:
+        raise PricingError(
+            f"The stamp may be at most {MAX_STAMP_WIDTH_MM} x {MAX_STAMP_LENGTH_MM} mm."
+        )
     return value
 
 
@@ -70,8 +80,12 @@ def face_area_cm2(stamp, info):
     info = info or {}
     width = info.get("width")
     depth = info.get("depth")
-    width = _size_mm(stamp.get("faceSize") if width is None else width, "width")
-    depth = _size_mm(stamp.get("faceSize") if depth is None else depth, "depth")
+    width = _size_mm(
+        stamp.get("faceSize") if width is None else width, "width", MAX_STAMP_WIDTH_MM
+    )
+    depth = _size_mm(
+        stamp.get("faceSize") if depth is None else depth, "depth", MAX_STAMP_LENGTH_MM
+    )
     box = (width * depth) / 100
     return box * math.pi / 4 if stamp.get("faceShape") == "round" else box
 

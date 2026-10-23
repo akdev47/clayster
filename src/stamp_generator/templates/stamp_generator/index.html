@@ -238,11 +238,9 @@
                   </div>
                   <input
                     id="letter-spacing"
+                    data-limits="text.letterSpacingPercent"
                     class="form-range clay-range"
                     type="range"
-                    min="-25"
-                    max="150"
-                    step="1"
                   />
                 </div>
 
@@ -253,11 +251,9 @@
                   </div>
                   <input
                     id="line-spacing"
+                    data-limits="text.lineSpacing"
                     class="form-range clay-range"
                     type="range"
-                    min="0.5"
-                    max="3"
-                    step="0.05"
                   />
                 </div>
 
@@ -268,11 +264,9 @@
                   </div>
                   <input
                     id="font-weight"
+                    data-limits="text.letterThicknessMm"
                     class="form-range clay-range"
                     type="range"
-                    min="-0.6"
-                    max="1.5"
-                    step="0.1"
                   />
                 </div>
 
@@ -343,11 +337,9 @@
                   <span class="pipeline-input-unit">
                     <input
                       id="artwork-base-size"
+                      data-limits="elements.pictureSizeMm"
                       class="form-control clay-input"
                       type="number"
-                      max="120"
-                      min="0.5"
-                      step="0.5"
                     />
                     <span>mm</span>
                   </span>
@@ -376,11 +368,9 @@
                     </div>
                     <input
                       id="png-background-tolerance"
+                      data-limits="images.png.backgroundTolerance"
                       class="form-range clay-range"
                       type="range"
-                      min="0.5"
-                      max="1.5"
-                      step="0.05"
                     />
                     <div class="png-sample-actions">
                       <span id="png-sample-count">0 samples</span>
@@ -399,11 +389,9 @@
                   </div>
                   <input
                     id="png-smoothing"
+                    data-limits="images.png.smoothing"
                     class="form-range clay-range"
                     type="range"
-                    min="0"
-                    max="4"
-                    step="0.25"
                   />
                 </div>
               </div>
@@ -440,7 +428,7 @@
                     <label id="element-scale-control" class="control-label" for="element-scale">
                       Scale
                       <span class="pipeline-input-unit">
-                        <input id="element-scale" class="form-control clay-input" type="number" min="0.05" max="4" step="0.05" />
+                        <input id="element-scale" data-limits="elements.scale" class="form-control clay-input" type="number" />
                         <span>×</span>
                       </span>
                     </label>
@@ -504,6 +492,38 @@
                   <button class="segment" type="button" data-shape="square">Square</button>
                 </div>
 
+                <div class="setting-row mt-3">
+                  <div>
+                    <span class="setting-label">Rounded edges</span>
+                    <small>Soften the top and bottom edge of the plate</small>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input
+                      id="pipeline-rounded-edges"
+                      class="form-check-input clay-switch"
+                      type="checkbox"
+                      role="switch"
+                      aria-label="Rounded edges"
+                    />
+                  </div>
+                </div>
+
+                <div id="pipeline-rounded-corners-field" class="setting-row mt-3" hidden>
+                  <div>
+                    <span class="setting-label">Rounded corners</span>
+                    <small>Soften the corners of the plate</small>
+                  </div>
+                  <div class="form-check form-switch mb-0">
+                    <input
+                      id="pipeline-rounded-corners"
+                      class="form-check-input clay-switch"
+                      type="checkbox"
+                      role="switch"
+                      aria-label="Rounded corners"
+                    />
+                  </div>
+                </div>
+
                 <p class="control-label mt-3">Stamp width × height: <output id="pipeline-face-dimensions">—</output></p>
 
                 <div class="pipeline-field-grid mt-3">
@@ -512,11 +532,9 @@
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-face-size"
+                        data-limits="stamp.faceSizeMm"
                         class="form-control clay-input"
                         type="number"
-                        min="10"
-                        max="120"
-                        step="1"
                       />
                       <span>mm</span>
                     </span>
@@ -540,11 +558,9 @@
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-face-thickness"
+                        data-limits="stamp.faceThicknessMm"
                         class="form-control clay-input"
                         type="number"
-                        min="1"
-                        max="20"
-                        step="0.5"
                       />
                       <span>mm</span>
                     </span>
@@ -554,11 +570,9 @@
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-margin"
+                        data-limits="stamp.edgeDistanceMm"
                         class="form-control clay-input"
                         type="number"
-                        min="2"
-                        max="20"
-                        step="0.5"
                       />
                       <span>mm</span>
                     </span>
@@ -585,11 +599,9 @@
                   </div>
                   <input
                     id="pipeline-relief-depth"
+                    data-limits="stamp.reliefDepthMm"
                     class="form-range clay-range"
                     type="range"
-                    min="0.4"
-                    max="8"
-                    step="0.2"
                   />
                 </div>
 

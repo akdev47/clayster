@@ -247,22 +247,168 @@ export function solidBoolean(
     ) {
       throw new Error("The stamp operation did not produce a valid solid.");
     }
-    // Return ordinary Three.js geometry for the viewer and exporters.
-    const mesh = result.getMesh();
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(mesh.vertProperties, 3),
-    );
-    geometry.setIndex(
-      new THREE.BufferAttribute(new Uint32Array(mesh.triVerts), 1),
-    );
-    const flat = geometry.toNonIndexed();
-    geometry.dispose();
-    flat.computeVertexNormals();
-    return flat;
+    return toGeometry(result);
   } finally {
     // WASM solids need explicit cleanup, including when a check fails.
+    temporary.reverse().forEach((object) => object.delete());
+  }
+}
+
+// Ordinary Three.js geometry for the viewer and exporters.
+function toGeometry(solid) {
+  const mesh = solid.getMesh();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(mesh.vertProperties, 3),
+  );
+  geometry.setIndex(
+    new THREE.BufferAttribute(new Uint32Array(mesh.triVerts), 1),
+  );
+  const flat = geometry.toNonIndexed();
+  geometry.dispose();
+  flat.computeVertexNormals();
+  return flat;
+}
+
+/**
+ * Raises a canonical multipolygon (outer ring first, then its holes) straight
+ * up by `depth` millimetres into a closed solid that stands on z = 0.
+ *
+ * Manifold triangulates the top and bottom itself. Three.js's ExtrudeGeometry
+ * does not: it joins every hole to the outline with a straight bridge, and when
+ * other points of the shape lie exactly on that bridge (for example along the
+ * straight edge of a rectangle that text overlaps) the mesh gets overlapping
+ * edges and is no longer a closed solid. That only happened at certain sizes
+ * and positions, which made it hard to spot. Needs initializeSolids() to have
+ * finished.
+ */
+export function extrudeOutline(multiPolygon, depth) {
+  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!(depth > 0)) throw new RangeError("The extrusion depth must be above 0.");
+  if (multiPolygon.length === 0) return new THREE.BufferGeometry();
+
+  const temporary = [];
+  const keep = (object) => {
+    temporary.push(object);
+    return object;
+  };
+  try {
+    // Each polygon owns its holes; separate polygons add together. Even-odd
+    // filling keeps the holes without depending on how the rings wind.
+    const outlines = multiPolygon.map((polygon) =>
+      keep(new engine.CrossSection(polygon, "EvenOdd")),
+    );
+    const section = keep(engine.CrossSection.union(outlines));
+    if (section.isEmpty()) return new THREE.BufferGeometry();
+
+    const solid = keep(engine.Manifold.extrude(section, depth));
+    if (solid.status() !== "NoError" || solid.isEmpty()) {
+      throw new Error("The artwork could not be raised into a closed solid.");
+    }
+    return toGeometry(solid);
+  } finally {
+    temporary.reverse().forEach((object) => object.delete());
+  }
+}
+
+// How many slices a quarter-circle edge is built from. Six slices of 15 degrees
+// keep the facets within 0.02 mm of a true curve for a rounding up to 2 mm,
+// well below what a 0.4 mm nozzle can print.
+const ROUNDING_STEPS = 6;
+
+/**
+ * A flat plate standing on z = 0, `thickness` millimetres tall, whose top edge
+ * is rounded with a quarter circle of radius `topRounding` and whose bottom edge
+ * is rounded with `bottomRounding` (the same as the top when left out; 0 leaves
+ * that edge sharp). The larger a rounding is, the further from the edge its
+ * curve begins.
+ *
+ * `multiPolygon` is the plate's outline (one polygon, no holes) and it must be
+ * convex, like a circle or a rectangle: the plate is the convex hull of the
+ * outline at a few heights, shrunk in as the rounding curves away. That makes
+ * it a closed solid by construction. A concave outline would be filled in
+ * silently, so it is refused instead.
+ *
+ * The two curves share the plate's height: together they are never taller than
+ * the thickness (if they would be, both shrink in proportion), and neither is
+ * more than 40% of the narrowest width. Needs initializeSolids() to have
+ * finished.
+ */
+export function extrudeRoundedPlate(
+  multiPolygon,
+  thickness,
+  topRounding,
+  bottomRounding = topRounding,
+) {
+  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!(thickness > 0)) throw new RangeError("The plate thickness must be above 0.");
+  if (!(topRounding >= 0) || !(bottomRounding >= 0)) {
+    throw new RangeError("The edge rounding cannot be negative.");
+  }
+
+  const temporary = [];
+  const keep = (object) => {
+    temporary.push(object);
+    return object;
+  };
+  const ringsAt = (section, height) =>
+    section
+      .toPolygons()
+      .flatMap((polygon) => polygon.map(([x, y]) => [x, y, height]));
+
+  try {
+    const outlines = multiPolygon.map((polygon) =>
+      keep(new engine.CrossSection(polygon, "EvenOdd")),
+    );
+    const section = keep(engine.CrossSection.union(outlines));
+    if (section.isEmpty()) throw new Error("The plate has no outline.");
+
+    // The plain plate, and proof that the outline is convex: the hull of its
+    // top and bottom rings only has the same volume when nothing is hollow.
+    const plain = keep(engine.Manifold.extrude(section, thickness));
+    const hull = keep(
+      engine.Manifold.hull([...ringsAt(section, 0), ...ringsAt(section, thickness)]),
+    );
+    if (hull.volume() > plain.volume() * (1 + 1e-6)) {
+      throw new Error("A plate with rounded edges needs a convex outline.");
+    }
+
+    const { min, max } = section.bounds();
+    const narrowest = Math.min(max[0] - min[0], max[1] - min[1]);
+    const together = topRounding + bottomRounding;
+    const fit = together > thickness ? thickness / together : 1;
+    const top = Math.min(topRounding * fit, narrowest * 0.4);
+    const bottom = Math.min(bottomRounding * fit, narrowest * 0.4);
+    if (top < 0.01 && bottom < 0.01) return toGeometry(plain);
+
+    // A quarter circle with its centre `radius` in from the edge and `radius`
+    // away from the flat face: at angle 0 it meets the side wall, at 90 degrees
+    // the flat face. `direction` is +1 for the top edge and -1 for the bottom.
+    const points = [];
+    const addEdge = (radius, faceHeight, direction) => {
+      if (radius < 0.01) {
+        points.push(...ringsAt(section, faceHeight));
+        return;
+      }
+      for (let step = 0; step <= ROUNDING_STEPS; step++) {
+        const angle = (Math.PI / 2) * (step / ROUNDING_STEPS);
+        const inset = radius * (1 - Math.cos(angle));
+        const height = faceHeight - direction * radius * (1 - Math.sin(angle));
+        const ring =
+          inset === 0 ? section : keep(section.offset(-inset, "Round", 2, 16));
+        points.push(...ringsAt(ring, height));
+      }
+    };
+    addEdge(top, thickness, 1);
+    addEdge(bottom, 0, -1);
+
+    const plate = keep(engine.Manifold.hull(points));
+    if (plate.status() !== "NoError" || plate.isEmpty()) {
+      throw new Error("The plate could not be built as a closed solid.");
+    }
+    return toGeometry(plate);
+  } finally {
     temporary.reverse().forEach((object) => object.delete());
   }
 }

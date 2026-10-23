@@ -95,7 +95,8 @@ for (const faceShape of ["round", "square"]) {
       ] });
       const editor = new DesignEditorController(model);
       const pipeline = new Pipeline({ designModel: model });
-      pipeline.stamp = { ...pipeline.stamp, faceShape, handle: "none", margin: 2, mirror: true };
+      // The positions above assume a 50 mm face, so it is fixed here instead of following settings.js.
+      pipeline.stamp = { ...pipeline.stamp, faceShape, faceSize: 50, handle: "none", margin: 2, mirror: true };
       const calls = { selected: 0, other: 0 };
       pipeline.buildElementArtwork = async (element) => {
         calls[element.id]++;

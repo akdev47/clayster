@@ -19,6 +19,7 @@ import {
 } from "./stamp.js";
 import { createStampLayout, stampFaceShape, stampMargin } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
+import { SETTINGS } from "../settings.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
 import { prepareClosedStamp } from "../exportValidation.js";
@@ -39,14 +40,14 @@ export const DEFAULT_SOURCE = {
   text: "CLAY",
   fontId: DEFAULT_FONT_ID,
   fontFile: null,
-  size: 16,
+  size: SETTINGS.text.defaultSizeMm,
   letterSpacing: 0,
-  lineSpacing: 1.25,
+  lineSpacing: SETTINGS.text.lineSpacing.default,
   align: "center",
   svgFile: null,
-  svgSize: 30,
+  svgSize: SETTINGS.elements.pictureSizeMm.default,
   pngFile: null,
-  pngSize: 30,
+  pngSize: SETTINGS.elements.pictureSizeMm.default,
   pngSmoothing: DEFAULT_PNG_SMOOTHING,
   pngBackgroundMode: DEFAULT_PNG_BACKGROUND_MODE,
   pngBackgroundSamples: Object.freeze([]),

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -185,12 +186,13 @@ for (const kind of ["text", "svg", "png"]) {
   });
 }
 
-test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified STL", async () => {
-  // SVG/PNG use decoded source fixtures; text uses the actual font converter.
+// Text next to a rotated, mirrored ellipse and a rectangle that overlap it.
+// SVG/PNG use decoded source fixtures; text uses the actual font converter.
+function setupMixed(textSource = {}) {
   const svg = new THREE.Shape();
   svg.absellipse(0, 0, 5, 3, 0, Math.PI * 2, false, 0);
-  const { pipeline, sidebar, editor, rendered } = setup([
-    text(),
+  return setup([
+    text("label", textSource),
     { id: "vector", kind: "svg", source: { reference: "decoded.svg" }, transform: { xMm: 22, rotationDeg: 20, mirrorX: true } },
     { id: "raster", kind: "png", source: { reference: "decoded.png" }, transform: { xMm: 22 } },
   ], (element, original) => {
@@ -202,6 +204,27 @@ test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified S
       issues: [],
     };
   });
+}
+
+// These sizes used to fail with "Relief mesh is not a closed manifold solid":
+// three.js joined a hole to the outline with a bridge that ran through other
+// points on the same straight edge. The relief is now raised by Manifold.
+for (const fontSizeMm of [16.5, 18, 20, 20.5]) {
+  test(`text overlapping shapes builds a valid stamp at ${fontSizeMm} mm`, async () => {
+    const { pipeline } = setupMixed({ fontSizeMm });
+    pipeline.stamp.autoFaceSize = true;
+    try {
+      await pipeline.run();
+      assert.equal(pipeline.error, null);
+      assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
+    } finally {
+      dispose(pipeline);
+    }
+  });
+}
+
+test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified STL", async () => {
+  const { pipeline, sidebar, editor, rendered } = setupMixed();
   pipeline.stamp.autoFaceSize = true;
   try {
     await pipeline.run();
@@ -418,7 +441,7 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
     assert.equal(sidebar.state.rows.some(({ message }) =>
       /Wrapped onto/i.test(message)), false);
     assert.equal(pipeline.result.issues.some(({ message }) =>
-      /thinner than about 0\.8 mm/i.test(message)), false);
+      message.includes(`thinner than about ${SETTINGS.checks.thinFeatureMm} mm`)), false);
     assert.equal(pipeline.result.layout.overflows, false);
     assert.ok(pipeline.result.stamp);
 
@@ -435,7 +458,10 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
 
     pipeline.result.stamp.dispose();
     pipeline.result.clay.dispose();
-    model.updateElement("text-1", { source: { text: "w", thicknessMm: 0 } });
+    // A "w" of 7.5 mm is thin for the shipped 0.8 mm limit; the size follows the limit.
+    model.updateElement("text-1", {
+      source: { text: "w", thicknessMm: 0, fontSizeMm: 7.5 * (SETTINGS.checks.thinFeatureMm / 0.8) },
+    });
     await pipeline.run();
 
     assert.ok(pipeline.result.issues.some(({ level, message }) =>
@@ -522,12 +548,13 @@ test("automatic face resolves former overflow without rescaling and reaches shar
   pipeline.stamp.autoFaceSize = true;
   pipeline.stamp.faceShape = "square";
   pipeline.stamp.faceSize = 12;
-  pipeline.stamp.margin = 1;
+  const margin = SETTINGS.stamp.edgeDistanceMm.min;
+  pipeline.stamp.margin = margin;
   try {
     await pipeline.run();
     assert.equal(pipeline.error, null);
-    assert.equal(pipeline.result.layout.faceSize, 24);
-    assert.equal(pipeline.result.layout.widthMm, 24);
+    assert.equal(pipeline.result.layout.faceSize, 20 + 2 * margin);
+    assert.equal(pipeline.result.layout.widthMm, 20 + 2 * margin);
     assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
     assert.equal(bounds(pipeline.result.layout.artwork).width, 20);
     assert.equal(pipeline.result.layout.overflows, false);

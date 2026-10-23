@@ -31,8 +31,8 @@ const modules = (directory) =>
     return entry.isDirectory() ? modules(full) : [full];
   });
 
-// main.js starts the page when imported; ui.js is an old unused entry point.
-const NOT_IMPORTABLE = new Set(["main.js", "ui.js"]);
+// main.js starts the page when imported, so it is not loaded by this test.
+const NOT_IMPORTABLE = new Set(["main.js"]);
 const LINK_ERRORS = new Set([
   "ERR_MODULE_NOT_FOUND",
   "ERR_PACKAGE_PATH_NOT_EXPORTED",

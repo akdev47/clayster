@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
 import opentype from "opentype.js";
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
@@ -7,6 +8,10 @@ import { narrowGapIssues } from "../src/stamp_generator/static/stamp_generator/j
 import { initializeSolids } from "../src/stamp_generator/static/stamp_generator/js/solidGeometry.js";
 
 await initializeSolids();
+
+// Gaps in these tests are relative to the clear-gap limit in settings.js, so the
+// tests keep working when that limit is tweaked.
+const GAP = SETTINGS.checks.clearGapMm;
 
 const fontBytes = readFileSync(
   new URL("../src/stamp_generator/static/stamp_generator/fonts/NotoSans-Bold.ttf", import.meta.url),
@@ -51,22 +56,22 @@ const laidOut = (lineSpacing) => {
   return { canonical, glyphOutlines };
 };
 
-test("bars 2 mm apart do not warn", () => {
-  assert.deepEqual(narrowGapIssues(bars(2)), []);
+test("bars clearly wider apart than the clear gap do not warn", () => {
+  assert.deepEqual(narrowGapIssues(bars(GAP + 0.8)), []);
 });
 
-test("bars 0.5 mm apart warn", () => {
-  const issues = narrowGapIssues(bars(0.5));
+test("bars well inside the clear gap warn", () => {
+  const issues = narrowGapIssues(bars(GAP / 2));
   assert.equal(issues.length, 1);
-  assert.match(issues[0].message, /narrower than about 1\.2 mm/);
+  assert.ok(issues[0].message.includes(`narrower than about ${GAP} mm`));
 });
 
-test("a 0.4 mm hole warns and a 2 mm hole does not", () => {
-  const tight = narrowGapIssues(ring(2, 0.2));
+test("a hole well inside the clear gap warns and a wide hole does not", () => {
+  const tight = narrowGapIssues(ring(2, GAP / 6));
   assert.equal(tight.length, 1);
-  assert.match(tight[0].message, /narrower than about 1\.2 mm/);
+  assert.ok(tight[0].message.includes(`narrower than about ${GAP} mm`));
 
-  assert.deepEqual(narrowGapIssues(ring(3, 1)), []);
+  assert.deepEqual(narrowGapIssues(ring(GAP + 2, (GAP + 0.8) / 2)), []);
 });
 
 test("a sharp V does not warn", () => {
@@ -89,7 +94,7 @@ test("close text lines name the lines, and ordinary line spacing does not", () =
 
   const tight = laidOut(0.72);
   const issues = narrowGapIssues(tight.canonical, { textGlyphs: tight.glyphOutlines });
-  assert.match(named(issues).message, /space between line 1 and line 2 is under about 1\.2 mm/);
+  assert.ok(named(issues).message.includes(`space between line 1 and line 2 is under about ${GAP} mm`));
   assert.equal(named(issues).elementId, "text");
   assert.equal(named(issues).elementKind, "text");
   assert.equal(generic(issues), undefined);

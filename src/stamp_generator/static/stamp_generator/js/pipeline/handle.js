@@ -1,17 +1,18 @@
 // The grip on the back of the stamp: a long rectangular bar you can hold.
 import * as THREE from "three";
+import { SETTINGS } from "../settings.js";
 
-// Full size for a normal stamp. A smaller face shrinks this, keeping the shape.
-// Width is the length you hold, depth is the thickness, height is how far it sticks out.
+// The shape and size come from settings.js (handle), where each value is
+// explained.
 export const HANDLE = Object.freeze({
-  widthMm: 40,
-  depthMm: 14,
-  heightMm: 12,
+  widthMm: SETTINGS.handle.widthMm, // Along X, the stamp's width.
+  depthMm: SETTINGS.handle.depthMm, // Along Y.
+  heightMm: SETTINGS.handle.heightMm, // How far it hangs below the plate.
 });
 
 // A small face gets a proportionally smaller handle: its longer side may use at
-// most this share of the face's shorter side. 0.85 keeps the full bar on a 50 mm face.
-export const HANDLE_MAX_FACE_SHARE = 0.85;
+// most this share of the face's shorter side.
+export const HANDLE_MAX_FACE_SHARE = SETTINGS.handle.maxShareOfFace;
 
 /**
  * A closed rectangular bar, Z up, standing on z = 0 and centred on the Z axis.

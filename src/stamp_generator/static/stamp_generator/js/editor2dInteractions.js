@@ -1,4 +1,5 @@
 import { bounds, transform } from "./pipeline/canonical.js";
+import { SETTINGS } from "./settings.js";
 
 /** Converts a screen-space drag into canonical millimetres (Y up). */
 export function screenDeltaToMillimetres(
@@ -51,13 +52,13 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
 
 // Realistic range for an element's scale, shared by the corner handles and the
 // scale field so both allow the same sizes.
-export const MIN_ELEMENT_SCALE = 0.05;
-export const MAX_ELEMENT_SCALE = 4;
-export const MIN_TEXT_SIZE_MM = 0.5;
-export const MAX_TEXT_SIZE_MM = 60;
-export const TEXT_SIZE_STEP_MM = 0.5;
-export const KEYBOARD_MOVE_STEP_MM = 0.5;
-export const DUPLICATE_OFFSET_MM = 2;
+export const MIN_ELEMENT_SCALE = SETTINGS.elements.scale.min;
+export const MAX_ELEMENT_SCALE = SETTINGS.elements.scale.max;
+export const MIN_TEXT_SIZE_MM = SETTINGS.text.sizeMm.min;
+export const MAX_TEXT_SIZE_MM = SETTINGS.text.sizeMm.max;
+export const TEXT_SIZE_STEP_MM = SETTINGS.text.sizeMm.step;
+export const KEYBOARD_MOVE_STEP_MM = SETTINGS.elements.keyboardMoveStepMm;
+export const DUPLICATE_OFFSET_MM = SETTINGS.elements.duplicateOffsetMm;
 
 export function textSizeFromScale(
   startSizeMm,

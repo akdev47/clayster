@@ -226,9 +226,9 @@ test("round automatic sizing measures artwork radius rather than unused bounding
     mirror: false,
     autoFaceSize: true,
   });
-  close(layout.faceSize, 24 / Math.cos(Math.PI / 96));
-  assert.ok(layout.faceSize < 25);
-  assertClearance(layout, 2);
+  close(layout.faceSize, (20 + 2 * DEFAULT_STAMP.margin) / Math.cos(Math.PI / 96));
+  assert.ok(layout.faceSize < 20 + 2 * DEFAULT_STAMP.margin + 1);
+  assertClearance(layout, DEFAULT_STAMP.margin);
 });
 
 test("both face shapes keep at least 2 mm clearance, including acute and off-centre artwork", () => {
@@ -243,6 +243,7 @@ test("both face shapes keep at least 2 mm clearance, including acute and off-cen
       for (const margin of [0, 2, 5]) {
         const layout = createStampLayout(artwork, {
           ...DEFAULT_STAMP,
+          roundedCorners: false, // this test measures a plain rectangle
           mirror: false,
           faceShape,
           margin,
@@ -271,7 +272,8 @@ for (const faceShape of ["round", "square"]) {
       ];
       const canonical = elements.flatMap((element) => transform(element.canonical, element.transform));
       const snapshot = structuredClone(canonical);
-      const built = buildStamp(canonical, { faceShape, mode, margin: 2, handle: "none" });
+      // The artwork positions above assume a 50 mm face, so it is fixed here.
+      const built = buildStamp(canonical, { faceShape, mode, faceSize: 50, margin: 2, handle: "none" });
       try {
         assert.deepEqual(layoutRenderElements(elements, built.layout.artworkTransform).flatMap(({ canonical }) => canonical), built.layout.artwork);
         assert.equal(built.layout.artwork.filter((polygon) => polygon.length === 2).length, 2);

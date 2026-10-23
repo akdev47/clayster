@@ -1,30 +1,46 @@
 // Builds the printable backing, artwork, and optional handle, plus a separate mug preview.
 import * as THREE from "three";
-import { toShapes, bounds, transform } from "./canonical.js";
-import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
+import { bounds, transform } from "./canonical.js";
+import {
+  solidBoolean as booleanGeometry,
+  extrudeOutline,
+  extrudeRoundedPlate,
+} from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { featureIssues, overflowIssue } from "./validate.js";
-import { createStampLayout, stampFaceShape, stampFaceSize } from "./stampLayout.js";
+import { createStampLayout, stampFaceShape, stampFaceSize, stampSizeIssue } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
+import { SETTINGS } from "../settings.js";
 
 export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "minimal", // 'minimal' | 'round' | 'square'
   autoFaceSize: false,
+  faceSize: SETTINGS.stamp.faceSizeMm.default,
+  faceThickness: SETTINGS.stamp.faceThicknessMm.default,
+  reliefDepth: SETTINGS.stamp.reliefDepthMm.default,
   faceSize: 50,
   faceHeight: null, // null matches faceSize, so the plate stays circular or square.
   faceThickness: 4,
   reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
-  margin: 2,
+  margin: SETTINGS.stamp.edgeDistanceMm.default,
+  roundedEdges: true, // Softens the top and bottom edge of the plate; the customer can switch it off
+  roundedCorners: false, // Square and Minimal only; the customer switches it on
   handle: "small", // 'small' | 'none'
 };
 
-export const FACE_THICKNESS_LIMITS = Object.freeze({ min: 1, max: 20 });
-export const FACE_SIZE_LIMITS = Object.freeze({ min: 10, max: 120 });
+export const FACE_THICKNESS_LIMITS = Object.freeze({
+  min: SETTINGS.stamp.faceThicknessMm.min,
+  max: SETTINGS.stamp.faceThicknessMm.max,
+});
+export const FACE_SIZE_LIMITS = Object.freeze({
+  min: SETTINGS.stamp.faceSizeMm.min,
+  max: SETTINGS.stamp.faceSizeMm.max,
+});
 
 export function assertFaceSize(value) {
   if (
@@ -97,6 +113,9 @@ export function buildStamp(artwork, params, handleGeometry = null, {
     if (overflow) thinIssues.push(overflow);
   }
 
+  const tooLarge = stampSizeIssue(layout.widthMm, layout.heightMm);
+  if (tooLarge !== null) thinIssues.push(tooLarge);
+
   if (offTheMug(bounds(art))) {
     notes.push(
       "The artwork is bigger than the wall of a mug, so the preview presses in as much of it as fits.",
@@ -155,6 +174,11 @@ export function buildStamp(artwork, params, handleGeometry = null, {
   };
 }
 
+// The plate is built from the same outline the 2D view and the overflow check
+// use (layout.face), so all three always agree. Its edges are rounded by the
+// radii in settings.js (stamp.edgeRoundingClaySideMm for the side with the
+// letters, stamp.edgeRoundingHandleSideMm for the back) unless the customer has
+// switched "Rounded edges" off.
 function buildBase(layout, settings) {
   const thickness = settings.faceThickness;
   let geometry;
@@ -198,12 +222,9 @@ function buildBase(layout, settings) {
 // inside the plate when raised and pokes harmlessly above it when recessed, so
 // the finished stamp is identical either way.
 function buildRelief(artwork, settings) {
-  // No curveSegments here on purpose: canonical SVG curves have already been
-  // adaptively flattened at their final physical size.
-  const geometry = new THREE.ExtrudeGeometry(toShapes(artwork), {
-    depth: settings.reliefDepth + OVERLAP,
-    bevelEnabled: false,
-  });
+  // Canonical SVG curves have already been adaptively flattened at their final
+  // physical size, so the outlines are raised exactly as they are.
+  const geometry = extrudeOutline(artwork, settings.reliefDepth + OVERLAP);
 
   geometry.translate(
     0,
