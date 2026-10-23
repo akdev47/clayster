@@ -12,6 +12,15 @@ const CLEARANCE_TOLERANCE_MM = 0.05;
 export const MIN_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.min;
 export const MAX_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.max;
 
+/** Width and height of a Round or Square face. A missing height matches the width. */
+export function stampFaceSize(settings = {}) {
+  const width = Number.isFinite(settings.faceSize)
+    ? settings.faceSize
+    : SETTINGS.stamp.faceSizeMm.default;
+  const height = Number.isFinite(settings.faceHeight) ? settings.faceHeight : width;
+  return { width, height };
+}
+
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
   if (shape === "outline") return "square";
@@ -52,14 +61,12 @@ export function stampMarginMaximum(settings = {}) {
   if (stampFaceShape(settings.faceShape ?? "round") === "minimal") {
     return MAX_STAMP_MARGIN_MM;
   }
-  const faceSize = Number.isFinite(settings.faceSize)
-    ? settings.faceSize
-    : SETTINGS.stamp.faceSizeMm.default;
+  const { width, height } = stampFaceSize(settings);
   return Math.max(
     MIN_STAMP_MARGIN_MM,
     Math.min(
       MAX_STAMP_MARGIN_MM,
-      faceSize * SETTINGS.stamp.edgeDistanceMaxShareOfFace,
+      Math.min(width, height) * SETTINGS.stamp.edgeDistanceMaxShareOfFace,
     ),
   );
 }
@@ -194,8 +201,13 @@ export function stampFace(artwork, settings) {
     );
   }
 
-  const half = faceSize / 2;
-  return plateOutline(-half, -half, half, half, settings.roundedCorners);
+  return plateOutline(
+    -width / 2,
+    -height / 2,
+    width / 2,
+    height / 2,
+    settings.roundedCorners,
+  );
 }
 
 /**

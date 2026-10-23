@@ -17,7 +17,7 @@ import {
   buildStamp,
   DEFAULT_STAMP,
 } from "./stamp.js";
-import { createStampLayout, stampFaceShape, stampMargin } from "./stampLayout.js";
+import { createStampLayout, stampFaceShape, stampMargin, stampSizeIssue } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
 import { SETTINGS } from "../settings.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
@@ -368,9 +368,11 @@ export class Pipeline extends EventTarget {
 
   applyPrintability(issues, featureWarnings, layout) {
     const overflow = overflowIssue(layout);
+    const tooLarge = stampSizeIssue(layout.widthMm, layout.heightMm);
     const extra = this.scopePrintability([
       ...featureWarnings,
       ...(overflow ? [overflow] : []),
+      ...(tooLarge ? [tooLarge] : []),
     ]);
     if (extra.length === 0) return issues;
     return [

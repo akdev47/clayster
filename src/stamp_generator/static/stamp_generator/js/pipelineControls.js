@@ -174,8 +174,9 @@ function syncControls(dom, pipeline) {
 
 function syncFaceSizeValues(dom, pipeline) {
   const face = stampFaceSize(pipeline.stamp);
-  if (dom.faceSize !== document.activeElement) dom.faceSize.value = String(face.width);
-  if (dom.faceHeight !== document.activeElement) dom.faceHeight.value = String(face.height);
+  const active = globalThis.document?.activeElement;
+  if (dom.faceSize !== active) dom.faceSize.value = String(face.width);
+  if (dom.faceHeight !== active) dom.faceHeight.value = String(face.height);
 }
 
 function syncFaceSizeField(dom, pipeline) {
@@ -198,6 +199,10 @@ function commitFaceSize(dom, pipeline, field) {
   }
   syncFaceSizeValues(dom, pipeline);
   syncMarginControl(dom, pipeline);
+}
+
+function syncRoundedCornersField(dom, pipeline) {
+  dom.roundedCornersField.hidden = pipeline.stamp.faceShape === "round";
 }
 
 function syncMarginControl(dom, pipeline) {

@@ -267,6 +267,24 @@ function dropDegenerate(artwork) {
   return { cleaned, droppedRings };
 }
 
+export function overflowIssue(layout) {
+  if (!layout?.overflows) return null;
+  return {
+    level: "error",
+    code: "artwork-overflow",
+    message: `Some artwork extends beyond the ${layout.widthMm} × ${layout.heightMm} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
+  };
+}
+
+// Stroke width and clear gaps are properties of the 2D artwork. Face shape,
+// face size, and mirroring do not change them.
+export function featureIssues(artwork, { textGlyphs = [] } = {}) {
+  return [
+    ...thinFeatureIssues(artwork, { textGlyphs }),
+    ...narrowGapIssues(artwork, { textGlyphs }),
+  ];
+}
+
 // Run after fitToFace(): a morphological opening removes regions narrower than
 // the requested physical width, including local necks, arms and walls.
 export function thinFeatureIssues(

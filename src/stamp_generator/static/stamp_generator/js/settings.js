@@ -174,29 +174,30 @@ const definition = {
   },
 
   // ==========================================================================
-  // handle — the small block under the stamp / het kleine blokje onder de stempel
+  // handle — the bar you hold on the back / de balk die je aan de achterkant vasthoudt
   // ==========================================================================
   handle: {
-    // EN: Size of the handle (a rectangular block). Width runs along the
-    //     stamp's width (X), depth along its length (Y), height is how far it
-    //     hangs below the plate. Keep it small: customers asked for a really
-    //     small handle.
-    // NL: Maat van het handvat (een rechthoekig blokje). De breedte loopt
-    //     langs de breedte van de stempel (X), de diepte langs de lengte (Y),
-    //     de hoogte is hoe ver het onder de plaat hangt. Houd het klein: klanten
-    //     vroegen om een heel klein handvat.
-    widthMm: 12,
-    depthMm: 6,
-    heightMm: 5,
+    // EN: Size of the handle (a long rectangular bar). Width runs along the
+    //     stamp's width (X) and is the length you hold. Depth is the thickness
+    //     along Y. Height is how far it hangs below the plate. A smaller face
+    //     shrinks the whole bar; these numbers are the full size on a normal stamp.
+    // NL: Maat van het handvat (een lange rechthoekige balk). De breedte loopt
+    //     langs de breedte van de stempel (X) en is de lengte die je vasthoudt.
+    //     De diepte is de dikte langs Y. De hoogte is hoe ver het onder de plaat
+    //     hangt. Een kleiner vlak laat de hele balk krimpen; dit zijn de volle
+    //     maten op een normale stempel.
+    widthMm: 40,
+    depthMm: 14,
+    heightMm: 12,
 
     // EN: On a small stamp the handle shrinks (keeping its proportions) so
     //     that its longer side uses at most this share of the stamp's shorter
-    //     side (0.5 = half). Lower gives a smaller handle on small stamps.
+    //     side. 0.85 keeps the full 40 mm bar on a 50 mm face.
     // NL: Op een kleine stempel krimpt het handvat (met behoud van de
     //     verhoudingen) zodat de langste zijde hoogstens dit deel van de
-    //     kortste zijde van de stempel gebruikt (0.5 = de helft). Lager geeft
-    //     een kleiner handvat op kleine stempels.
-    maxShareOfFace: 0.5,
+    //     kortste zijde van de stempel gebruikt. 0,85 houdt de volle balk van
+    //     40 mm op een vlak van 50 mm.
+    maxShareOfFace: 0.85,
   },
 
   // ==========================================================================

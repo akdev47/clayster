@@ -19,12 +19,9 @@ export const DEFAULT_STAMP = {
   faceShape: "minimal", // 'minimal' | 'round' | 'square'
   autoFaceSize: false,
   faceSize: SETTINGS.stamp.faceSizeMm.default,
+  faceHeight: null, // null matches faceSize, so the plate stays circular or square.
   faceThickness: SETTINGS.stamp.faceThicknessMm.default,
   reliefDepth: SETTINGS.stamp.reliefDepthMm.default,
-  faceSize: 50,
-  faceHeight: null, // null matches faceSize, so the plate stays circular or square.
-  faceThickness: 4,
-  reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
   margin: SETTINGS.stamp.edgeDistanceMm.default,
@@ -180,34 +177,14 @@ export function buildStamp(artwork, params, handleGeometry = null, {
 // letters, stamp.edgeRoundingHandleSideMm for the back) unless the customer has
 // switched "Rounded edges" off.
 function buildBase(layout, settings) {
-  const thickness = settings.faceThickness;
-  let geometry;
-
-  if (settings.faceShape === "round") {
-    const width = layout.widthMm;
-    const height = layout.heightMm;
-    if (Math.abs(width - height) < 1e-6) {
-      geometry = new THREE.CylinderGeometry(width / 2, width / 2, thickness, 96);
-      geometry.rotateX(Math.PI / 2); // three builds cylinders Y-up; the app is Z-up.
-      geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
-    } else {
-      const ring = layout.face[0][0];
-      const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x, y)));
-      geometry = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
-    }
-  } else if (settings.faceShape === "minimal") {
-    geometry = new THREE.BoxGeometry(layout.widthMm, layout.heightMm, thickness);
-    geometry.translate(
-      layout.minX + layout.widthMm / 2,
-      layout.minY + layout.heightMm / 2,
-      thickness / 2,
-    );
-  } else {
-    geometry = new THREE.BoxGeometry(layout.widthMm, layout.heightMm, thickness);
-    geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
-  }
-
-  return geometry;
+  const { edgeRoundingClaySideMm, edgeRoundingHandleSideMm } = SETTINGS.stamp;
+  const rounded = settings.roundedEdges ?? DEFAULT_STAMP.roundedEdges;
+  return extrudeRoundedPlate(
+    layout.face,
+    settings.faceThickness,
+    rounded ? edgeRoundingClaySideMm : 0,
+    rounded ? edgeRoundingHandleSideMm : 0,
+  );
 }
 
 // Raised artwork stands on top of the plate; recessed artwork is the volume
