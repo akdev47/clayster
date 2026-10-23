@@ -1,7 +1,7 @@
 // Builds the printable backing, artwork, and optional handle, plus a separate mug preview.
 import * as THREE from "three";
-import { toShapes, bounds, transform } from "./canonical.js";
-import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
+import { bounds, transform } from "./canonical.js";
+import { solidBoolean as booleanGeometry, extrudeOutline } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
@@ -203,12 +203,9 @@ function buildBase(layout, settings) {
 // inside the plate when raised and pokes harmlessly above it when recessed, so
 // the finished stamp is identical either way.
 function buildRelief(artwork, settings) {
-  // No curveSegments here on purpose: canonical SVG curves have already been
-  // adaptively flattened at their final physical size.
-  const geometry = new THREE.ExtrudeGeometry(toShapes(artwork), {
-    depth: settings.reliefDepth + OVERLAP,
-    bevelEnabled: false,
-  });
+  // Canonical SVG curves have already been adaptively flattened at their final
+  // physical size, so the outlines are raised exactly as they are.
+  const geometry = extrudeOutline(artwork, settings.reliefDepth + OVERLAP);
 
   geometry.translate(
     0,

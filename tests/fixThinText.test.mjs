@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
 import opentype from "opentype.js";
 import { bounds } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
@@ -17,9 +18,12 @@ const font = opentype.parse(fontBytes.buffer.slice(
   fontBytes.byteOffset + fontBytes.byteLength,
 ));
 
+// A "w" of 7.5 mm is thin for the shipped 0.8 mm limit. The size follows the
+// limit in settings.js, so the example stays thin when that limit is tweaked.
+const SHIPPED_LIMIT_MM = 0.8;
 const source = {
   text: "w",
-  fontSizeMm: 7.5,
+  fontSizeMm: 7.5 * (SETTINGS.checks.thinFeatureMm / SHIPPED_LIMIT_MM),
   letterSpacingRatio: 0,
   lineSpacing: 1.25,
   alignment: "center",

@@ -11,7 +11,7 @@ import { prepareClosedStamp, verifiedSTL } from "../src/stamp_generator/static/s
 import { create3MF, createSTL } from "../src/stamp_generator/static/stamp_generator/js/exporters.js";
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
 import { validate } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
-import { buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
+import { DEFAULT_STAMP, buildStamp } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
 import { createSmallHandle } from "../src/stamp_generator/static/stamp_generator/js/pipeline/handle.js";
 
 await initializeSolids();
@@ -48,7 +48,11 @@ for (const text of ["CLAY", "BOA8", "i j !"]) {
           const reloaded = new STLLoader().parse(await blob.arrayBuffer());
           const checked = prepareClosedStamp(reloaded);
           assert.equal(checked.boundingBox.min.z, 0);
-          assert.equal(checked.boundingBox.max.z, mode === "emboss" ? 6 : 4);
+          const expectedHeight = mode === "emboss"
+            ? DEFAULT_STAMP.faceThickness + DEFAULT_STAMP.reliefDepth
+            : DEFAULT_STAMP.faceThickness;
+          // The reloaded STL holds 32-bit numbers, so compare to a tiny tolerance.
+          assert.ok(Math.abs(checked.boundingBox.max.z - expectedHeight) < 1e-4);
           assert.ok(blob.size > 84);
           checked.dispose();
           reloaded.dispose();
@@ -70,7 +74,7 @@ test("handle attachment gives a closed stamp", () => {
 
 test("unsafe recess and non-finite automatic margin are rejected", () => {
   assert.throws(
-    () => buildStamp(artwork("A"), { mode: "deboss", reliefDepth: 4 }),
+    () => buildStamp(artwork("A"), { mode: "deboss", reliefDepth: DEFAULT_STAMP.faceThickness }),
     /Recess depth/,
   );
   assert.throws(

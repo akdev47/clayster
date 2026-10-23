@@ -9,6 +9,7 @@ import { DEFAULT_STAMP, buildStamp } from "../src/stamp_generator/static/stamp_g
 import {
   createStampLayout,
   layoutRenderElements,
+  MIN_STAMP_MARGIN_MM,
 } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
 import { canonicalSvgScene } from "../src/stamp_generator/static/stamp_generator/js/canonicalSvgRenderer.js";
 import { createDesignElement } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
@@ -270,33 +271,35 @@ test("minimal face includes every element and shrinks when an outer one is remov
   const left = rectangle(-22, -5, -12, 5);
   const right = rectangle(15, -3, 25, 4);
   const inside = rectangle(-10, -2, -8, 2);
-  const options = settings({ faceShape: "minimal", margin: 2 });
+  const margin = MIN_STAMP_MARGIN_MM;
+  const options = settings({ faceShape: "minimal", margin });
   const both = createStampLayout([...left, ...right], options);
   const withInside = createStampLayout([...left, ...right, ...inside], options);
   const onlyLeft = createStampLayout(left, options);
 
-  assert.equal(both.minX, -24);
-  assert.equal(both.widthMm, 51);
-  assert.equal(both.minY, -7);
-  assert.equal(both.heightMm, 14);
+  assert.equal(both.minX, -22 - margin);
+  assert.equal(both.widthMm, 47 + 2 * margin);
+  assert.equal(both.minY, -5 - margin);
+  assert.equal(both.heightMm, 10 + 2 * margin);
   assert.equal(withInside.widthMm, both.widthMm);
   assert.equal(withInside.heightMm, both.heightMm);
-  assert.equal(onlyLeft.widthMm, 14);
+  assert.equal(onlyLeft.widthMm, 10 + 2 * margin);
   assert.ok(onlyLeft.widthMm < both.widthMm);
 });
 
 test("minimal 3D plate matches the tight rectangle, including an off-center design", () => {
+  const margin = MIN_STAMP_MARGIN_MM + 1;
   const built = buildStamp(
     rectangle(5, -3, 15, 3),
-    settings({ faceShape: "minimal", margin: 3 }),
+    settings({ faceShape: "minimal", margin }),
   );
 
   try {
     built.stamp.computeBoundingBox();
     const box = built.stamp.boundingBox;
     const size = box.getSize(new THREE.Vector3());
-    assertClose(size.x, 16);
-    assertClose(size.y, 12);
+    assertClose(size.x, 10 + 2 * margin);
+    assertClose(size.y, 6 + 2 * margin);
     assertClose((box.min.x + box.max.x) / 2, 10);
     assertClose((box.min.y + box.max.y) / 2, 0);
   } finally {

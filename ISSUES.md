@@ -4,60 +4,65 @@ Keep this file up to date: tick items when done (and move them to **Done**),
 add new ones as they come up. Tags: **[bug]**, **[ux]**, **[backend]**,
 **[idea]**, **[tech]**. Items marked *decide* need a decision before work starts.
 
-Last updated: 2026-10-23
+Last updated: 2026-10-23. Every item was checked against the code on that date;
+nothing was checked in a real browser.
 
 ## Done
 
+- [x] **[bug] Overlapping text and shapes could fail with "Relief mesh is not a closed manifold solid".** The relief was raised with three.js's `ExtrudeGeometry`, which joins a hole to the outline with a straight bridge. When other points of the shape lie exactly on that line (for example along the straight edge of a rectangle that text overlaps), the mesh got overlapping edges and Manifold refused it. It only happened at certain sizes and positions: in the test scene "BOA8" failed at 9 of the 69 sizes tried (16.5 to 20.5 mm, right next to the 16 mm default). The relief is now raised by Manifold itself (`extrudeOutline` in `solidGeometry.js`), which gave a valid solid at all 69 sizes in the same time. Tests: `tests/extrudeOutline.test.mjs` (with the failing shape as a fixture) and four sizes in `tests/validationRegression.test.mjs`. The unused SVG helpers that still used `ExtrudeGeometry` (`extrudeShapes`, `buildSVGGeometry`, `svgFitFactor`) were removed.
+- [x] **[tech] Older tests follow the settings.** About 40 tests repeated numbers from `settings.js` (a 6 mm stamp height, the 0.5 mm arrow-key step, the 0.8 mm thin limit, the default text size). They now read them from `SETTINGS`, so changing a value never needs a test edit. Checked by running the whole suite with 22 settings changed at once, in two opposite directions. Tests whose artwork sits at fixed coordinates pin their own face size instead.
+- [x] **[tech] Stale Django test and dead code.** `products.tests` now matches `create_dummy_product()`; the old unused `ui.js` entry point and the unused `loadSTLGeometry` are gone.
 - [x] **[ux] Maximum stamp size 200 x 200 mm.** A stamp whose plate is wider or longer than `stamp.maxWidthMm` / `stamp.maxLengthMm` (settings.js) shows an error that names the size and the maximum, and cannot be exported or ordered until the design is smaller. The server refuses the same orders (`MAX_STAMP_WIDTH_MM` / `MAX_STAMP_LENGTH_MM` in `orders/pricing.py`).
-- [x] **[tech] One settings file for the tweakable numbers.** `js/settings.js` holds the stamp size and thickness, edge distance, handle size, the thin-details warning, text and element defaults and limits, PNG limits and the maximum quantity, each with an English and Dutch comment. The form fields get their min/max/step from it (`data-limits`), and a test keeps the values the server also checks (`MAX_QUANTITY`, `MAX_STAMP_WIDTH_MM`, `MAX_STAMP_LENGTH_MM`) in agreement. Not in it on purpose: the internal geometry tolerances.
-- [x] **[ux] Small handle on every stamp.** New stamps start with a really small rectangular handle (free, no price line); "No handle" is still in the Handle dropdown. The old 21 mm sample handle and its €3 price are gone. The handle's shape and size are the constants in `pipeline/handle.js`; replace them once the reference picture's measurements are known.
+- [x] **[tech] One settings file for the tweakable numbers.** `js/settings.js` holds the stamp size and thickness, edge distance, handle size, the thin-details and narrow-gap warnings, text and element defaults and limits, PNG limits and the maximum quantity, each with an English and Dutch comment. The form fields get their min/max/step from it (`data-limits`), and a test keeps the values the server also checks (`MAX_QUANTITY`, `MAX_STAMP_WIDTH_MM`, `MAX_STAMP_LENGTH_MM`) in agreement. Not in it on purpose: the internal geometry tolerances.
+- [x] **[ux] Small handle on every stamp.** New stamps start with a really small rectangular handle (free, no price line); "No handle" is still in the Handle dropdown. The old 21 mm sample handle and its €3 price are gone. The handle's shape and size are in `settings.js` (`handle`); adjust them once the reference picture's measurements are known.
+- [x] **[ux] Text shrinks silently.** Text keeps the size the customer set; too-wide text is reported by the overflow warning instead, and the size field shows the size that is used.
+- [x] **[ux] Hidden gesture.** The 3D view now says "Drag the stamp to resize the selected artwork."
+- [x] **[ux] Delete key on Mac.** Backspace deletes the selected element as well as Delete, so no extra shortcut is needed.
+- [x] **[ux] Duplicate element.** The "Duplicate Element" button copies an element with its style, offset slightly.
+- [x] **[ux] "Finalize order" vs "Save order details".** The flow ends as: order page ("Continue to payment") → pay page → the customer's own order page `/order/<guid>/`, which is also emailed.
+- [x] **[backend] Delivery data in `localStorage`** is cleared once the order has been placed; until then it is only a draft for a failed or abandoned submit.
 - [x] **[ux] PNG photos give poor results.** Help text explains it; a preview of the traced shape or a warning on very detailed images would be better.
-- [x] **[ux] Keyboard use.** Elements cannot be moved with the arrow keys, visible focus outlines are removed on design elements, and the alignment buttons are not labelled correctly.
+- [x] **[ux] Keyboard use.** Elements move with the arrow keys, visible focus outlines are kept on design elements, and the alignment buttons are labelled.
 - [x] **[ux] Text alignment moved the whole element.** Alignment now positions the text lines inside the text box instead of moving the text around the stamp.
-- [x] **[ux] Two sizes for text.** The "Text size" slider (font size in mm) and the element scale (corner handles / scale field) both change how big text is. Dragging a handle does not move the slider.
-- [x] **[ux] Red (overflowing) elements have no quick fix.** Add a "Fit to stamp" button next to the warning.
+- [x] **[ux] Two sizes for text.** The text size field and the element scale both change how big text is. Dragging a handle updates the field.
+- [x] **[ux] Red (overflowing) elements have no quick fix.** A "Fit to stamp" button sits next to the warning.
 
 ## Open issues
 
-## 3d render issue
-- [ ] the 3d render sometimes shows triangle at bottem of mug.
+### 3D preview
+- [ ] **[bug?] A triangle sometimes shows at the bottom of the mug.** Not reproduced from the mesh: the mug floor is an ordinary disc, the mesh is two pieces (mug and handle), and the only odd thing is a few zero-area slivers at the rim (z = 96) whose normals are fine. Probably lighting, shadow or material, so it needs the steps to reproduce (which stamp, which view, which browser) and a look in the browser.
 
 ### Order flow
-- [x] **[ux] "Finalize order" vs "Save order details".** The flow now ends as: order page ("Continue to payment") → pay page → the customer's own order page `/order/<guid>/`, which is also emailed.
-- [ ] **[ux] Order page is not a real route.** The URL never changes, so the browser back button and reload both return to the design page. The "Logo Here" placeholder is still in the navbar.
-- [ ] **[ux] Nothing confirms how long saved details are kept.** The order form is still remembered on this device until the order is placed (then it is cleared), but nothing says so.
-- [ ] **[tech] No tests for the page code.** `orderPage.js`, the red overflow overlay and the 3D order preview were only checked through logic tests, never in a real browser.
+- [ ] **[ux] Order page is not a real route.** The URL never changes, so the browser back button and reload both return to the design page. (The "Logo Here" placeholder in the navbar is gone.)
+- [ ] **[ux] The saved-details notice is outdated.** The order form says "These details are saved on this device and sent with your stamp once ordering is available", but ordering works now, and it does not say that the details are cleared once the order is placed.
+- [ ] **[tech] No tests for the page code.** `orderPage.js`, the red overflow overlay and the 3D order preview are only checked through logic tests, never in a real browser (there is no Playwright or similar).
 
 ### Editor
-- [ ] **[ux] Text shrinks silently.** Very long text is made smaller automatically, so the slider can show a larger size than what is used.
-- [ ] **[ux] Hidden gesture.** Dragging the stamp in the 3D view resizes it, and nothing explains this.
-- [ ] **[ux] 2D view is shown unmirrored, 3D mirrored.** The "Mirror design" help text explains it, but the 2D view itself says nothing.
-- [ ] **[ux] "Add SVG" and "Add PNG" share the same icon.**
-- [ ] **[bug?] Delete key on Mac.** Many Mac keyboards have no Delete key (Fn+Backspace). The button still works. *Decide* if another shortcut is needed.
-- [ ] **[ux] Undo does not cover stamp settings** (face size, relief, margin, handle, mirror). Only design elements are in the history.
-- [ ] **[ux] Design is lost on reload.** *Decided: think about it later* (local save vs. database).
+- [ ] **[ux] 2D view is shown unmirrored, 3D mirrored.** Only the "?" help for "Mirror design" explains it; the 2D view itself says nothing.
+- [ ] **[ux] "Add SVG" and "Add PNG" share the same icon** (▧).
+- [ ] **[ux] Undo does not cover stamp settings** (face size, relief, margin, handle, mirror). Only design elements are in the history (`designHistory.js`).
+- [ ] **[ux] Design is lost on reload.** Nothing stores the design; only the order form is kept. *Decided: think about it later* (local save vs. database).
 
 ### Accessibility and devices
-- [ ] **[ux] Toggle buttons** (2D/3D, shapes, relief) do not expose their state to screen readers (`aria-pressed`).
-- [ ] **[ux] Touch and small screens** are untested (dragging, resize handles, the right-hand panel).
+- [ ] **[ux] Toggle buttons do not expose their state to screen readers.** `aria-pressed` is set on the alignment buttons and the font options, but not on 2D/3D, Stamp/On Clay, the face shapes or Raised/Recessed (`selectSegment` in `pipelineControls.js` and the view toggle in `main.js`).
+- [ ] **[ux] Touch and small screens** are untested (dragging, resize handles, the right-hand panel). There are a few `@media` rules but no tests.
 
 ### Language and wording
 - [ ] **[ux] Translate everything to Dutch.** *Planned.* All UI text is currently English and written directly in `index.html` and the JS files; collect strings in one place before translating.
-- [ ] **[ux] Jargon.** "Relief", "Emboss/Deboss", "Margin", "Base thickness", "Face", "Triangles", "Diagnostic messages". The "?" buttons cover some of them; rename the rest.
-- [ ] **[ux] Printability Check wording.** Show a plain status such as "Is my stamp ready?" and put the technical messages behind "Show details".
+- [ ] **[ux] Jargon.** "Relief", "Margin", "Base thickness", "Face size", "Triangles" and "Diagnostic messages" are still in the UI. ("Raised/Recessed" replaced Emboss/Deboss.) The "?" buttons cover some of them; rename the rest.
+- [ ] **[ux] Printability Check wording.** Partly done: the status line is plain ("Ready to export", "Ready with warnings", "Not ready to export") and the messages are simpler, with details behind each row. The panel is still called "Printability Check" with a "Diagnostic messages" section; something like "Is my stamp ready?" would be clearer.
 
 ## Postponed on purpose
 
-- [ ] **[ux] Simple vs Advanced mode.** *Will think about it.* Candidates for "Advanced": letter/line spacing, letter thickness, the X/Y/scale/rotation fields, face size mode, margin, base thickness, relief depth, mirror, STL/3MF export, diagnostics, custom font, PNG smoothing, source size.
+- [ ] **[ux] Simple vs Advanced mode.** *Will think about it.* Candidates for "Advanced": letter/line spacing, letter thickness, the X/Y/scale/rotation fields, face size, margin, base thickness, relief depth, mirror, STL export, diagnostics, custom font, PNG smoothing, source size.
 - [ ] **[backend] Save the design on the device or in the database.**
-- [x] **[backend] Delivery data in `localStorage`** is cleared once the order has been placed; until then it is only a draft for a failed or abandoned submit.
 - [ ] **[backend] Connect to the Django order system** (done: the order is sent, validated and priced by the server, the STL is attached at submit time, the customer gets a private order page). Still open:
   - **Payment is a placeholder.** `src/orders/payments.py` accepts every payment immediately; connect a real provider there and in the pay page (`orders/public/pay.html`). Production jobs are already created only after payment.
   - **Email is a placeholder.** `src/orders/emails.py` prints the confirmation in the server log (console backend in `MAILERS`); configure a real mail backend and check the text in `orders/templates/orders/email/`.
   - Replace the placeholder price list and country list in `src/orders/pricing.py` (single source: the page receives it from the server; `src/orders/test_data/pricing_cases.json` keeps `pricing.js` and the server in agreement). VAT 21% and free shipping over 50 EUR are assumptions. `COUNTRY_OPTIONS` in `orderDraft.js` is still a copy of the server's list.
   - Upload the SVG/PNG/font files separately (only the finished STL and the design settings are stored now).
-  - The "Account" link (currently hidden) and linking orders to a customer account.
-  - Abuse protection for `POST /api/orders/` (rate limit per IP, e.g. at the reverse proxy) and a retention rule: unpaid orders and their STL files are never removed, and orders hold names and addresses.
+  - The "Account" link and linking orders to a customer account (the dashboard sidebar shows "Profile — Unavailable").
+  - Abuse protection for `POST /api/orders/` (rate limit per IP, e.g. at the reverse proxy; none exists yet) and a retention rule: unpaid orders and their STL files are never removed, and orders hold names and addresses.
   - "Other country" is a shipping zone only; the real country is not asked for.
   - A double click on "Continue to payment" is blocked in the browser, but the server has no idempotency key.
 - [ ] **[idea] "Needed by" date.** *Decide first:* is a deadline real, does it change price or production time, and what is the earliest possible date?
@@ -66,12 +71,10 @@ Last updated: 2026-10-23
 
 - [ ] **[idea] Element list** in the sidebar: select, hide, duplicate, delete and reorder elements, with a red dot for ones outside the stamp. (Designed earlier, not built.)
 - [ ] **[idea] Snap guides** when dragging (to the centre lines).
-- [ ] **[idea] Duplicate element** (copy with its style, offset slightly).
 - [ ] **[idea] Order page extras:** delivery estimate, gift option and message, terms checkbox ("I have the rights to this design"), a final read-through step with edit links, saved drafts that reopen later.
-- [ ] **[idea] Price breakdown** per extra, once real prices exist.
+- [ ] **[idea] Price breakdown** per extra, once real prices exist. (The order page already lists the base price and the size.)
 - [ ] **[idea] Real-size preview.** Built and removed on request; the idea was a bank-card calibration slider. Drop for good or revisit?
 
 ## Technical debt
 
-- [ ] **[tech] Tests that repeat today's setting values.** About 25 older tests contain numbers such as a 6 mm stamp height, a 0.5 mm arrow-key step or the 0.8 mm thin limit, so changing a value in `settings.js` fails them. Point them at `SETTINGS` (as `tests/settings.test.mjs` does) so a tweak never needs a test edit.
-
+- [ ] **[tech] 3MF export code is kept but not offered.** `export3MF` / `create3MF` in `exporters.js` are covered by tests, while the page only exports STL (a test asserts there is no 3MF button). *Decide* whether to keep or remove it.
