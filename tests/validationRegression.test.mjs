@@ -411,10 +411,10 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
   try {
     await pipeline.run();
 
-    assert.ok(pipeline.result.issues.some(({ level, message }) =>
-      level === "info" && /Wrapped onto 2 rows/i.test(message)));
-    assert.ok(sidebar.state.rows.some(({ level, message }) =>
-      level === "info" && /Wrapped onto 2 rows/i.test(message)));
+    assert.equal(pipeline.result.issues.some(({ message }) =>
+      /Wrapped onto/i.test(message)), false);
+    assert.equal(sidebar.state.rows.some(({ message }) =>
+      /Wrapped onto/i.test(message)), false);
     assert.equal(pipeline.result.issues.some(({ message }) =>
       /thinner than about 0\.8 mm/i.test(message)), false);
     assert.equal(pipeline.result.layout.overflows, false);

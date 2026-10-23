@@ -278,6 +278,8 @@ export function presentDiagnosticRows(rows) {
     } else if (/^\d+ shapes? looks? thinner than about/.test(message)) {
       message = "Some artwork details may be too thin to print.";
       suggestion = "Try increasing the artwork size or thickness.";
+    } else if (/^The space between line \d+ and line \d+ is under about /.test(message)) {
+      suggestion = "Try increasing Line Spacing or Letter Spacing.";
     } else if (row.code === "artwork-overflow") {
       message = "Artwork extends beyond the usable stamp area.";
     } else if (/^Wrapped onto (\d+) rows/.test(message)) {

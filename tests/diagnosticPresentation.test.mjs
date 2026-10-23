@@ -100,6 +100,27 @@ test("Details and Checks passed start collapsed while warnings and quick fixes s
   });
 });
 
+test("a narrow gap between text lines suggests more spacing", () => {
+  const [row] = presentDiagnosticRows([{
+    level: "warning",
+    code: "narrow-gap",
+    elementKind: "text",
+    message: "The space between line 1 and line 2 is under about 1.2 mm.",
+  }]);
+  assert.equal(row.message, "The space between line 1 and line 2 is under about 1.2 mm.");
+  assert.equal(row.suggestion, "Try increasing Line Spacing or Letter Spacing.");
+});
+
+test("a thin-letter warning keeps its thickness suggestion", () => {
+  const [row] = presentDiagnosticRows([{
+    level: "warning",
+    elementKind: "text",
+    thinGlyphs: [{ character: "w" }],
+    message: "Potentially thin letters: w (below approximately 0.8 mm).",
+  }]);
+  assert.equal(row.suggestion, "Try increasing Letter Thickness or Text Size.");
+});
+
 test("failed builds retain their cause, stage, earlier warnings and unavailable export", () => {
   withDOM((byId) => {
     const pipeline = pipelineWith([]);

@@ -6,8 +6,8 @@ export const MIN_STAMP_MARGIN_MM = 2;
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
   if (shape === "outline") return "square";
-  if (shape === "round" || shape === "square") return shape;
-  throw new Error("Unsupported stamp shape. Choose Round or Square.");
+  if (shape === "round" || shape === "square" || shape === "minimal") return shape;
+  throw new Error("Unsupported stamp shape. Choose Round, Square, or Minimal.");
 }
 
 export function stampMargin(settings) {
@@ -73,6 +73,16 @@ export function fitToFace(artwork, settings, notes = []) {
     };
   }
 
+  if (settings.faceShape === "minimal") {
+    const box = bounds(artwork);
+    return {
+      art: transform(artwork, { scale: 1, xMm: 0, yMm: 0 }),
+      faceSize: Math.max(box.width, box.height) + margin * 2,
+      transform: { scale: 1, xMm: 0, yMm: 0 },
+      overflows: false,
+    };
+  }
+
   let faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
   if (settings.faceShape === "round") {
     // The rendered/exported circle has straight chords. Compensate for their
@@ -89,12 +99,24 @@ export function fitToFace(artwork, settings, notes = []) {
 }
 
 export function stampFace(artwork, faceSize, settings) {
-  if (stampFaceShape(settings.faceShape) === "round") {
+  const shape = stampFaceShape(settings.faceShape);
+  if (shape === "round") {
     const radius = faceSize / 2;
     return [[Array.from({ length: FACE_SEGMENTS }, (_, index) => {
       const angle = (index / FACE_SEGMENTS) * Math.PI * 2;
       return [Math.cos(angle) * radius, Math.sin(angle) * radius];
     })]];
+  }
+
+  if (shape === "minimal" && artwork.length > 0) {
+    const margin = stampMargin(settings);
+    const box = bounds(artwork);
+    return [[[
+      [box.minX - margin, box.minY - margin],
+      [box.maxX + margin, box.minY - margin],
+      [box.maxX + margin, box.maxY + margin],
+      [box.minX - margin, box.maxY + margin],
+    ]]];
   }
 
   const half = faceSize / 2;

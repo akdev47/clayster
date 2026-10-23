@@ -167,6 +167,7 @@ textarea.clay-input { min-height: 72px; resize: vertical; }
 .handle-bottom-right { right: -5px; bottom: -5px; }
 .handle-top-left, .handle-bottom-right { cursor: nwse-resize; }
 .handle-top-right, .handle-bottom-left { cursor: nesw-resize; }
+.selection-size { position: absolute; z-index: 3; top: calc(100% + 10px); right: -5px; padding: 1px 5px; color: var(--ink); background: var(--white); border: 1px solid var(--aqua-dark); border-radius: 3px; font-size: .62rem; font-weight: 700; line-height: 1.35; white-space: nowrap; pointer-events: none; }
 .image-element { display: grid; width: 112px; height: 96px; min-width: 0; padding: 8px; place-items: center; }
 .image-element img { width: 100%; height: 100%; pointer-events: none; object-fit: contain; }
 .design-logo-placeholder { color: var(--muted); font-size: .82rem; font-weight: 600; }

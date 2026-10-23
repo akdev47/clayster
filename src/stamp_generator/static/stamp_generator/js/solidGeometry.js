@@ -109,6 +109,76 @@ export function hasThinCrossSection(
   }
 }
 
+// Closes a multipolygon by `minGap / 2` on every side. A drop in component
+// count means separate shapes were closer than `minGap`. A drop in hole count
+// means an enclosed opening was narrower than `minGap`. A fillet in a concave
+// corner changes neither count.
+export function gapClosure(multiPolygon, minGap) {
+  return withCrossSections((keep) => {
+    const original = asSection(multiPolygon, keep);
+    if (original === null || original.isEmpty()) {
+      return { merged: false, filledHoles: false };
+    }
+    const before = topology(original, keep);
+    const after = topology(closeSection(original, minGap, keep), keep);
+    return {
+      merged: after.components < before.components,
+      filledHoles: after.holes < before.holes,
+    };
+  });
+}
+
+// True when the clear space between the two groups is under `minGap`,
+// including when they already overlap. Gaps inside one group do not count.
+export function groupsCloserThan(first, second, minGap) {
+  return withCrossSections((keep) => {
+    const groupA = asSection(first, keep);
+    const groupB = asSection(second, keep);
+    if (groupA === null || groupB === null || groupA.isEmpty() || groupB.isEmpty()) {
+      return false;
+    }
+    const closedA = topology(closeSection(groupA, minGap, keep), keep).components;
+    const closedB = topology(closeSection(groupB, minGap, keep), keep).components;
+    const both = keep(engine.CrossSection.union([groupA, groupB]));
+    const closedBoth = topology(closeSection(both, minGap, keep), keep).components;
+    return closedBoth < closedA + closedB;
+  });
+}
+
+function withCrossSections(action) {
+  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  const temporary = [];
+  const keep = (object) => {
+    temporary.push(object);
+    return object;
+  };
+  try {
+    return action(keep);
+  } finally {
+    temporary.reverse().forEach((object) => object.delete());
+  }
+}
+
+function asSection(multiPolygon, keep) {
+  const sections = multiPolygon
+    .filter((polygon) => polygon.length > 0 && polygon[0].length >= 3)
+    .map((polygon) => keep(new engine.CrossSection(polygon, "EvenOdd")));
+  if (sections.length === 0) return null;
+  return keep(engine.CrossSection.union(sections));
+}
+
+function closeSection(section, minGap, keep) {
+  const expanded = keep(keep(section.offset(minGap / 2, "Round", 10, 64)).simplify(1e-6));
+  return keep(keep(expanded.offset(-(minGap / 2), "Round", 10, 64)).simplify(1e-6));
+}
+
+function topology(section, keep) {
+  const parts = section.decompose();
+  for (const part of parts) keep(part);
+  const components = parts.length;
+  return { components, holes: section.numContour() - components };
+}
+
 // Use solid booleans for the printable stamp. The clay preview is separate.
 export function solidBoolean(
   first,

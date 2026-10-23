@@ -9,7 +9,7 @@ import {
   normalizeWinding,
   simplify,
 } from "./canonical.js";
-import { hasThinCrossSection } from "../solidGeometry.js";
+import { gapClosure, groupsCloserThan, hasThinCrossSection } from "../solidGeometry.js";
 
 // Slivers below this area in mm² carry no printable detail and only upset the
 // boolean stage.
@@ -313,6 +313,62 @@ export function thinFeatureIssues(artwork, { minFeature = 0.8, textGlyphs = [] }
     });
   }
   return issues;
+}
+
+// Provisional clear gap: three 0.4 mm nozzle lines. A clay test of slots and
+// holes can replace this number. The 0.8 mm stroke check stays separate.
+export const MIN_CLEAR_GAP_MM = 1.2;
+
+// Run after fitToFace(), beside the stroke check. Warns when a morphological
+// close joins separate shapes or fills an enclosed hole. It does not move
+// the artwork.
+export function narrowGapIssues(artwork, { minGap = MIN_CLEAR_GAP_MM, textGlyphs = [] } = {}) {
+  if (artwork.length === 0) return [];
+
+  const closure = gapClosure(artwork, minGap);
+  const linePairs = closeLinePairs(textGlyphs, minGap);
+  const issues = linePairs.map(({ elementId, lineA, lineB }) => ({
+    level: "warning",
+    code: "narrow-gap",
+    ...(elementId === undefined ? {} : { elementId, elementKind: "text" }),
+    message: `The space between line ${lineA} and line ${lineB} is under about ${minGap} mm.`,
+  }));
+
+  if (closure.filledHoles || (closure.merged && linePairs.length === 0)) {
+    issues.push({
+      level: "warning",
+      code: "narrow-gap",
+      message: `A gap looks narrower than about ${minGap} mm and may fill in when stamped in clay. This is an estimate.`,
+    });
+  }
+  return issues;
+}
+
+function closeLinePairs(textGlyphs, minGap) {
+  const elements = new Map();
+  for (const glyph of textGlyphs) {
+    if (glyph.line == null || !glyph.canonical?.length) continue;
+    const key = glyph.elementId;
+    const lines = elements.get(key) ?? new Map();
+    const group = lines.get(glyph.line) ?? [];
+    group.push(glyph);
+    lines.set(glyph.line, group);
+    elements.set(key, lines);
+  }
+
+  const pairs = [];
+  for (const [elementId, lines] of elements) {
+    const numbers = [...lines.keys()].sort((a, b) => a - b);
+    for (let index = 0; index < numbers.length - 1; index++) {
+      const lineA = numbers[index];
+      const lineB = numbers[index + 1];
+      const polygonsOf = (line) => lines.get(line).flatMap((glyph) => glyph.canonical);
+      if (groupsCloserThan(polygonsOf(lineA), polygonsOf(lineB), minGap)) {
+        pairs.push({ elementId, lineA, lineB });
+      }
+    }
+  }
+  return pairs;
 }
 
 // polyclip closes every ring by repeating its first point; the canonical form
