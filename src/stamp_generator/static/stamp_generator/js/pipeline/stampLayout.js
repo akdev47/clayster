@@ -12,6 +12,10 @@ export function stampFaceShape(shape = "round") {
 }
 
 export function stampMarginMaximum(settings = {}) {
+  // Minimal has no set face size, so the margin can use its own full range.
+  if (stampFaceShape(settings.faceShape ?? "round") === "minimal") {
+    return MAX_STAMP_MARGIN_MM;
+  }
   const faceSize = Number.isFinite(settings.faceSize) ? settings.faceSize : 50;
   return Math.max(
     MIN_STAMP_MARGIN_MM,
@@ -72,8 +76,9 @@ export function layoutRenderElements(elements, artworkTransform) {
   }));
 }
 
-// Fixed sizing keeps element movement independent from the backing dimensions.
-// Automatic sizing remains supported for existing designs, but is opt-in.
+// Round and Square keep the face size you set, so moving artwork does not
+// resize the plate. Automatic sizing stays available for older designs.
+// Minimal always hugs the artwork and ignores that face size.
 export function fitToFace(artwork, settings, notes = []) {
   settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const margin = stampMargin(settings);
@@ -95,8 +100,11 @@ export function fitToFace(artwork, settings, notes = []) {
     };
   }
 
-  let faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
-  if (settings.faceShape === "round") {
+  let faceSize = settings.faceSize ?? 50;
+  if (settings.autoFaceSize) {
+    faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+  }
+  if (settings.autoFaceSize && settings.faceShape === "round") {
     // The rendered/exported circle has straight chords. Compensate for their
     // inset so even the actual 96-sided backing retains the full clearance.
     faceSize /= Math.cos(Math.PI / FACE_SEGMENTS);

@@ -3,7 +3,7 @@
 import { transform } from "./canonical.js";
 import { TEXT_LIMITS } from "./limits.js";
 import { textLetterSpacingMm } from "./artworkComposition.js";
-import { layoutText, wrapText } from "./text.js";
+import { fitText, layoutText } from "./text.js";
 import { thinFeatureIssues } from "./validate.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
 
@@ -56,15 +56,15 @@ export async function printableTextAdjustment(font, source, elementTransform = {
 
 function layOut(font, source, fontSizeMm, thicknessMm, elementTransform) {
   const letterSpacingMm = textLetterSpacingMm({ ...source, fontSizeMm });
-  const wrapped = wrapText(font, {
+  const fitted = fitText(font, {
     text: source.text,
     size: fontSizeMm,
     letterSpacing: letterSpacingMm,
   }, TEXT_LIMITS);
   const glyphOutlines = [];
   let canonical = layoutText(font, {
-    text: wrapped.text,
-    size: wrapped.size,
+    text: fitted.text,
+    size: fitted.size,
     letterSpacing: letterSpacingMm,
     lineSpacing: source.lineSpacing,
     align: source.alignment,
@@ -84,7 +84,7 @@ function layOut(font, source, fontSizeMm, thicknessMm, elementTransform) {
       elementId: "text",
       canonical: transform(glyph.canonical, elementTransform),
     })),
-    drawnEm: wrapped.size * scale,
+    drawnEm: fitted.size * scale,
   };
 }
 

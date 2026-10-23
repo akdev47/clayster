@@ -210,7 +210,11 @@ test("legacy Artwork settings become Square without resizing or moving artwork",
 
 test("round automatic sizing measures artwork radius rather than unused bounding-box corners", () => {
   const diamond = [[[[0, 10], [-10, 0], [0, -10], [10, 0]]]];
-  const layout = createStampLayout(diamond, { ...DEFAULT_STAMP, mirror: false });
+  const layout = createStampLayout(diamond, {
+    ...DEFAULT_STAMP,
+    mirror: false,
+    autoFaceSize: true,
+  });
   close(layout.faceSize, 24 / Math.cos(Math.PI / 96));
   assert.ok(layout.faceSize < 25);
   assertClearance(layout, 2);
@@ -226,7 +230,14 @@ test("both face shapes keep at least 2 mm clearance, including acute and off-cen
     for (const artwork of shapes) {
       const snapshot = structuredClone(artwork);
       for (const margin of [0, 2, 5]) {
-        const layout = createStampLayout(artwork, { ...DEFAULT_STAMP, mirror: false, faceShape, margin, autoFaceSize: false, faceSize: 1 });
+        const layout = createStampLayout(artwork, {
+          ...DEFAULT_STAMP,
+          mirror: false,
+          faceShape,
+          margin,
+          autoFaceSize: faceShape !== "minimal",
+          faceSize: faceShape === "minimal" ? 1 : 40,
+        });
         assertClearance(layout, Math.max(2, margin));
         assert.deepEqual(layout.artwork, artwork);
         assert.deepEqual(layout.artworkTransform, { mirrorX: false, scale: 1, xMm: 0, yMm: 0 });

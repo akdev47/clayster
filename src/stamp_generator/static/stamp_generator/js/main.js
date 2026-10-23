@@ -17,6 +17,7 @@ import {
   fitsFace,
   isEditingField,
   MAX_ELEMENT_SCALE,
+  MAX_TEXT_SIZE_MM,
   MIN_ELEMENT_SCALE,
   MIN_TEXT_SIZE_MM,
   shouldHandleElementArrowKey,
@@ -87,14 +88,17 @@ artboard.classList.add("canonical-rendering-enabled");
 // change the physical dimensions of the stamp.
 editor.canonicalFor = (id) => renderGeometry.get(id);
 editor.renderedTextSizeFor = (id) => renderedTextSizes.get(id);
-const maximumTextSizeMm = () => Math.max(
-  MIN_TEXT_SIZE_MM,
-  pipeline.stamp.faceSize - stampMargin(pipeline.stamp) * 2,
-);
+const maximumTextSizeMm = () => {
+  if (pipeline.stamp.faceShape === "minimal") return MAX_TEXT_SIZE_MM;
+  return Math.max(
+    MIN_TEXT_SIZE_MM,
+    pipeline.stamp.faceSize - stampMargin(pipeline.stamp) * 2,
+  );
+};
 Object.defineProperty(editor, "faceLimit", {
   get() {
     const stamp = pipeline.stamp;
-    if (stamp.autoFaceSize) return null;
+    if (stamp.autoFaceSize || stamp.faceShape === "minimal") return null;
     const halfExtent = (stamp.faceSize - stampMargin(stamp) * 2) / 2;
     return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
   },

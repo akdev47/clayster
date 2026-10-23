@@ -408,6 +408,7 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
   const { pipeline, model, sidebar } = setup([
     { id: "text-1", kind: "text", source },
   ]);
+  pipeline.stamp.autoFaceSize = true;
 
   try {
     await pipeline.run();
@@ -518,7 +519,7 @@ test("automatic face resolves former overflow without rescaling and reaches shar
   const { pipeline, sidebar } = setup([
     { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
   ], () => ({ canonical: [rectangle(-10, -2, 10, 2)], issues: [] }));
-  pipeline.stamp.autoFaceSize = false;
+  pipeline.stamp.autoFaceSize = true;
   pipeline.stamp.faceShape = "square";
   pipeline.stamp.faceSize = 12;
   pipeline.stamp.margin = 1;
@@ -551,7 +552,7 @@ test("off-centre artwork grows the backing and stays editable after moving", asy
     ],
     () => ({ canonical: [rectangle(-4, -2, 4, 2)], issues: [] }),
   );
-  pipeline.stamp.autoFaceSize = false;
+  pipeline.stamp.autoFaceSize = true;
   pipeline.stamp.faceShape = "round";
   pipeline.stamp.faceSize = 50;
   pipeline.stamp.margin = 3;

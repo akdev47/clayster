@@ -21,9 +21,10 @@ export function createPipelineControls(
   const dom = collectDOM();
   syncControls(dom, pipeline);
 
-  segmented(dom.faceShape, "shape", (faceShape) =>
-    pipeline.setStamp({ faceShape }),
-  );
+  segmented(dom.faceShape, "shape", (faceShape) => {
+    pipeline.setStamp({ faceShape });
+    syncFaceSizeField(dom, pipeline);
+  });
   bindNumber(
     dom.faceSize,
     (faceSize) => {
@@ -131,6 +132,7 @@ function syncControls(dom, pipeline) {
   const stamp = pipeline.stamp;
 
   dom.faceSize.value = stamp.faceSize;
+  syncFaceSizeField(dom, pipeline);
   dom.faceThickness.value = stamp.faceThickness;
   syncMarginControl(dom, pipeline);
   dom.reliefDepth.value = stamp.reliefDepth;
@@ -140,6 +142,10 @@ function syncControls(dom, pipeline) {
 
   selectSegment(dom.faceShape, "shape", stamp.faceShape);
   selectSegment(dom.reliefMode, "mode", stamp.mode);
+}
+
+function syncFaceSizeField(dom, pipeline) {
+  dom.faceSizeField.hidden = pipeline.stamp.faceShape === "minimal";
 }
 
 function syncMarginControl(dom, pipeline) {
@@ -260,6 +266,7 @@ function collectDOM() {
     textSizeOutput: byId("font-size-value"),
     faceShape: byId("pipeline-face-shape"),
     faceSize: byId("pipeline-face-size"),
+    faceSizeField: byId("pipeline-face-size-field"),
     faceDimensions: byId("pipeline-face-dimensions"),
     faceThickness: byId("pipeline-face-thickness"),
     margin: byId("pipeline-margin"),
