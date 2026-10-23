@@ -17,6 +17,7 @@ import {
   fitsFace,
   isEditingField,
   MAX_ELEMENT_SCALE,
+  MAX_TEXT_SIZE_MM,
   MIN_ELEMENT_SCALE,
   MIN_TEXT_SIZE_MM,
   shouldHandleElementArrowKey,
@@ -24,7 +25,7 @@ import {
   textResizePreview,
 } from "./editor2dInteractions.js";
 import { SharedDesignControls } from "./sharedDesignControls.js";
-import { BUILT_IN_FONTS } from "./pipeline/fonts.js";
+import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./pipeline/fonts.js";
 import {
   createStampLayout,
   layoutRenderElements,
@@ -35,6 +36,8 @@ import { readableStampDisplay } from "./stamp2dDisplay.js";
 import { ArtworkComposer } from "./pipeline/artworkComposition.js";
 import { createTextSizeControls, elementDimensionsCm } from "./sizing.js";
 import { SETTINGS, applyInputLimits } from "./settings.js";
+import { loadFont } from "./pipeline/text.js";
+import { printableTextAdjustment } from "./pipeline/fixThinText.js";
 
 const state = {
   width: 60,
@@ -89,14 +92,17 @@ artboard.classList.add("canonical-rendering-enabled");
 // change the physical dimensions of the stamp.
 editor.canonicalFor = (id) => renderGeometry.get(id);
 editor.renderedTextSizeFor = (id) => renderedTextSizes.get(id);
-const maximumTextSizeMm = () => Math.max(
-  MIN_TEXT_SIZE_MM,
-  pipeline.stamp.faceSize - stampMargin(pipeline.stamp) * 2,
-);
+const maximumTextSizeMm = () => {
+  if (pipeline.stamp.faceShape === "minimal") return MAX_TEXT_SIZE_MM;
+  return Math.max(
+    MIN_TEXT_SIZE_MM,
+    pipeline.stamp.faceSize - stampMargin(pipeline.stamp) * 2,
+  );
+};
 Object.defineProperty(editor, "faceLimit", {
   get() {
     const stamp = pipeline.stamp;
-    if (stamp.autoFaceSize) return null;
+    if (stamp.autoFaceSize || stamp.faceShape === "minimal") return null;
     const halfExtent = (stamp.faceSize - stampMargin(stamp) * 2) / 2;
     return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
   },
@@ -352,14 +358,23 @@ function logoPlaceholder(kind) {
   `;
 }
 
+function formatElementSizeMm(dimensions) {
+  if (dimensions === null) return null;
+  return `${(dimensions.width * 10).toFixed(1)} × ${(dimensions.height * 10).toFixed(1)} mm`;
+}
+
 function addResizeHandles(element) {
   if (element.id !== editor.selectedId) return "";
 
+  const sizeLabel = formatElementSizeMm(
+    elementDimensionsCm(displayGeometry.get(element.id)),
+  );
   return `
     <span class="resize-handle handle-top-left"></span>
     <span class="resize-handle handle-top-right"></span>
     <span class="resize-handle handle-bottom-left"></span>
     <span class="resize-handle handle-bottom-right"></span>
+    <span class="selection-size"${sizeLabel === null ? " hidden" : ""}>${sizeLabel ?? ""}</span>
   `;
 }
 
@@ -408,7 +423,7 @@ function renderArtboard() {
     applyOverlayBounds(item, element);
   });
 
-  if (focusedElementId !== null) {
+  if (focusedElementId !== null && focusedElementId === editor.selectedId) {
     const focusedItem = [...artboard.querySelectorAll(".design-element")].find(
       (item) => item.dataset.elementId === focusedElementId,
     );
@@ -680,10 +695,16 @@ function updateElementDimensions() {
   const dimensions = element === null ? null : elementDimensionsCm(
     displayGeometry.get(element.id),
   );
+  const sizeLabel = formatElementSizeMm(dimensions);
   $("#center-element").disabled = pipeline.busy || dimensions === null;
-  $("#element-dimensions").textContent = dimensions === null
+  $("#element-dimensions").textContent = sizeLabel === null
     ? "Width × Height: —"
-    : `Width × Height: ${dimensions.width.toFixed(2)} × ${dimensions.height.toFixed(2)} cm`;
+    : `Width × Height: ${sizeLabel}`;
+  const badge = document.querySelector(".design-element.selected .selection-size");
+  if (badge !== null) {
+    badge.hidden = sizeLabel === null;
+    badge.textContent = sizeLabel ?? "";
+  }
 }
 
 function updatePNGSampleControls(element) {
@@ -797,6 +818,18 @@ function selectElement(id) {
 
   updateControls();
 }
+
+$("#stamp-canvas").addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || editor.selectedId === null) return;
+  if (event.target.closest(".design-element")) return;
+
+  if (document.activeElement?.classList.contains("design-element")) {
+    document.activeElement.blur();
+  }
+  editor.select(null);
+  renderArtboard();
+  updateControls();
+});
 
 function startDrag(event) {
   event.preventDefault();
@@ -1251,6 +1284,33 @@ $("#line-spacing").addEventListener("input", (event) => {
 
 $("#font-weight").addEventListener("input", (event) => {
   updateSelectedText({ thicknessMm: round2(Number(event.target.value)) });
+});
+
+$("#fix-thin-letters").addEventListener("click", async () => {
+  const element = selectedElement();
+  if (element?.kind !== "text") return;
+
+  const button = $("#fix-thin-letters");
+  const id = element.id;
+  button.disabled = true;
+  try {
+    const font = await loadFont(
+      element.source.font.reference ??
+        (BUILT_IN_FONTS.find((candidate) => candidate.id === (element.source.font.id ?? DEFAULT_FONT_ID)) ?? BUILT_IN_FONTS[0]).url,
+    );
+    const adjustment = await printableTextAdjustment(
+      font,
+      element.source,
+      element.transform,
+    );
+    if (adjustment === null || editor.selectedId !== id) return;
+    updateSelectedText({
+      fontSizeMm: adjustment.fontSizeMm,
+      thicknessMm: adjustment.thicknessMm,
+    });
+  } finally {
+    button.disabled = false;
+  }
 });
 
 $$("#editor-controls-shared [data-align]").forEach((button) => {

@@ -40,6 +40,14 @@ import {
   MIN_PNG_BACKGROUND_TOLERANCE,
 } from "../src/stamp_generator/static/stamp_generator/js/pngTrace.js";
 import { DEFAULT_PNG_SMOOTHING } from "../src/stamp_generator/static/stamp_generator/js/pipeline/png.js";
+import { MIN_CLEAR_GAP_MM } from "../src/stamp_generator/static/stamp_generator/js/pipeline/validate.js";
+import {
+  LETTER_THICKNESS_STEP_MM,
+  MAX_LETTER_THICKNESS_MM,
+  MAX_TEXT_SIZE_SEARCH_MM,
+  MIN_PRINTABLE_FEATURE_MM,
+  TEXT_SIZE_SEARCH_STEP_MM,
+} from "../src/stamp_generator/static/stamp_generator/js/pipeline/fixThinText.js";
 
 const html = readFileSync(
   new URL("../src/stamp_generator/templates/stamp_generator/index.html", import.meta.url),
@@ -79,6 +87,10 @@ test("a wrong value stops the page with a message that names the setting", () =>
   assert.match(
     problemsOf((s) => { s.stamp.faceSizeMm.default = face.min - 1; }),
     new RegExp(`stamp\\.faceSizeMm: default \\(${face.min - 1}\\) is below min \\(${face.min}\\)`),
+  );
+  assert.match(
+    problemsOf((s) => { s.checks.clearGapMm = 0; }),
+    /checks\.clearGapMm must be above 0/,
   );
   assert.match(
     problemsOf((s) => { s.text.lineSpacing.step = 0; }),
@@ -169,6 +181,15 @@ test("the old constant names still carry the settings values", () => {
   assert.equal(MAX_PNG_BACKGROUND_TOLERANCE, images.png.backgroundTolerance.max);
   assert.equal(DEFAULT_PNG_BACKGROUND_TOLERANCE, images.png.backgroundTolerance.default);
   assert.equal(MAX_QUANTITY, order.maxQuantity);
+
+  // The "fix thin text" search aims at exactly what the warning checks and
+  // stays inside what the text controls allow.
+  assert.equal(MIN_PRINTABLE_FEATURE_MM, SETTINGS.checks.thinFeatureMm);
+  assert.equal(MIN_CLEAR_GAP_MM, SETTINGS.checks.clearGapMm);
+  assert.equal(LETTER_THICKNESS_STEP_MM, text.letterThicknessMm.step);
+  assert.equal(MAX_LETTER_THICKNESS_MM, text.letterThicknessMm.max);
+  assert.equal(TEXT_SIZE_SEARCH_STEP_MM, text.sizeMm.step);
+  assert.equal(MAX_TEXT_SIZE_SEARCH_MM, text.sizeMm.max);
 });
 
 test("the page's input fields take their limits from the settings, nowhere else", () => {

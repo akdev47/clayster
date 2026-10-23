@@ -140,6 +140,23 @@ const definition = {
     //     waarschuwingen (strenger); verlaag hem voor minder (de stempel kan
     //     dan fijne details verliezen bij het printen of in de klei).
     thinFeatureMm: 0.8,
+
+    // EN: The narrow-gap warning ("gap may close up"). Two parts of the
+    //     artwork, or a hole, closer together than this are flagged, because
+    //     the clay or the printer would fill the gap and join them. It is a
+    //     provisional value (three lines of a 0.4 mm nozzle); a clay test of
+    //     slots and holes can replace it. Raise it for stricter, lower it for
+    //     fewer warnings. This is separate from thinFeatureMm, which is about
+    //     the thickness of the lines themselves.
+    // NL: De waarschuwing voor smalle spleten ("spleet kan dichtlopen"). Twee
+    //     delen van het ontwerp, of een gat, die dichter bij elkaar zitten dan
+    //     dit worden gemarkeerd, omdat de klei of de printer de spleet zou
+    //     vullen en de delen zou verbinden. Het is een voorlopige waarde (drie
+    //     lijnen van een 0,4 mm nozzle); een kleitest met sleuven en gaten kan
+    //     hem vervangen. Verhoog hem voor strenger, verlaag hem voor minder
+    //     waarschuwingen. Dit staat los van thinFeatureMm, dat over de dikte
+    //     van de lijnen zelf gaat.
+    clearGapMm: 1.2,
   },
 
   // ==========================================================================
@@ -360,6 +377,7 @@ export function validateSettings(settings) {
     "handle.maxShareOfFace must be above 0 and at most 1",
   );
   rule(settings.checks.thinFeatureMm > 0, "checks.thinFeatureMm must be above 0");
+  rule(settings.checks.clearGapMm > 0, "checks.clearGapMm must be above 0");
   rule(
     Number.isInteger(text.maxRows) && text.maxRows >= 1,
     "text.maxRows must be a whole number of at least 1",

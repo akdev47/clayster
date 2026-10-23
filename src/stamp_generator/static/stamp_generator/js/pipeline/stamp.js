@@ -4,7 +4,7 @@ import { toShapes, bounds, transform } from "./canonical.js";
 import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
-import { thinFeatureIssues } from "./validate.js";
+import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
 import { createStampLayout, stampFaceShape } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
 import { SETTINGS } from "../settings.js";
@@ -85,12 +85,14 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   // become a private transform applied only while generating this mesh.
   const layout = createStampLayout(artwork, settings, notes);
   const { artwork: art, faceSize } = layout;
-  const thinIssues = thinFeatureIssues(art, {
-    textGlyphs: textGlyphs.map((glyph) => ({
-      ...glyph,
-      canonical: transform(glyph.canonical, layout.artworkTransform),
-    })),
-  });
+  const fittedGlyphs = textGlyphs.map((glyph) => ({
+    ...glyph,
+    canonical: transform(glyph.canonical, layout.artworkTransform),
+  }));
+  const thinIssues = [
+    ...thinFeatureIssues(art, { textGlyphs: fittedGlyphs }),
+    ...narrowGapIssues(art, { textGlyphs: fittedGlyphs }),
+  ];
   if (layout.overflows) {
     thinIssues.push({
       level: "error",
@@ -105,7 +107,7 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
     );
   }
 
-  const base = buildBase(faceSize, settings);
+  const base = buildBase(layout, settings);
   const relief = buildRelief(art, settings);
 
   // The face is everything that touches clay: the plate plus its artwork.
@@ -141,10 +143,11 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
 
   // The stamp stands on the plate; the mug stands beside it. It goes on the
   // far side, where something three times the height cannot stand in front of
-  // it, and the gap is measured off its own bounds so the handle counts too.
+  // it, and the gap is measured off the finished stamp so an offset plate and
+  // the handle both count.
   restOnPlate(stamp);
   restOnPlate(clay);
-  clay.translate(-(faceSize / 2 + GAP) - clay.boundingBox.max.x, 0, 0);
+  clay.translate(stamp.boundingBox.min.x - GAP - clay.boundingBox.max.x, 0, 0);
 
   return {
     stamp,
@@ -156,8 +159,9 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   };
 }
 
-function buildBase(faceSize, settings) {
+function buildBase(layout, settings) {
   const thickness = settings.faceThickness;
+  const { faceSize } = layout;
   let geometry;
 
   if (settings.faceShape === "round") {
@@ -168,11 +172,18 @@ function buildBase(faceSize, settings) {
       96,
     );
     geometry.rotateX(Math.PI / 2); // three builds cylinders Y-up; the app is Z-up.
+    geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
+  } else if (settings.faceShape === "minimal") {
+    geometry = new THREE.BoxGeometry(layout.widthMm, layout.heightMm, thickness);
+    geometry.translate(
+      layout.minX + layout.widthMm / 2,
+      layout.minY + layout.heightMm / 2,
+      thickness / 2,
+    );
   } else {
     geometry = new THREE.BoxGeometry(faceSize, faceSize, thickness);
+    geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
   }
-
-  geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
 
   return geometry;
 }

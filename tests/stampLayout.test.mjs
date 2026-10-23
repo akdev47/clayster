@@ -84,10 +84,10 @@ test("rectangular face outline and 3D square face match", () => {
     built.stamp.computeBoundingBox();
     const meshSize = built.stamp.boundingBox.getSize(new THREE.Vector3());
 
-    assert.equal(scene.viewBox, "-10 -10 20 20");
-    assert.equal(scene.facePaths[0].d, "M -10 10 L 10 10 L 10 -10 L -10 -10 Z");
-    assertClose(meshSize.x, 20);
-    assertClose(meshSize.y, 20);
+    assert.equal(scene.viewBox, "-20 -20 40 40");
+    assert.equal(scene.facePaths[0].d, "M -20 20 L 20 20 L 20 -20 L -20 -20 Z");
+    assertClose(meshSize.x, 40);
+    assertClose(meshSize.y, 40);
   } finally {
     built.stamp.dispose();
     built.clay.dispose();
@@ -229,7 +229,83 @@ test("glyph substitutions without a reliable character mapping remain unattribut
   assert.equal(glyphOutlines[0].character, null);
 });
 
-test("legacy manual sizing grows the backing without rescaling or moving artwork", () => {
+test("minimal face hugs artwork and ignores a pure translation", () => {
+  const layout = createStampLayout(
+    rectangle(5, -3, 15, 3),
+    settings({ faceShape: "minimal", margin: 3 }),
+  );
+
+  assert.equal(layout.widthMm, 16);
+  assert.equal(layout.heightMm, 12);
+  assert.equal(layout.minX, 2);
+  assert.equal(layout.minY, -6);
+  assert.equal(layout.faceSize, 16);
+  assert.equal(layout.overflows, false);
+
+  const moved = createStampLayout(
+    rectangle(25, -3, 35, 3),
+    settings({ faceShape: "minimal", margin: 3 }),
+  );
+  assert.equal(moved.widthMm, layout.widthMm);
+  assert.equal(moved.heightMm, layout.heightMm);
+  assert.equal(moved.minX, 22);
+  assert.equal(moved.minY, layout.minY);
+});
+
+test("minimal face grows only on the sides the artwork grows", () => {
+  const short = createStampLayout(
+    rectangle(5, -3, 15, 3),
+    settings({ faceShape: "minimal", margin: 3 }),
+  );
+  const tall = createStampLayout(
+    rectangle(5, -8, 15, 8),
+    settings({ faceShape: "minimal", margin: 3 }),
+  );
+
+  assert.equal(tall.widthMm, short.widthMm);
+  assert.equal(tall.heightMm, 22);
+});
+
+test("minimal face includes every element and shrinks when an outer one is removed", () => {
+  const left = rectangle(-22, -5, -12, 5);
+  const right = rectangle(15, -3, 25, 4);
+  const inside = rectangle(-10, -2, -8, 2);
+  const options = settings({ faceShape: "minimal", margin: 2 });
+  const both = createStampLayout([...left, ...right], options);
+  const withInside = createStampLayout([...left, ...right, ...inside], options);
+  const onlyLeft = createStampLayout(left, options);
+
+  assert.equal(both.minX, -24);
+  assert.equal(both.widthMm, 51);
+  assert.equal(both.minY, -7);
+  assert.equal(both.heightMm, 14);
+  assert.equal(withInside.widthMm, both.widthMm);
+  assert.equal(withInside.heightMm, both.heightMm);
+  assert.equal(onlyLeft.widthMm, 14);
+  assert.ok(onlyLeft.widthMm < both.widthMm);
+});
+
+test("minimal 3D plate matches the tight rectangle, including an off-center design", () => {
+  const built = buildStamp(
+    rectangle(5, -3, 15, 3),
+    settings({ faceShape: "minimal", margin: 3 }),
+  );
+
+  try {
+    built.stamp.computeBoundingBox();
+    const box = built.stamp.boundingBox;
+    const size = box.getSize(new THREE.Vector3());
+    assertClose(size.x, 16);
+    assertClose(size.y, 12);
+    assertClose((box.min.x + box.max.x) / 2, 10);
+    assertClose((box.min.y + box.max.y) / 2, 0);
+  } finally {
+    built.stamp.dispose();
+    built.clay.dispose();
+  }
+});
+
+test("a fixed face keeps its size and reports artwork that sticks out", () => {
   const local = rectangle(-10, -2, 10, 2);
   const element = {
     id: "png-1",
@@ -252,6 +328,6 @@ test("legacy manual sizing grows the backing without rescaling or moving artwork
   assert.equal(layout.artworkTransform.scale, 1);
   assert.deepEqual(displayed[0].canonical, layout.artwork);
   assert.deepEqual(bounds(displayed[0].canonical), bounds(composed));
-  assert.equal(layout.faceSize, 34);
-  assert.equal(layout.overflows, false);
+  assert.equal(layout.faceSize, 20);
+  assert.equal(layout.overflows, true);
 });

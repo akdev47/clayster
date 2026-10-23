@@ -8,11 +8,15 @@ export const MAX_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.max;
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
   if (shape === "outline") return "square";
-  if (shape === "round" || shape === "square") return shape;
-  throw new Error("Unsupported stamp shape. Choose Round or Square.");
+  if (shape === "round" || shape === "square" || shape === "minimal") return shape;
+  throw new Error("Unsupported stamp shape. Choose Round, Square, or Minimal.");
 }
 
 export function stampMarginMaximum(settings = {}) {
+  // Minimal has no set face size, so the margin can use its own full range.
+  if (stampFaceShape(settings.faceShape ?? "round") === "minimal") {
+    return MAX_STAMP_MARGIN_MM;
+  }
   const faceSize = Number.isFinite(settings.faceSize)
     ? settings.faceSize
     : SETTINGS.stamp.faceSizeMm.default;
@@ -78,8 +82,9 @@ export function layoutRenderElements(elements, artworkTransform) {
   }));
 }
 
-// Fixed sizing keeps element movement independent from the backing dimensions.
-// Automatic sizing remains supported for existing designs, but is opt-in.
+// Round and Square keep the face size you set, so moving artwork does not
+// resize the plate. Automatic sizing stays available for older designs.
+// Minimal always hugs the artwork and ignores that face size.
 export function fitToFace(artwork, settings, notes = []) {
   settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const margin = stampMargin(settings);
@@ -88,6 +93,16 @@ export function fitToFace(artwork, settings, notes = []) {
       art: [],
       faceSize: settings.faceSize ?? 50,
       transform: { scale: 1, xMm: 0, yMm: 0 },
+    };
+  }
+
+  if (settings.faceShape === "minimal") {
+    const box = bounds(artwork);
+    return {
+      art: transform(artwork, { scale: 1, xMm: 0, yMm: 0 }),
+      faceSize: Math.max(box.width, box.height) + margin * 2,
+      transform: { scale: 1, xMm: 0, yMm: 0 },
+      overflows: false,
     };
   }
 
@@ -110,12 +125,24 @@ export function fitToFace(artwork, settings, notes = []) {
 }
 
 export function stampFace(artwork, faceSize, settings) {
-  if (stampFaceShape(settings.faceShape) === "round") {
+  const shape = stampFaceShape(settings.faceShape);
+  if (shape === "round") {
     const radius = faceSize / 2;
     return [[Array.from({ length: FACE_SEGMENTS }, (_, index) => {
       const angle = (index / FACE_SEGMENTS) * Math.PI * 2;
       return [Math.cos(angle) * radius, Math.sin(angle) * radius];
     })]];
+  }
+
+  if (shape === "minimal" && artwork.length > 0) {
+    const margin = stampMargin(settings);
+    const box = bounds(artwork);
+    return [[[
+      [box.minX - margin, box.minY - margin],
+      [box.maxX + margin, box.minY - margin],
+      [box.maxX + margin, box.maxY + margin],
+      [box.minX - margin, box.maxY + margin],
+    ]]];
   }
 
   const half = faceSize / 2;
