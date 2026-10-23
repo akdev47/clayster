@@ -8,7 +8,7 @@ import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/
 import { DesignEditorController, textResizePreview } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
 import { SharedDesignControls } from "../src/stamp_generator/static/stamp_generator/js/sharedDesignControls.js";
 import { createResizeTarget } from "../src/stamp_generator/static/stamp_generator/js/pipelineControls.js";
-import { createTextSizeControls, elementDimensionsCm, pointsToMillimetres, millimetresToPoints } from "../src/stamp_generator/static/stamp_generator/js/sizing.js";
+import { createTextSizeControls, elementDimensionsCm, pointsToMillimetres, millimetresToPoints, uniformSizeChange } from "../src/stamp_generator/static/stamp_generator/js/sizing.js";
 import { bounds, transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 import { ArtworkComposer } from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
@@ -174,6 +174,16 @@ test("3D resize drives Text size or image scale without a manual face-size path"
   }
 });
 
+test("a typed object width scales the height by the same factor", () => {
+  const wider = uniformSizeChange({ width: 20, height: 10 }, "width", 40);
+  assert.deepEqual(wider, { factor: 2, width: 40, height: 20 });
+  const shorter = uniformSizeChange({ width: 20, height: 10 }, "height", 5);
+  assert.equal(shorter.factor, 0.5);
+  assert.equal(shorter.width, 10);
+  assert.equal(shorter.height, 5);
+  assert.equal(uniformSizeChange({ width: 0, height: 10 }, "width", 40), null);
+});
+
 test("legacy Artwork settings become Square without resizing or moving artwork", async () => {
   const artwork = rectangle(-12, -3, 8, 5);
   const settings = { ...DEFAULT_STAMP, faceShape: "outline", mirror: false, handle: "none" };
@@ -212,6 +222,7 @@ test("round automatic sizing measures artwork radius rather than unused bounding
   const diamond = [[[[0, 10], [-10, 0], [0, -10], [10, 0]]]];
   const layout = createStampLayout(diamond, {
     ...DEFAULT_STAMP,
+    faceShape: "round",
     mirror: false,
     autoFaceSize: true,
   });

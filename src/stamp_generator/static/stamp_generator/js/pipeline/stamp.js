@@ -4,16 +4,17 @@ import { toShapes, bounds, transform } from "./canonical.js";
 import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
-import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
-import { createStampLayout, stampFaceShape } from "./stampLayout.js";
+import { featureIssues, overflowIssue } from "./validate.js";
+import { createStampLayout, stampFaceShape, stampFaceSize } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
 
 export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
-  faceShape: "round", // 'round' | 'square'
+  faceShape: "minimal", // 'minimal' | 'round' | 'square'
   autoFaceSize: false,
   faceSize: 50,
+  faceHeight: null, // null matches faceSize, so the plate stays circular or square.
   faceThickness: 4,
   reliefDepth: 2,
   mode: "emboss", // 'emboss' | 'deboss'
@@ -61,9 +62,14 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
  * Everything is millimetres with Z up, so the geometry that comes out is
  * already in the orientation a slicer expects.
  */
-export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs = [] } = {}) {
+export function buildStamp(artwork, params, handleGeometry = null, {
+  textGlyphs = [],
+  checkPrintability = true,
+} = {}) {
   const settings = { ...DEFAULT_STAMP, ...params };
-  assertFaceSize(settings.faceSize);
+  const requestedFace = stampFaceSize(settings);
+  assertFaceSize(requestedFace.width);
+  assertFaceSize(requestedFace.height);
   assertFaceThickness(settings.faceThickness);
   settings.faceShape = stampFaceShape(settings.faceShape);
   if (
@@ -77,21 +83,18 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   // The shared layout is also rendered in 2D, so fitting and mirroring cannot
   // become a private transform applied only while generating this mesh.
   const layout = createStampLayout(artwork, settings, notes);
-  const { artwork: art, faceSize } = layout;
+  const { artwork: art } = layout;
   const fittedGlyphs = textGlyphs.map((glyph) => ({
     ...glyph,
     canonical: transform(glyph.canonical, layout.artworkTransform),
   }));
-  const thinIssues = [
-    ...thinFeatureIssues(art, { textGlyphs: fittedGlyphs }),
-    ...narrowGapIssues(art, { textGlyphs: fittedGlyphs }),
-  ];
-  if (layout.overflows) {
-    thinIssues.push({
-      level: "error",
-      code: "artwork-overflow",
-      message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
-    });
+  // The pipeline caches these against the artwork and passes false here so a
+  // 3D build does not measure the same strokes and gaps again.
+  const thinIssues = [];
+  if (checkPrintability) {
+    thinIssues.push(...featureIssues(art, { textGlyphs: fittedGlyphs }));
+    const overflow = overflowIssue(layout);
+    if (overflow) thinIssues.push(overflow);
   }
 
   if (offTheMug(bounds(art))) {
@@ -145,7 +148,7 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   return {
     stamp,
     clay,
-    info: describe(stamp, faceSize, settings),
+    info: describe(stamp, layout, settings),
     layout,
     notes,
     thinIssues,
@@ -154,18 +157,20 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
 
 function buildBase(layout, settings) {
   const thickness = settings.faceThickness;
-  const { faceSize } = layout;
   let geometry;
 
   if (settings.faceShape === "round") {
-    geometry = new THREE.CylinderGeometry(
-      faceSize / 2,
-      faceSize / 2,
-      thickness,
-      96,
-    );
-    geometry.rotateX(Math.PI / 2); // three builds cylinders Y-up; the app is Z-up.
-    geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
+    const width = layout.widthMm;
+    const height = layout.heightMm;
+    if (Math.abs(width - height) < 1e-6) {
+      geometry = new THREE.CylinderGeometry(width / 2, width / 2, thickness, 96);
+      geometry.rotateX(Math.PI / 2); // three builds cylinders Y-up; the app is Z-up.
+      geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
+    } else {
+      const ring = layout.face[0][0];
+      const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x, y)));
+      geometry = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
+    }
   } else if (settings.faceShape === "minimal") {
     geometry = new THREE.BoxGeometry(layout.widthMm, layout.heightMm, thickness);
     geometry.translate(
@@ -174,7 +179,7 @@ function buildBase(layout, settings) {
       thickness / 2,
     );
   } else {
-    geometry = new THREE.BoxGeometry(faceSize, faceSize, thickness);
+    geometry = new THREE.BoxGeometry(layout.widthMm, layout.heightMm, thickness);
     geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
   }
 
@@ -248,7 +253,7 @@ function restOnPlate(geometry) {
 }
 
 // Measurements shown in the UI come from the finished mesh, including its handle.
-function describe(stamp, faceSize, settings) {
+function describe(stamp, layout, settings) {
   stamp.computeBoundingBox();
 
   const size = stamp.boundingBox.getSize(new THREE.Vector3());
@@ -260,7 +265,8 @@ function describe(stamp, faceSize, settings) {
     width: size.x,
     depth: size.y,
     height: size.z,
-    faceSize,
+    faceSize: layout.widthMm,
+    faceHeight: layout.heightMm,
     triangles: vertices / 3,
     mode: settings.mode,
   };

@@ -654,3 +654,76 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
     else globalThis.document = previousDocument;
   }
 });
+
+test("a 2D edit publishes the face and builds the stamp only when asked", async () => {
+  const { pipeline, sidebar } = setup([text()]);
+  pipeline.buildSolids = false;
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(pipeline.result.clay, null);
+    assert.equal(pipeline.result.solidsDeferred, true);
+    assert.ok(pipeline.result.layout.widthMm > 0);
+    assert.ok(pipeline.result.artwork.length > 0);
+    assert.match(sidebar.state.overall.message, /^Design ready/);
+
+    const built = await pipeline.ensureSolids();
+    assert.equal(built, true);
+    assert.ok(pipeline.result.stamp);
+    assert.equal(pipeline.result.solidsDeferred, undefined);
+    assert.equal(pipeline.buildSolids, false);
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("a 2D edit reports overflow before a mesh exists", async () => {
+  const { pipeline, sidebar } = setup([
+    { id: "wide", kind: "svg", source: { reference: "wide.svg" } },
+  ], () => ({ canonical: [rectangle(-30, -5, 30, 5)], issues: [] }));
+  pipeline.buildSolids = false;
+  pipeline.stamp.faceShape = "round";
+  pipeline.stamp.faceSize = 20;
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(pipeline.result.clay, null);
+    assert.equal(pipeline.result.solidsDeferred, true);
+    assert.equal(pipeline.result.layout.overflows, true);
+    assert.ok(pipeline.result.issues.some(({ code }) => code === "artwork-overflow"));
+    assert.equal(sidebar.state.overall.level, "error");
+    assert.match(
+      sidebar.state.rows.find(({ code }) => code === "artwork-overflow").message,
+      /20 × 20 mm face/,
+    );
+  } finally {
+    dispose(pipeline);
+  }
+});
+
+test("stroke and gap checks are reused for a face change and the 3D build", async () => {
+  const { pipeline } = setup([
+    { id: "hairline", kind: "svg", source: { reference: "hairline.svg" } },
+  ], () => ({ canonical: [rectangle(-5, 0, 5, 0.3)], issues: [] }));
+  pipeline.buildSolids = false;
+  try {
+    await pipeline.run();
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(pipeline.printabilityComputations, 1);
+    assert.ok(pipeline.result.issues.some(({ message }) => /thinner than about 0\.8 mm/.test(message)));
+
+    pipeline.stamp.faceShape = "square";
+    await pipeline.run();
+    assert.equal(pipeline.result.stamp, null);
+    assert.equal(pipeline.printabilityComputations, 1);
+    assert.ok(pipeline.result.issues.some(({ message }) => /thinner than about 0\.8 mm/.test(message)));
+
+    const built = await pipeline.ensureSolids();
+    assert.equal(built, true);
+    assert.ok(pipeline.result.stamp);
+    assert.equal(pipeline.printabilityComputations, 1);
+    assert.ok(pipeline.result.issues.some(({ message }) => /thinner than about 0\.8 mm/.test(message)));
+  } finally {
+    dispose(pipeline);
+  }
+});

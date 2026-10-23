@@ -69,6 +69,35 @@ function matchingTextLayout(text, alignment) {
   return { canonical, layout, displayed };
 }
 
+test("a new stamp starts on Minimal", () => {
+  assert.equal(DEFAULT_STAMP.faceShape, "minimal");
+});
+
+test("square and round faces keep an independent width and height", () => {
+  for (const faceShape of ["square", "round"]) {
+    const built = buildStamp(
+      rectangle(-8, -4, 8, 4),
+      settings({ faceShape, autoFaceSize: false, faceSize: 60, faceHeight: 30 }),
+    );
+    try {
+      assert.equal(built.layout.widthMm, 60);
+      assert.equal(built.layout.heightMm, 30);
+      const ring = built.layout.face[0][0];
+      const xs = ring.map(([x]) => x);
+      const ys = ring.map(([, y]) => y);
+      assertClose(Math.max(...xs) - Math.min(...xs), 60);
+      assertClose(Math.max(...ys) - Math.min(...ys), 30);
+      built.stamp.computeBoundingBox();
+      const meshSize = built.stamp.boundingBox.getSize(new THREE.Vector3());
+      assertClose(meshSize.x, 60, 1e-4);
+      assertClose(meshSize.y, 30, 1e-4);
+    } finally {
+      built.stamp.dispose();
+      built.clay.dispose();
+    }
+  }
+});
+
 test("rectangular face outline and 3D square face match", () => {
   const built = buildStamp(
     rectangle(-8, -4, 8, 4),

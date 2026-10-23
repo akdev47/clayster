@@ -7,6 +7,7 @@ import {
 } from "./pipeline/stamp.js";
 import {
   MIN_STAMP_MARGIN_MM,
+  stampFaceSize,
   stampMargin,
   stampMarginMaximum,
 } from "./pipeline/stampLayout.js";
@@ -24,24 +25,33 @@ export function createPipelineControls(
   segmented(dom.faceShape, "shape", (faceShape) => {
     pipeline.setStamp({ faceShape });
     syncFaceSizeField(dom, pipeline);
+    syncFaceSizeValues(dom, pipeline);
   });
   bindNumber(
     dom.faceSize,
     (faceSize) => {
       pipeline.setStamp({ faceSize });
+      syncFaceSizeValues(dom, pipeline);
       syncMarginControl(dom, pipeline);
     },
     FACE_SIZE_LIMITS.min,
     FACE_SIZE_LIMITS.max,
   );
   dom.faceSize.addEventListener("change", () => {
-    const entered = Number(dom.faceSize.value);
-    const faceSize = Number.isFinite(entered) && dom.faceSize.value !== ""
-      ? clamp(entered, FACE_SIZE_LIMITS.min, FACE_SIZE_LIMITS.max)
-      : pipeline.stamp.faceSize;
-    dom.faceSize.value = String(faceSize);
-    if (faceSize !== pipeline.stamp.faceSize) pipeline.setStamp({ faceSize });
-    syncMarginControl(dom, pipeline);
+    commitFaceSize(dom, pipeline, "faceSize");
+  });
+  bindNumber(
+    dom.faceHeight,
+    (faceHeight) => {
+      pipeline.setStamp({ faceHeight });
+      syncFaceSizeValues(dom, pipeline);
+      syncMarginControl(dom, pipeline);
+    },
+    FACE_SIZE_LIMITS.min,
+    FACE_SIZE_LIMITS.max,
+  );
+  dom.faceHeight.addEventListener("change", () => {
+    commitFaceSize(dom, pipeline, "faceHeight");
   });
   bindNumber(
     dom.faceThickness,
@@ -92,7 +102,11 @@ export function createPipelineControls(
   });
 
   dom.exportSTL.addEventListener("click", () =>
-    run(dom, () => {
+    run(dom, async () => {
+      const built = await pipeline.ensureSolids();
+      if (!built) {
+        throw new Error(pipeline.error?.message ?? "There is no stamp to export yet.");
+      }
       exportSTL(exportable(viewer, pipeline), "clayster-stamp.stl");
       return "Exported the stamp as STL.";
     }),
@@ -102,8 +116,9 @@ export function createPipelineControls(
     dom.exportSTL.disabled = true;
   });
   pipeline.addEventListener("result", () => {
-    dom.exportSTL.disabled =
-      !pipeline.result?.stamp || hasBlockingIssue(pipeline);
+    const canBuild =
+      pipeline.result?.stamp || pipeline.result?.solidsDeferred;
+    dom.exportSTL.disabled = !canBuild || hasBlockingIssue(pipeline);
     const layout = pipeline.result?.layout;
     dom.faceDimensions.textContent = layout
       ? `${layout.widthMm.toFixed(1)} × ${layout.heightMm.toFixed(1)} mm`
@@ -130,8 +145,10 @@ export function createPipelineControls(
 
 function syncControls(dom, pipeline) {
   const stamp = pipeline.stamp;
+  const face = stampFaceSize(stamp);
 
-  dom.faceSize.value = stamp.faceSize;
+  dom.faceSize.value = face.width;
+  dom.faceHeight.value = face.height;
   syncFaceSizeField(dom, pipeline);
   dom.faceThickness.value = stamp.faceThickness;
   syncMarginControl(dom, pipeline);
@@ -144,8 +161,32 @@ function syncControls(dom, pipeline) {
   selectSegment(dom.reliefMode, "mode", stamp.mode);
 }
 
+function syncFaceSizeValues(dom, pipeline) {
+  const face = stampFaceSize(pipeline.stamp);
+  if (dom.faceSize !== document.activeElement) dom.faceSize.value = String(face.width);
+  if (dom.faceHeight !== document.activeElement) dom.faceHeight.value = String(face.height);
+}
+
 function syncFaceSizeField(dom, pipeline) {
-  dom.faceSizeField.hidden = pipeline.stamp.faceShape === "minimal";
+  const hidden = pipeline.stamp.faceShape === "minimal";
+  dom.faceSizeField.hidden = hidden;
+  dom.faceHeightField.hidden = hidden;
+}
+
+function commitFaceSize(dom, pipeline, field) {
+  const input = field === "faceSize" ? dom.faceSize : dom.faceHeight;
+  const current = stampFaceSize(pipeline.stamp);
+  const fallback = field === "faceSize" ? current.width : current.height;
+  const entered = Number(input.value);
+  const value = Number.isFinite(entered) && input.value !== ""
+    ? clamp(entered, FACE_SIZE_LIMITS.min, FACE_SIZE_LIMITS.max)
+    : fallback;
+  input.value = String(value);
+  if (value !== fallback || !Number.isFinite(pipeline.stamp[field])) {
+    pipeline.setStamp({ [field]: value });
+  }
+  syncFaceSizeValues(dom, pipeline);
+  syncMarginControl(dom, pipeline);
 }
 
 function syncMarginControl(dom, pipeline) {
@@ -211,11 +252,10 @@ function hasBlockingIssue(pipeline) {
 }
 
 function run(dom, action) {
-  try {
-    showStatus(dom, action(), true);
-  } catch (error) {
-    showStatus(dom, error.message);
-  }
+  Promise.resolve()
+    .then(action)
+    .then((message) => showStatus(dom, message, true))
+    .catch((error) => showStatus(dom, error.message));
 }
 
 function showStatus(dom, message, ok = false) {
@@ -267,6 +307,8 @@ function collectDOM() {
     faceShape: byId("pipeline-face-shape"),
     faceSize: byId("pipeline-face-size"),
     faceSizeField: byId("pipeline-face-size-field"),
+    faceHeight: byId("pipeline-face-height"),
+    faceHeightField: byId("pipeline-face-height-field"),
     faceDimensions: byId("pipeline-face-dimensions"),
     faceThickness: byId("pipeline-face-thickness"),
     margin: byId("pipeline-margin"),

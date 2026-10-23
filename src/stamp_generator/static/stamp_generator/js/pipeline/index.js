@@ -10,14 +10,14 @@ import {
   DEFAULT_PNG_BACKGROUND_MODE,
   DEFAULT_PNG_BACKGROUND_TOLERANCE,
 } from "../pngTrace.js";
-import { validate } from "./validate.js";
+import { validate, featureIssues, overflowIssue } from "./validate.js";
 import {
   assertFaceSize,
   assertFaceThickness,
   buildStamp,
   DEFAULT_STAMP,
 } from "./stamp.js";
-import { stampFaceShape, stampMargin } from "./stampLayout.js";
+import { createStampLayout, stampFaceShape, stampMargin } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
@@ -82,6 +82,10 @@ export class Pipeline extends EventTarget {
       sourceStats: null,
       segmentations: [],
     };
+    // Stroke and gap results depend on the artwork, not on the face. One entry
+    // per artwork identity so a later face change or 3D build can reuse them.
+    this.printabilityCache = new Map();
+    this.printabilityComputations = 0;
     this.designModel = null;
     this.artworkComposer = new ArtworkComposer((element) =>
       this.buildElementArtwork(element),
@@ -92,6 +96,10 @@ export class Pipeline extends EventTarget {
 
     this.timer = null;
     this.token = 0;
+    // The editor turns this off while the 2D view is open. Tests and a direct
+    // run() still build the stamp. Review and export force one build.
+    this.buildSolids = true;
+    this.forceSolids = false;
 
     if (designModel !== null) this.attachDesignModel(designModel);
   }
@@ -110,6 +118,9 @@ export class Pipeline extends EventTarget {
     if (patch.faceSize !== undefined) {
       assertFaceSize(patch.faceSize);
     }
+    if (patch.faceHeight !== undefined && patch.faceHeight !== null) {
+      assertFaceSize(patch.faceHeight);
+    }
     if (patch.faceThickness !== undefined) {
       assertFaceThickness(patch.faceThickness);
     }
@@ -118,6 +129,7 @@ export class Pipeline extends EventTarget {
     }
     if (
       Object.hasOwn(patch, "faceSize") ||
+      Object.hasOwn(patch, "faceHeight") ||
       Object.hasOwn(patch, "margin")
     ) {
       patch = {
@@ -158,6 +170,7 @@ export class Pipeline extends EventTarget {
         renderElements = null,
         segmentations = [],
         textGlyphs = [],
+        key: artworkKey,
       } = await this.artwork();
       if (token !== this.token) return;
 
@@ -193,45 +206,79 @@ export class Pipeline extends EventTarget {
         return;
       }
 
+      // 2D editing publishes the face immediately. Overflow is known from that
+      // layout. Stroke and gap checks follow, and a 3D build reuses them.
+      if (!this.forceSolids && !this.buildSolids) {
+        const layout = createStampLayout(artwork, this.stamp, []);
+        const deferred = {
+          artwork,
+          renderElements,
+          segmentations,
+          stamp: null,
+          clay: null,
+          info: null,
+          layout,
+          notes: [],
+          solidsDeferred: true,
+        };
+        const known = this.readyPrintability(artworkKey);
+        issues = this.applyPrintability(initialIssues, known ?? [], layout);
+        this.recordValidation(sourceStats, elementStats, issues);
+        this.noteDeferredPreview(issues);
+        this.publish({ ...deferred, issues }, token);
+        if (known !== null) return;
+
+        const measured = await this.printabilityFor(artworkKey, artwork, textGlyphs);
+        if (token !== this.token) return;
+        issues = this.applyPrintability(initialIssues, measured, layout);
+        this.recordValidation(sourceStats, elementStats, issues);
+        this.noteDeferredPreview(issues);
+        this.publish({ ...deferred, issues }, token);
+        return;
+      }
+
       this.setSVGStage("stamp preparation");
+      const printability = this.printabilityFor(artworkKey, artwork, textGlyphs);
       const handle = await this.handleGeometry();
       if (token !== this.token) return;
 
       await initializeSolids(wasmUrl);
       if (token !== this.token) return;
+      const measured = await printability;
+      if (token !== this.token) return;
       this.setSVGStage("stamp generation");
-      const { thinIssues, ...built } = buildStamp(artwork, this.stamp, handle, { textGlyphs });
-      if (thinIssues.length > 0) {
-        const scopedThinIssues =
-          this.designModel === null
-            ? thinIssues
-            : thinIssues.map((issue) => ({ ...issue, scope: issue.elementId ? "element" : "design" }));
-        issues = [
-          ...issues.filter(({ level }) => level !== "ok"),
-          ...scopedThinIssues,
-        ];
-      }
+      const {
+        stamp,
+        clay,
+        info,
+        layout,
+        notes,
+      } = buildStamp(artwork, this.stamp, handle, {
+        textGlyphs,
+        checkPrintability: false,
+      });
+      issues = this.applyPrintability(initialIssues, measured, layout);
       this.recordValidation(sourceStats, elementStats, issues);
       if (this.diagnostics !== null) {
         this.diagnostics.geometryProduced = Boolean(
-          built.stamp?.getAttribute("position")?.count,
+          stamp?.getAttribute("position")?.count,
         );
       }
       try {
         // Check the stamp before publishing it; STL export checks the file again.
         this.setSVGStage("final mesh validation");
-        prepareClosedStamp(built.stamp).dispose();
-        built.notes.push(
+        prepareClosedStamp(stamp).dispose();
+        notes.push(
           "Stamp surface checks passed: closed, consistently oriented edges. Review in your slicer before printing.",
         );
       } catch (error) {
-        built.stamp.dispose();
-        built.clay.dispose();
+        stamp.dispose();
+        clay.dispose();
         throw error;
       }
       this.completeSVGDiagnostics();
       this.publish(
-        { artwork, issues, renderElements, segmentations, ...built },
+        { artwork, issues, renderElements, segmentations, stamp, clay, info, layout, notes },
         token,
       );
     } catch (error) {
@@ -246,6 +293,37 @@ export class Pipeline extends EventTarget {
     }
   }
 
+  // Builds the stamp when the last result is only a 2D layout. Leaves
+  // buildSolids as the view set it, so a later 2D edit stays cheap.
+  async ensureSolids() {
+    if (this.result?.stamp && !this.busy) return true;
+    this.forceSolids = true;
+    try {
+      if (this.busy) {
+        await this.waitForIdle();
+        if (this.result?.stamp && this.error === null) return true;
+      }
+      await this.run();
+      return Boolean(this.result?.stamp) && this.error === null;
+    } finally {
+      this.forceSolids = false;
+    }
+  }
+
+  waitForIdle() {
+    if (!this.busy) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => {
+        this.removeEventListener("result", done);
+        this.removeEventListener("failed", done);
+        resolve();
+      };
+      this.addEventListener("result", done);
+      this.addEventListener("failed", done);
+      if (!this.busy) done();
+    });
+  }
+
   publish(result, token) {
     if (token !== this.token) return;
 
@@ -253,6 +331,74 @@ export class Pipeline extends EventTarget {
     this.busy = false;
     this.error = null;
     this.dispatchEvent(new Event("result"));
+  }
+
+  // Stored stroke and gap warnings for this artwork, or null when they have
+  // not been measured yet. An empty list is a finished measurement.
+  readyPrintability(key) {
+    return this.printabilityCache.get(key)?.issues ?? null;
+  }
+
+  // Measures stroke width and clear gaps once per artwork identity. Face
+  // changes and a later mesh build await the same result instead of repeating it.
+  async printabilityFor(key, artwork, textGlyphs) {
+    const cached = this.printabilityCache.get(key);
+    if (cached?.issues != null) return cached.issues;
+    if (cached?.pending) return cached.pending;
+
+    const pending = (async () => {
+      await initializeSolids(wasmUrl);
+      this.printabilityComputations += 1;
+      return featureIssues(artwork, { textGlyphs });
+    })();
+    this.printabilityCache.set(key, { issues: null, pending });
+
+    try {
+      const issues = await pending;
+      this.printabilityCache.set(key, { issues, pending: null });
+      return issues;
+    } catch (error) {
+      if (this.printabilityCache.get(key)?.pending === pending) {
+        this.printabilityCache.delete(key);
+      }
+      throw error;
+    }
+  }
+
+  applyPrintability(issues, featureWarnings, layout) {
+    const overflow = overflowIssue(layout);
+    const extra = this.scopePrintability([
+      ...featureWarnings,
+      ...(overflow ? [overflow] : []),
+    ]);
+    if (extra.length === 0) return issues;
+    return [
+      ...issues.filter(({ level }) => level !== "ok"),
+      ...extra,
+    ];
+  }
+
+  scopePrintability(issues) {
+    if (this.designModel === null) return issues;
+    return issues.map((issue) => ({
+      ...issue,
+      scope: issue.elementId ? "element" : "design",
+    }));
+  }
+
+  noteDeferredPreview(issues) {
+    if (this.diagnostics === null) return;
+    if (issues.some(({ level }) => level === "error")) return;
+
+    this.diagnostics.level = "ok";
+    this.diagnostics.message =
+      this.designModel === null
+        ? "SVG processed successfully."
+        : "Design processed successfully.";
+    this.diagnostics.stage = "artwork";
+    this.diagnostics.details.push(
+      "The 3D stamp is built when you open 3D, review, or export.",
+    );
   }
 
   // Source → canonical → validated, skipping the work when the inputs that
@@ -266,6 +412,7 @@ export class Pipeline extends EventTarget {
 
     if (this.cache.key === key) {
       return {
+        key: this.cache.key,
         artwork: this.cache.artwork,
         issues: this.cache.issues,
         sourceStats: this.cache.sourceStats,
@@ -304,6 +451,7 @@ export class Pipeline extends EventTarget {
     };
 
     return {
+      key: this.cache.key,
       artwork: checked.artwork,
       issues: combined,
       sourceStats,

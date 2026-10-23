@@ -26,7 +26,8 @@ const POINT_CONTACT_CHAMFER_MM = GEOMETRY_TOLERANCE_MM / 4;
  * 'ok', 'fixed' or 'error'. Thin-feature warnings run after final face fitting.
  *
  * An 'error' means nothing downstream can run; 'fixed' is reported so the user
- * can see what was silently changed on their behalf.
+ * can see what was silently changed on their behalf. Stroke, gap, and overflow
+ * checks are separate: they use the finished 2D artwork and do not need a mesh.
  */
 export function validate(artwork, { tolerance = SIMPLIFY_MM } = {}) {
   const issues = [];
@@ -265,8 +266,28 @@ function dropDegenerate(artwork) {
   return { cleaned, droppedRings };
 }
 
-// Run after fitToFace(): a morphological opening removes regions narrower than
-// the requested physical width, including local necks, arms and walls.
+// The face outline already knows whether artwork crosses the margin. The mesh
+// is not required, so the 2D preview can report this on its own.
+export function overflowIssue(layout) {
+  if (!layout?.overflows) return null;
+  return {
+    level: "error",
+    code: "artwork-overflow",
+    message: `Some artwork extends beyond the ${layout.widthMm} × ${layout.heightMm} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
+  };
+}
+
+// Stroke width and clear gaps are properties of the 2D artwork. Face shape,
+// face size, and mirroring do not change them.
+export function featureIssues(artwork, { textGlyphs = [] } = {}) {
+  return [
+    ...thinFeatureIssues(artwork, { textGlyphs }),
+    ...narrowGapIssues(artwork, { textGlyphs }),
+  ];
+}
+
+// A morphological opening removes regions narrower than the requested physical
+// width, including local necks, arms and walls.
 export function thinFeatureIssues(artwork, { minFeature = 0.8, textGlyphs = [] } = {}) {
   const issues = [];
   const thin = artwork.filter((polygon) =>

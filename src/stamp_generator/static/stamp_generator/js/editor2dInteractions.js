@@ -119,19 +119,22 @@ export function fitElementTransform(canonical, startTransform, limit) {
   });
   const unitGeometry = transform(canonical, unitTransform);
   const unitBounds = bounds(unitGeometry);
+  const { halfWidth, halfHeight } = limitAxes(limit);
   const maximumScale =
     limit.shape === "round"
-      ? limit.halfExtent /
-        Math.max(
+      ? Math.min(
           ...unitGeometry.flatMap((polygon) =>
             polygon.flatMap((ring) =>
-              ring.map(([x, y]) => Math.hypot(x, y)),
+              ring.map(([x, y]) => {
+                const reach = Math.hypot(x / halfWidth, y / halfHeight);
+                return reach === 0 ? Infinity : 1 / reach;
+              }),
             ),
           ),
         )
       : Math.min(
-          (limit.halfExtent * 2) / unitBounds.width,
-          (limit.halfExtent * 2) / unitBounds.height,
+          (halfWidth * 2) / unitBounds.width,
+          (halfHeight * 2) / unitBounds.height,
         );
   const scale = Math.min(startTransform.scale, maximumScale);
   return centeredTransform(canonical, { ...startTransform, scale });
@@ -215,14 +218,21 @@ export function fitsFace(canonical, elementTransform, limit) {
   );
 }
 
-function insideLimit(canonical, elementTransform, { shape, halfExtent }) {
+function limitAxes(limit) {
+  const halfWidth = limit.halfWidth ?? limit.halfExtent;
+  const halfHeight = limit.halfHeight ?? limit.halfExtent;
+  return { halfWidth, halfHeight };
+}
+
+function insideLimit(canonical, elementTransform, limit) {
+  const { halfWidth, halfHeight } = limitAxes(limit);
   for (const polygon of transform(canonical, elementTransform)) {
     for (const [x, y] of polygon[0]) {
       const outside =
-        shape === "round"
-          ? Math.hypot(x, y) > halfExtent + EPSILON
-          : Math.abs(x) > halfExtent + EPSILON ||
-            Math.abs(y) > halfExtent + EPSILON;
+        limit.shape === "round"
+          ? (x / halfWidth) ** 2 + (y / halfHeight) ** 2 > 1 + EPSILON
+          : Math.abs(x) > halfWidth + EPSILON ||
+            Math.abs(y) > halfHeight + EPSILON;
       if (outside) return false;
     }
   }
@@ -239,7 +249,7 @@ function axisShift(min, max, half) {
 
 /**
  * Keeps an element's transformed outline inside the stamp's usable area
- * (a circle or square of half-size `halfExtent`, centred on the origin).
+ * (a circle, ellipse, square, or rectangle centred on the origin).
  * Returns the nearest allowed transform, or null when the element is simply
  * too large to fit; callers then leave it free (it is shown as overflowing).
  */
@@ -249,12 +259,13 @@ export function constrainToFace(canonical, elementTransform, limit) {
   if (insideLimit(canonical, elementTransform, limit)) return elementTransform;
 
   const box = bounds(transform(canonical, elementTransform));
+  const { halfWidth, halfHeight } = limitAxes(limit);
 
   if (limit.shape !== "round") {
     const moved = {
       ...elementTransform,
-      xMm: elementTransform.xMm + axisShift(box.minX, box.maxX, limit.halfExtent),
-      yMm: elementTransform.yMm + axisShift(box.minY, box.maxY, limit.halfExtent),
+      xMm: elementTransform.xMm + axisShift(box.minX, box.maxX, halfWidth),
+      yMm: elementTransform.yMm + axisShift(box.minY, box.maxY, halfHeight),
     };
     return insideLimit(canonical, moved, limit) ? moved : null;
   }

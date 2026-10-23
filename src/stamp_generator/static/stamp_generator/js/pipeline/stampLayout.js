@@ -11,15 +11,22 @@ export function stampFaceShape(shape = "round") {
   throw new Error("Unsupported stamp shape. Choose Round, Square, or Minimal.");
 }
 
+/** Width is `faceSize`. A missing height matches the width, so older stamps stay square or circular. */
+export function stampFaceSize(settings = {}) {
+  const width = Number.isFinite(settings.faceSize) ? settings.faceSize : 50;
+  const height = Number.isFinite(settings.faceHeight) ? settings.faceHeight : width;
+  return { width, height };
+}
+
 export function stampMarginMaximum(settings = {}) {
   // Minimal has no set face size, so the margin can use its own full range.
   if (stampFaceShape(settings.faceShape ?? "round") === "minimal") {
     return MAX_STAMP_MARGIN_MM;
   }
-  const faceSize = Number.isFinite(settings.faceSize) ? settings.faceSize : 50;
+  const { width, height } = stampFaceSize(settings);
   return Math.max(
     MIN_STAMP_MARGIN_MM,
-    Math.min(MAX_STAMP_MARGIN_MM, faceSize / 4),
+    Math.min(MAX_STAMP_MARGIN_MM, Math.min(width, height) / 4),
   );
 }
 
@@ -45,7 +52,11 @@ export function createStampLayout(artwork, settings, notes = []) {
     xMm: fitted.transform.xMm,
     yMm: fitted.transform.yMm,
   };
-  const face = stampFace(fitted.art, fitted.faceSize, settings);
+  const face = stampFace(fitted.art, {
+    ...settings,
+    faceSize: fitted.faceSize,
+    faceHeight: fitted.faceHeight,
+  });
   const overflows = extendsBeyond(fitted.art, face, stampMargin(settings));
   const faceBounds = bounds(face);
   const faceSize = fitted.faceSize;
@@ -82,10 +93,12 @@ export function layoutRenderElements(elements, artworkTransform) {
 export function fitToFace(artwork, settings, notes = []) {
   settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const margin = stampMargin(settings);
+  const requested = stampFaceSize(settings);
   if (artwork.length === 0) {
     return {
       art: [],
-      faceSize: settings.faceSize ?? 50,
+      faceSize: requested.width,
+      faceHeight: requested.height,
       transform: { scale: 1, xMm: 0, yMm: 0 },
     };
   }
@@ -100,31 +113,38 @@ export function fitToFace(artwork, settings, notes = []) {
     };
   }
 
-  let faceSize = settings.faceSize ?? 50;
+  let faceSize = requested.width;
+  let faceHeight = requested.height;
   if (settings.autoFaceSize) {
+    // Automatic sizing stays one number on both axes.
     faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+    faceHeight = faceSize;
   }
   if (settings.autoFaceSize && settings.faceShape === "round") {
     // The rendered/exported circle has straight chords. Compensate for their
     // inset so even the actual 96-sided backing retains the full clearance.
     faceSize /= Math.cos(Math.PI / FACE_SEGMENTS);
+    faceHeight = faceSize;
   }
 
   return {
     art: transform(artwork, { scale: 1, xMm: 0, yMm: 0 }),
     faceSize,
+    faceHeight,
     transform: { scale: 1, xMm: 0, yMm: 0 },
     overflows: false,
   };
 }
 
-export function stampFace(artwork, faceSize, settings) {
+export function stampFace(artwork, settings) {
   const shape = stampFaceShape(settings.faceShape);
+  const { width, height } = stampFaceSize(settings);
   if (shape === "round") {
-    const radius = faceSize / 2;
+    const radiusX = width / 2;
+    const radiusY = height / 2;
     return [[Array.from({ length: FACE_SEGMENTS }, (_, index) => {
       const angle = (index / FACE_SEGMENTS) * Math.PI * 2;
-      return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+      return [Math.cos(angle) * radiusX, Math.sin(angle) * radiusY];
     })]];
   }
 
@@ -139,12 +159,13 @@ export function stampFace(artwork, faceSize, settings) {
     ]]];
   }
 
-  const half = faceSize / 2;
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
   return [[[
-    [-half, -half],
-    [half, -half],
-    [half, half],
-    [-half, half],
+    [-halfWidth, -halfHeight],
+    [halfWidth, -halfHeight],
+    [halfWidth, halfHeight],
+    [-halfWidth, halfHeight],
   ]]];
 }
 

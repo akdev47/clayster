@@ -176,6 +176,20 @@ export function createPipelineDiagnosticState(pipeline, phase) {
     pipeline.diagnostics?.level === "warning";
   const ready = Boolean(result.stamp) && !hasError;
 
+  // A 2D edit publishes the face without a mesh. That is a finished design,
+  // and the stamp is built when 3D, review, or export needs it.
+  if (!result.stamp && result.solidsDeferred && !hasError) {
+    return {
+      overall: {
+        message: hasWarning ? "Design ready with warnings" : "Design ready",
+        level: hasWarning ? "warning" : "ok",
+      },
+      rows,
+      info: result.info,
+      export: { label: "On demand", level: "info", ready: false },
+    };
+  }
+
   if (!ready) {
     return {
       overall: { message: "Not ready to export", level: "error" },
@@ -448,7 +462,8 @@ function showSummary(dom, info) {
   dom.totalX.textContent = `${format(info.width)} mm`;
   dom.totalY.textContent = `${format(info.depth)} mm`;
   dom.totalZ.textContent = `${format(info.height)} mm`;
-  dom.faceSize.textContent = `${format(info.faceSize)} mm`;
+  const faceHeight = info.faceHeight ?? info.faceSize;
+  dom.faceSize.textContent = `${format(info.faceSize)} × ${format(faceHeight)} mm`;
   dom.triangleCount.textContent = info.triangles.toLocaleString();
 }
 

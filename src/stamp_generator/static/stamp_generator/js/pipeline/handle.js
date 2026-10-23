@@ -1,21 +1,21 @@
-// The handle every stamp gets by default: a really small rectangular block under the plate.
+// The grip on the back of the stamp: a long rectangular bar you can hold.
 import * as THREE from "three";
 
-// The shape in one place. Change the numbers to change the handle; nothing else
-// in the app depends on them.
+// Full size for a normal stamp. A smaller face shrinks this, keeping the shape.
+// Width is the length you hold, depth is the thickness, height is how far it sticks out.
 export const HANDLE = Object.freeze({
-  widthMm: 12, // Along X, the stamp's width.
-  depthMm: 6, // Along Y.
-  heightMm: 5, // How far it hangs below the plate.
+  widthMm: 40,
+  depthMm: 14,
+  heightMm: 12,
 });
 
 // A small face gets a proportionally smaller handle: its longer side may use at
-// most this share of the face's shorter side.
-export const HANDLE_MAX_FACE_SHARE = 0.5;
+// most this share of the face's shorter side. 0.85 keeps the full bar on a 50 mm face.
+export const HANDLE_MAX_FACE_SHARE = 0.85;
 
 /**
- * A closed solid block, Z up, standing on z = 0 and centred on the Z axis. The
- * stamp build moves it under the plate and shrinks it for small faces.
+ * A closed rectangular bar, Z up, standing on z = 0 and centred on the Z axis.
+ * The flat top meets the plate. The stamp build shrinks a copy for small faces.
  */
 export function createSmallHandle({
   widthMm = HANDLE.widthMm,

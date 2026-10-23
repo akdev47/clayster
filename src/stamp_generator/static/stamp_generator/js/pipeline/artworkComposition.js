@@ -133,6 +133,7 @@ export class ArtworkComposer {
       scope: "design",
     }));
     const result = {
+      key: compositionKey,
       artwork: checked.artwork,
       issues: [...elementIssues, ...designIssues],
       sourceStats: null,
