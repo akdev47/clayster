@@ -73,7 +73,7 @@ export function createPipelineDiagnostics(
     // Offer the same recovery action for Text, SVG and PNG in that case.
     if (phase === "failed" && getOverflowElementIds().length > 0) {
       state.rows.push({
-        level: "warning",
+        level: "error",
         code: "artwork-overflow",
         message: "Some artwork extends beyond the usable stamp area.",
       });
@@ -284,8 +284,6 @@ export function presentDiagnosticRows(rows) {
       message = "Artwork extends beyond the usable stamp area.";
     } else if (/^Wrapped onto (\d+) rows/.test(message)) {
       message = `Text wrapped onto ${message.match(/^Wrapped onto (\d+)/)[1]} lines.`;
-    } else if (/^Set at [\d.]+ mm rather than/.test(message)) {
-      message = "Text size was reduced to fit.";
     } else if (/^Merged overlapping and self-intersecting outlines/.test(message)) {
       message = "Overlapping outlines were cleaned up.";
     } else if (/^Separated \d+ isolated point/.test(message)) {
@@ -349,7 +347,7 @@ function renderDOM(dom, state, actions) {
 function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGlyphs }) {
   const level = LEVELS[row.level] ?? LEVELS.warning;
   const item = document.createElement("div");
-  item.className = "validation-row";
+  item.className = `validation-row validation-row-${row.level}`;
   if (row.level === "warning" && row.elementKind === "text" && row.thinGlyphs?.length) {
     item.tabIndex = 0;
     let hovered = false;
@@ -405,8 +403,9 @@ function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGl
       action.textContent = "Fit to stamp";
       action.setAttribute(
         "aria-label",
-        `Fit element ${elementId} to stamp`,
+        "Fix this issue by fitting the artwork inside the stamp",
       );
+      action.title = "Automatically resize this artwork to fit inside the stamp";
       action.addEventListener("click", () => onFitToStamp(elementId));
       content.append(action);
     }

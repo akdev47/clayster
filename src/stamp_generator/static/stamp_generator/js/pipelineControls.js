@@ -1,7 +1,15 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
 import { enableDragResize } from "./resize.js";
 import { exportSTL } from "./exporters.js";
-import { MIN_STAMP_MARGIN_MM, stampMargin } from "./pipeline/stampLayout.js";
+import {
+  FACE_SIZE_LIMITS,
+  FACE_THICKNESS_LIMITS,
+} from "./pipeline/stamp.js";
+import {
+  MIN_STAMP_MARGIN_MM,
+  stampMargin,
+  stampMarginMaximum,
+} from "./pipeline/stampLayout.js";
 import { MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE } from "./editor2dInteractions.js";
 import { millimetresToPoints } from "./sizing.js";
 
@@ -17,15 +25,53 @@ export function createPipelineControls(
     pipeline.setStamp({ faceShape }),
   );
   bindNumber(
-    dom.faceThickness,
-    (faceThickness) => pipeline.setStamp({ faceThickness }),
-    0.2,
+    dom.faceSize,
+    (faceSize) => {
+      pipeline.setStamp({ faceSize });
+      syncMarginControl(dom, pipeline);
+    },
+    FACE_SIZE_LIMITS.min,
+    FACE_SIZE_LIMITS.max,
   );
-  bindNumber(dom.margin, (margin) => pipeline.setStamp({ margin }), MIN_STAMP_MARGIN_MM);
+  dom.faceSize.addEventListener("change", () => {
+    const entered = Number(dom.faceSize.value);
+    const faceSize = Number.isFinite(entered) && dom.faceSize.value !== ""
+      ? clamp(entered, FACE_SIZE_LIMITS.min, FACE_SIZE_LIMITS.max)
+      : pipeline.stamp.faceSize;
+    dom.faceSize.value = String(faceSize);
+    if (faceSize !== pipeline.stamp.faceSize) pipeline.setStamp({ faceSize });
+    syncMarginControl(dom, pipeline);
+  });
+  bindNumber(
+    dom.faceThickness,
+    (value) => {
+      const faceThickness = clamp(
+        value,
+        FACE_THICKNESS_LIMITS.min,
+        FACE_THICKNESS_LIMITS.max,
+      );
+      if (faceThickness !== value) {
+        dom.faceThickness.value = String(faceThickness);
+      }
+      pipeline.setStamp({ faceThickness });
+    },
+    -Infinity,
+  );
+  dom.margin.addEventListener("input", () => {
+    const margin = Number(dom.margin.value);
+    if (
+      dom.margin.value !== "" &&
+      Number.isFinite(margin) &&
+      margin >= MIN_STAMP_MARGIN_MM &&
+      margin <= stampMarginMaximum(pipeline.stamp)
+    ) {
+      pipeline.setStamp({ margin });
+    }
+  });
   dom.margin.addEventListener("change", () => {
     const entered = Number(dom.margin.value);
     const margin = Number.isFinite(entered) && dom.margin.value !== ""
-      ? stampMargin({ margin: entered })
+      ? stampMargin({ ...pipeline.stamp, margin: entered })
       : stampMargin(pipeline.stamp);
     dom.margin.value = String(margin);
     if (margin !== pipeline.stamp.margin) pipeline.setStamp({ margin });
@@ -55,7 +101,8 @@ export function createPipelineControls(
     dom.exportSTL.disabled = true;
   });
   pipeline.addEventListener("result", () => {
-    dom.exportSTL.disabled = !pipeline.result?.stamp;
+    dom.exportSTL.disabled =
+      !pipeline.result?.stamp || hasBlockingIssue(pipeline);
     const layout = pipeline.result?.layout;
     dom.faceDimensions.textContent = layout
       ? `${layout.widthMm.toFixed(1)} × ${layout.heightMm.toFixed(1)} mm`
@@ -83,8 +130,9 @@ export function createPipelineControls(
 function syncControls(dom, pipeline) {
   const stamp = pipeline.stamp;
 
+  dom.faceSize.value = stamp.faceSize;
   dom.faceThickness.value = stamp.faceThickness;
-  dom.margin.value = stampMargin(stamp);
+  syncMarginControl(dom, pipeline);
   dom.reliefDepth.value = stamp.reliefDepth;
   dom.reliefReadout.textContent = `${stamp.reliefDepth} mm`;
   dom.mirror.checked = stamp.mirror;
@@ -92,6 +140,11 @@ function syncControls(dom, pipeline) {
 
   selectSegment(dom.faceShape, "shape", stamp.faceShape);
   selectSegment(dom.reliefMode, "mode", stamp.mode);
+}
+
+function syncMarginControl(dom, pipeline) {
+  dom.margin.max = String(stampMarginMaximum(pipeline.stamp));
+  dom.margin.value = String(stampMargin(pipeline.stamp));
 }
 
 function segmented(container, attribute, onChange) {
@@ -110,10 +163,15 @@ function selectSegment(container, attribute, value) {
   }
 }
 
-function bindNumber(input, onChange, min = -Infinity) {
+function bindNumber(input, onChange, min = -Infinity, max = Infinity) {
   input.addEventListener("input", () => {
     const value = Number(input.value);
-    if (input.value !== "" && Number.isFinite(value) && value >= min) {
+    if (
+      input.value !== "" &&
+      Number.isFinite(value) &&
+      value >= min &&
+      value <= max
+    ) {
       onChange(value);
     }
   });
@@ -126,6 +184,9 @@ export function exportable(viewer, pipeline) {
   if (!pipeline.result?.stamp) {
     throw new Error("There is no stamp to export yet.");
   }
+  if (hasBlockingIssue(pipeline)) {
+    throw new Error("Fix the design errors before exporting.");
+  }
 
   return [
     {
@@ -134,6 +195,13 @@ export function exportable(viewer, pipeline) {
       geometry: pipeline.result.stamp,
     },
   ];
+}
+
+function hasBlockingIssue(pipeline) {
+  return (
+    pipeline.result?.issues?.some(({ level }) => level === "error") ||
+    pipeline.diagnostics?.level === "error"
+  );
 }
 
 function run(dom, action) {
@@ -191,6 +259,7 @@ function collectDOM() {
     textSizeInput: byId("font-size-input"),
     textSizeOutput: byId("font-size-value"),
     faceShape: byId("pipeline-face-shape"),
+    faceSize: byId("pipeline-face-size"),
     faceDimensions: byId("pipeline-face-dimensions"),
     faceThickness: byId("pipeline-face-thickness"),
     margin: byId("pipeline-margin"),

@@ -202,6 +202,7 @@ test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified S
       issues: [],
     };
   });
+  pipeline.stamp.autoFaceSize = true;
   try {
     await pipeline.run();
     assert.equal(pipeline.error, null);
@@ -617,6 +618,7 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
   const previousDocument = globalThis.document;
   globalThis.document = { createElement: node, getElementById: byId };
   const { pipeline } = setup([text()]);
+  pipeline.stamp.autoFaceSize = true;
   createPipelineDiagnostics(pipeline);
   const textOf = (node) => [node.textContent, ...node.children.flatMap(textOf)];
   const messages = () => textOf(byId("pipeline-diagnostic-list"));

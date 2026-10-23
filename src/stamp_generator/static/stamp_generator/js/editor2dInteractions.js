@@ -59,7 +59,11 @@ export const TEXT_SIZE_STEP_MM = 0.5;
 export const KEYBOARD_MOVE_STEP_MM = 0.5;
 export const DUPLICATE_OFFSET_MM = 2;
 
-export function textSizeFromScale(startSizeMm, scale) {
+export function textSizeFromScale(
+  startSizeMm,
+  scale,
+  maximumMm = MAX_TEXT_SIZE_MM,
+) {
   if (!(startSizeMm > 0) || !Number.isFinite(startSizeMm)) {
     throw new RangeError("Starting text size must be positive.");
   }
@@ -69,12 +73,17 @@ export function textSizeFromScale(startSizeMm, scale) {
   const stepped = Math.round(
     (startSizeMm * scale) / TEXT_SIZE_STEP_MM,
   ) * TEXT_SIZE_STEP_MM;
-  return Math.min(MAX_TEXT_SIZE_MM, Math.max(MIN_TEXT_SIZE_MM, stepped));
+  return Math.min(maximumMm, Math.max(MIN_TEXT_SIZE_MM, stepped));
 }
 
 /** Cheap view-only text resize used until the final font size is committed. */
-export function textResizePreview(startSizeMm, startTransform, scale) {
-  const fontSizeMm = textSizeFromScale(startSizeMm, scale);
+export function textResizePreview(
+  startSizeMm,
+  startTransform,
+  scale,
+  maximumMm = MAX_TEXT_SIZE_MM,
+) {
+  const fontSizeMm = textSizeFromScale(startSizeMm, scale, maximumMm);
   return {
     fontSizeMm,
     transform: {
@@ -283,6 +292,10 @@ export class DesignEditorController {
     this.faceLimit = null;
     // Set by the app: id => canonical geometry of that element, or undefined.
     this.canonicalFor = () => undefined;
+    // Geometry reports the size that was actually rendered. This remains a
+    // separate hook so fitting uses the authoritative physical outline.
+    this.renderedTextSizeFor = () => undefined;
+    this.maxTextSizeMm = MAX_TEXT_SIZE_MM;
   }
 
   selectedElement() {
@@ -370,6 +383,43 @@ export class DesignEditorController {
     });
   }
 
+  /** Resizes one selected element around its visual centre. */
+  resizeByFactor(id, factor) {
+    const element = this.model.getElement(id);
+    const canonical = this.canonicalFor(id);
+    if (
+      element === null ||
+      canonical === undefined ||
+      !Number.isFinite(factor) ||
+      !(factor > 0)
+    ) return null;
+
+    this.select(id);
+    if (element.kind !== "text") {
+      return this.resize(
+        id,
+        canonical,
+        element.transform,
+        element.transform.scale * factor,
+      );
+    }
+
+    const currentSizeMm = element.source.fontSizeMm * element.transform.scale;
+    const fontSizeMm = Math.min(
+      this.maxTextSizeMm,
+      Math.max(MIN_TEXT_SIZE_MM, currentSizeMm * factor),
+    );
+    const previewTransform = centeredScaleTransform(
+      canonical,
+      element.transform,
+      fontSizeMm / element.source.fontSizeMm,
+    );
+    return this.setTextSize(id, fontSizeMm, {
+      xMm: previewTransform.xMm,
+      yMm: previewTransform.yMm,
+    });
+  }
+
   setTextSize(id, fontSizeMm, transformPatch = {}) {
     const element = this.model.getElement(id);
     if (element === null || element.kind !== "text") return null;
@@ -378,7 +428,10 @@ export class DesignEditorController {
     }
     // Typed point sizes must retain their exact physical conversion. Corner
     // gestures already quantize their transient preview before committing.
-    const size = Math.min(MAX_TEXT_SIZE_MM, Math.max(MIN_TEXT_SIZE_MM, fontSizeMm));
+    const size = Math.min(
+      this.maxTextSizeMm,
+      Math.max(MIN_TEXT_SIZE_MM, fontSizeMm),
+    );
     return this.model.updateElement(id, {
       source: { fontSizeMm: size },
       transform: { ...transformPatch, scale: 1 },
@@ -420,16 +473,19 @@ export class DesignEditorController {
       return this.model.updateElement(id, { transform: fitted });
     }
 
+    const renderedFontSizeMm =
+      this.renderedTextSizeFor(id) ?? element.source.fontSizeMm;
     let fontSizeMm = textSizeFromScale(
-      element.source.fontSizeMm,
+      renderedFontSizeMm,
       fitted.scale,
+      this.maxTextSizeMm,
     );
-    if (fontSizeMm / element.source.fontSizeMm > fitted.scale + EPSILON) {
+    if (fontSizeMm / renderedFontSizeMm > fitted.scale + EPSILON) {
       fontSizeMm = Math.max(MIN_TEXT_SIZE_MM, fontSizeMm - TEXT_SIZE_STEP_MM);
     }
     const previewTransform = centeredTransform(canonical, {
       ...element.transform,
-      scale: fontSizeMm / element.source.fontSizeMm,
+      scale: fontSizeMm / renderedFontSizeMm,
     });
     return this.setTextSize(id, fontSizeMm, {
       xMm: previewTransform.xMm,

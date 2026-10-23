@@ -18,7 +18,6 @@ import {
   isEditingField,
   MAX_ELEMENT_SCALE,
   MIN_ELEMENT_SCALE,
-  MAX_TEXT_SIZE_MM,
   MIN_TEXT_SIZE_MM,
   shouldHandleElementArrowKey,
   shouldHandleElementDeleteKey,
@@ -29,6 +28,7 @@ import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./pipeline/fonts.js";
 import {
   createStampLayout,
   layoutRenderElements,
+  stampMargin,
 } from "./pipeline/stampLayout.js";
 import { bounds, transform } from "./pipeline/canonical.js";
 import { readableStampDisplay } from "./stamp2dDisplay.js";
@@ -64,6 +64,7 @@ let hasFramedPreview = false;
 let interactionActive = false;
 let interactionViewport = null;
 let renderGeometry = new Map();
+let renderedTextSizes = new Map();
 let displayGeometry = new Map();
 let publishedLayout = null;
 let overflowingIds = new Set();
@@ -82,25 +83,46 @@ let imageUploadToastFrame = null;
 
 artboard.classList.add("canonical-rendering-enabled");
 
-// The backing grows around physical artwork; moving an element does not clamp
-// it to an obsolete face size.
+// Keep element movement inside a fixed usable face. Moving artwork must never
+// change the physical dimensions of the stamp.
 editor.canonicalFor = (id) => renderGeometry.get(id);
-editor.faceLimit = null;
+editor.renderedTextSizeFor = (id) => renderedTextSizes.get(id);
+const maximumTextSizeMm = () => Math.max(
+  MIN_TEXT_SIZE_MM,
+  pipeline.stamp.faceSize - stampMargin(pipeline.stamp) * 2,
+);
+Object.defineProperty(editor, "faceLimit", {
+  get() {
+    const stamp = pipeline.stamp;
+    if (stamp.autoFaceSize) return null;
+    const halfExtent = (stamp.faceSize - stampMargin(stamp) * 2) / 2;
+    return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
+  },
+  set() {},
+});
+Object.defineProperty(editor, "maxTextSizeMm", {
+  get: maximumTextSizeMm,
+  set() {},
+});
 
 const textSizeControls = createTextSizeControls({
   range: $("#font-size"),
   input: $("#font-size-input"),
   output: $("#font-size-value"),
   minMm: MIN_TEXT_SIZE_MM,
-  maxMm: MAX_TEXT_SIZE_MM,
+  maxMm: maximumTextSizeMm,
   onChange: (sizeMm) => {
     if (designControls.updateSelectedTextSize(sizeMm) !== null) render();
   },
 });
 
 createPipelineControls(viewer, pipeline, { designControls });
+artboard.addEventListener("wheel", resizeSelectedFromTrackpad, {
+  passive: false,
+});
 
 pipeline.addEventListener("running", () => {
+  textSizeControls.refreshLimits();
   publishedLayout = null;
   if (!interactionActive) {
     renderCanonicalArtwork();
@@ -144,9 +166,9 @@ pipeline.addEventListener("failed", () => {
 });
 
 const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
-  getOverflowElementIds: () => [...overflowingIds],
+  getOverflowElementIds: overflowRepairElementIds,
   onFitToStamp: (elementId) => {
-    if (editor.fitToStamp(elementId) !== null) render();
+    void fitElementToStamp(elementId);
   },
   onHighlightThinGlyphs: (glyphs) => {
     if (editor.view !== "2d" || pipeline.busy || !lastScene || !pipeline.result?.layout) {
@@ -161,9 +183,76 @@ const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
   },
 });
 
+function hasArtworkOverflow() {
+  return Boolean(
+    pipeline.result?.issues?.some(({ code }) => code === "artwork-overflow"),
+  );
+}
+
+function overflowRepairElementIds() {
+  if (overflowingIds.size > 0) return [...overflowingIds];
+  if (!hasArtworkOverflow()) return [];
+
+  const selected = editor.selectedElement();
+  if (selected?.visible) return [selected.id];
+  return designModel.elements
+    .filter(({ visible }) => visible)
+    .map(({ id }) => id);
+}
+
+function waitForPipelineOutcome() {
+  return new Promise((resolve) => {
+    const finish = () => {
+      pipeline.removeEventListener("result", finish);
+      pipeline.removeEventListener("failed", finish);
+      resolve();
+    };
+    pipeline.addEventListener("result", finish);
+    pipeline.addEventListener("failed", finish);
+  });
+}
+
+function fitSignature(element) {
+  return JSON.stringify({
+    fontSizeMm: element?.source.fontSizeMm,
+    transform: element?.transform,
+  });
+}
+
+async function fitElementToStamp(elementId) {
+  // Final combined/thickened geometry can overflow even when the lightweight
+  // per-element outline is barely inside the face. Recheck the authoritative
+  // pipeline result after each pass and shrink gently until it clears.
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const before = designModel.getElement(elementId);
+    const localOverflow = overflowingIds.has(elementId);
+    if (before === null || (!localOverflow && !hasArtworkOverflow())) return;
+
+    const signature = fitSignature(before);
+    const fitted = localOverflow
+      ? editor.fitToStamp(elementId)
+      : editor.resizeByFactor(elementId, 0.94);
+    if (fitted === null) return;
+    render();
+    await waitForPipelineOutcome();
+
+    const after = designModel.getElement(elementId);
+    if (
+      after === null ||
+      (!overflowingIds.has(elementId) && !hasArtworkOverflow())
+    ) return;
+    if (fitSignature(after) === signature) return;
+  }
+}
+
 function setRenderGeometry(renderElements) {
   renderGeometry = new Map(
     (renderElements ?? []).map(({ id, canonical }) => [id, canonical]),
+  );
+  renderedTextSizes = new Map(
+    (renderElements ?? []).flatMap(({ id, renderedFontSizeMm }) =>
+      renderedFontSizeMm === undefined ? [] : [[id, renderedFontSizeMm]],
+    ),
   );
   if (renderGeometry.size === 0) displayGeometry = new Map();
 }
@@ -800,6 +889,22 @@ function moveElementFromKeyboard(event) {
   }
 }
 
+// Chromium-based browsers expose a Mac trackpad pinch as a wheel event with
+// Ctrl held. Regular two-finger scrolling is deliberately left untouched.
+function resizeSelectedFromTrackpad(event) {
+  if (!event.ctrlKey || editor.view !== "2d" || editor.selectedId === null) {
+    return;
+  }
+
+  const delta = Math.min(20, Math.max(-20, event.deltaY));
+  const factor = Math.exp(-delta * 0.01);
+  const changed = editor.resizeByFactor(editor.selectedId, factor);
+  if (changed === null) return;
+
+  event.preventDefault();
+  render();
+}
+
 function startResize(event, element, item) {
   event.preventDefault();
   event.stopPropagation();
@@ -825,7 +930,12 @@ function startResize(event, element, item) {
     element.kind === "text" ? element.source.fontSizeMm : null;
   let textPreview =
     element.kind === "text"
-      ? textResizePreview(startTextSizeMm, startTransform, startScale)
+      ? textResizePreview(
+          startTextSizeMm,
+          startTransform,
+          startScale,
+          editor.maxTextSizeMm,
+        )
       : null;
   let hasTextPreview = false;
   const handle = event.currentTarget;
@@ -843,6 +953,7 @@ function startResize(event, element, item) {
         startTextSizeMm,
         startTransform,
         nextScale,
+        editor.maxTextSizeMm,
       );
       resizePreviewTransforms.set(element.id, textPreview.transform);
       hasTextPreview = true;
