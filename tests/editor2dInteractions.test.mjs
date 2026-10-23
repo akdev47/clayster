@@ -264,6 +264,23 @@ test("text resize previews are transient and commit one authoritative size chang
   assert.equal(limitedPreview.fontSizeMm, MAX_TEXT_SIZE_MM);
 });
 
+test("a wide face keeps a point inside the long side and outside the short side", () => {
+  const dot = [[
+    [
+      [0, 0],
+      [0.2, 0],
+      [0.2, 0.2],
+      [0, 0.2],
+    ],
+  ]];
+  const base = { xMm: 0, yMm: 0, scale: 1, rotationDeg: 0 };
+  for (const shape of ["round", "square"]) {
+    const limit = { shape, halfWidth: 20, halfHeight: 5 };
+    assert.equal(fitsFace(dot, { ...base, xMm: 15 }, limit), true);
+    assert.equal(fitsFace(dot, { ...base, yMm: 8 }, limit), false);
+  }
+});
+
 test("Fit to stamp preserves image aspect ratio and resolves square and round overflow", () => {
   const canonical = [square];
   for (const shape of ["square", "round"]) {

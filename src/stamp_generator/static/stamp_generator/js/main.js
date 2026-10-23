@@ -29,6 +29,7 @@ import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./pipeline/fonts.js";
 import {
   createStampLayout,
   layoutRenderElements,
+  stampFaceSize,
   stampMargin,
 } from "./pipeline/stampLayout.js";
 import { bounds, transform } from "./pipeline/canonical.js";
@@ -63,6 +64,8 @@ const previewContainer = $("#three-preview");
 const previewStatus = $("#three-preview-status");
 const viewer = createViewer(previewContainer);
 const pipeline = new Pipeline({ designModel });
+// The page opens on the 2D artboard. The stamp mesh waits for 3D, review, or export.
+pipeline.buildSolids = false;
 const canonicalRenderer = createCanonicalSvgRenderer(canonicalArtwork);
 const thinGlyphHighlight = createThinGlyphHighlight($("#thin-glyph-highlight"));
 let hasFramedPreview = false;
@@ -94,17 +97,23 @@ editor.canonicalFor = (id) => renderGeometry.get(id);
 editor.renderedTextSizeFor = (id) => renderedTextSizes.get(id);
 const maximumTextSizeMm = () => {
   if (pipeline.stamp.faceShape === "minimal") return MAX_TEXT_SIZE_MM;
+  const { width, height } = stampFaceSize(pipeline.stamp);
   return Math.max(
     MIN_TEXT_SIZE_MM,
-    pipeline.stamp.faceSize - stampMargin(pipeline.stamp) * 2,
+    Math.min(width, height) - stampMargin(pipeline.stamp) * 2,
   );
 };
 Object.defineProperty(editor, "faceLimit", {
   get() {
     const stamp = pipeline.stamp;
     if (stamp.autoFaceSize || stamp.faceShape === "minimal") return null;
-    const halfExtent = (stamp.faceSize - stampMargin(stamp) * 2) / 2;
-    return halfExtent > 0 ? { shape: stamp.faceShape, halfExtent } : null;
+    const margin = stampMargin(stamp);
+    const { width, height } = stampFaceSize(stamp);
+    const halfWidth = (width - margin * 2) / 2;
+    const halfHeight = (height - margin * 2) / 2;
+    return halfWidth > 0 && halfHeight > 0
+      ? { shape: stamp.faceShape, halfWidth, halfHeight }
+      : null;
   },
   set() {},
 });
@@ -136,8 +145,10 @@ pipeline.addEventListener("running", () => {
     renderCanonicalArtwork();
     renderArtboard();
   }
-  previewStatus.hidden = false;
-  previewStatus.textContent = "Building 3D preview…";
+  if (pipeline.buildSolids || pipeline.forceSolids) {
+    previewStatus.hidden = false;
+    previewStatus.textContent = "Building 3D preview…";
+  }
 });
 
 pipeline.addEventListener("result", () => {
@@ -148,13 +159,18 @@ pipeline.addEventListener("result", () => {
   renderCanonicalArtwork();
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: result.stamp, clay: result.clay });
-  previewStatus.hidden = Boolean(result.stamp);
-  previewStatus.textContent = result.stamp
-    ? ""
-    : "Add artwork to build the 3D preview.";
+  if (result.solidsDeferred) {
+    previewStatus.hidden = true;
+    previewStatus.textContent = "";
+  } else {
+    previewStatus.hidden = Boolean(result.stamp);
+    previewStatus.textContent = result.stamp
+      ? ""
+      : "Add artwork to build the 3D preview.";
+  }
 
   if (!hasFramedPreview && result.stamp) {
-    viewer.frame("both");
+    viewer.frame(activePreviewMode());
     hasFramedPreview = true;
   }
 });
@@ -688,23 +704,54 @@ function updateTextSizeControl(fontSizeMm) {
   textSizeControls.update(fontSizeMm);
 }
 
+function selectedElementSizeMm(element) {
+  const dimensions = elementDimensionsCm(displayGeometry.get(element.id));
+  if (dimensions === null) return null;
+  return { width: dimensions.width * 10, height: dimensions.height * 10 };
+}
+
 function updateElementDimensions() {
   const element = selectedElement();
   // Reuse the geometry already transformed for the 2D view, including cheap
   // drag previews, rather than converting or transforming the source again.
-  const dimensions = element === null ? null : elementDimensionsCm(
-    displayGeometry.get(element.id),
+  const dimensions = element === null ? null : selectedElementSizeMm(element);
+  const sizeLabel = formatElementSizeMm(
+    dimensions === null
+      ? null
+      : { width: dimensions.width / 10, height: dimensions.height / 10 },
   );
-  const sizeLabel = formatElementSizeMm(dimensions);
   $("#center-element").disabled = pipeline.busy || dimensions === null;
-  $("#element-dimensions").textContent = sizeLabel === null
-    ? "Width × Height: —"
-    : `Width × Height: ${sizeLabel}`;
+  for (const [input, value] of [
+    [$("#element-width"), dimensions?.width],
+    [$("#element-height"), dimensions?.height],
+  ]) {
+    input.disabled = dimensions === null;
+    if (input === document.activeElement) continue;
+    input.value = value == null ? "" : value.toFixed(1);
+  }
   const badge = document.querySelector(".design-element.selected .selection-size");
   if (badge !== null) {
     badge.hidden = sizeLabel === null;
     badge.textContent = sizeLabel ?? "";
   }
+}
+
+function applyElementSize(axis, requested) {
+  const element = selectedElement();
+  const dimensions = element === null ? null : selectedElementSizeMm(element);
+  const change = dimensions === null
+    ? null
+    : uniformSizeChange(dimensions, axis, requested);
+  if (change === null) {
+    updateElementDimensions();
+    return;
+  }
+  editor.resizeByFactor(element.id, change.factor);
+  render();
+  const next = selectedElementSizeMm(element);
+  if (next === null) return;
+  $("#element-width").value = next.width.toFixed(1);
+  $("#element-height").value = next.height.toFixed(1);
 }
 
 function updatePNGSampleControls(element) {
@@ -1413,6 +1460,19 @@ function bindTransformNumber(
   });
 }
 
+function bindElementSize(selector, axis) {
+  $(selector).addEventListener("change", (event) => {
+    const requested = Number(event.target.value);
+    if (event.target.value === "" || !Number.isFinite(requested)) {
+      updateElementDimensions();
+      return;
+    }
+    applyElementSize(axis, requested);
+  });
+}
+
+bindElementSize("#element-width", "width");
+bindElementSize("#element-height", "height");
 bindTransformNumber("#element-x", "xMm");
 bindTransformNumber("#element-y", "yMm");
 bindTransformNumber(
@@ -1444,6 +1504,10 @@ $("#element-mirror-y").addEventListener("change", (event) => {
   renderArtboard();
 });
 
+function activePreviewMode() {
+  return $("#preview-surface-toggle [data-mode].active")?.dataset.mode ?? "stamp";
+}
+
 $$("#preview-surface-toggle [data-mode]").forEach((button) => {
   button.addEventListener("click", () => {
     $$("#preview-surface-toggle [data-mode]").forEach((modeButton) =>
@@ -1473,8 +1537,19 @@ $$("[data-view]").forEach((button) => {
     $("#preview-surface-toggle").hidden = show2D;
     $(".drag-instruction").hidden = !show2D;
 
-    if (!show2D) {
-      viewer.frame("both");
+    if (show2D) {
+      pipeline.buildSolids = false;
+    } else {
+      pipeline.buildSolids = true;
+      if (pipeline.result?.stamp && !pipeline.busy) {
+        viewer.frame(activePreviewMode());
+      } else {
+        previewStatus.hidden = false;
+        previewStatus.textContent = "Building 3D preview…";
+        void pipeline.ensureSolids().then((built) => {
+          if (built && editor.view === "3d") viewer.frame(activePreviewMode());
+        });
+      }
     }
   });
 });
@@ -1560,20 +1635,31 @@ function showPage(name) {
   window.scrollTo({ top: 0 });
 }
 
-$("#continue-button").addEventListener("click", () => showPage("review"));
-
-// Review needs a built stamp; warnings are allowed, errors are not.
-function updateFinalizeButton() {
-  const ready = Boolean(pipeline.result?.stamp) && !pipeline.busy;
+$("#continue-button").addEventListener("click", async () => {
+  $("#continue-button").disabled = true;
+  const built = await pipeline.ensureSolids();
+  updateFinalizeButton();
   const blocked = pipeline.result?.issues?.some(({ level }) => level === "error");
-  $("#continue-button").disabled = !ready || Boolean(blocked);
+  if (built && !blocked) showPage("review");
+});
+
+// Review builds the stamp on the way in. Warnings are allowed, errors are not.
+function updateFinalizeButton() {
+  const blocked =
+    pipeline.result?.issues?.some(({ level }) => level === "error") ||
+    pipeline.diagnostics?.level === "error";
+  const hasDesign = designModel.elements.length > 0 && pipeline.result != null;
+  const ready = hasDesign && !pipeline.busy && !blocked;
+  $("#continue-button").disabled = !ready;
   $("#finalize-hint").textContent = designModel.elements.length === 0
     ? "Add text or artwork to continue."
-    : !ready
-    ? "Wait for the stamp to finish building."
-    : blocked
-      ? "Fix the errors above before reviewing."
-      : "Next: review your design.";
+    : pipeline.busy
+      ? "Wait for the stamp to finish building."
+      : pipeline.error
+        ? "The stamp could not be built. Adjust the design and try again."
+        : blocked
+          ? "Fix the errors above before reviewing."
+          : "Next: review your design.";
 }
 for (const type of ["running", "result", "failed"]) {
   pipeline.addEventListener(type, updateFinalizeButton);

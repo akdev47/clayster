@@ -74,11 +74,15 @@ test("Text exposes one synchronized size control while images keep Scale", async
 test("stamp sizing offers Round, Square, and a tight Minimal face", async () => {
   const html = await projectFile("index.html");
   assert.match(html, /id="pipeline-face-size"/);
+  assert.match(html, /id="pipeline-face-height"/);
+  assert.match(html, /id="element-width"/);
+  assert.match(html, /id="element-height"/);
   assert.match(html, /id="pipeline-face-dimensions"/);
   assert.match(html, /id="pipeline-margin"[\s\S]*?data-limits="stamp\.edgeDistanceMm"/);
+  assert.match(html, /class="segment active"[^>]*data-shape="minimal"/);
   assert.deepEqual(
     [...html.matchAll(/data-shape="([^"]+)"/g)].map((match) => match[1]),
-    ["round", "square", "minimal"],
+    ["minimal", "round", "square"],
   );
   assert.match(html, /<strong>Minimal<\/strong>/);
   assert.doesNotMatch(html, /<strong>Artwork<\/strong>/);

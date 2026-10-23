@@ -1,4 +1,4 @@
-// The handle every stamp gets by default: a really small rectangular block under the plate.
+// The grip on the back of the stamp: a long rectangular bar you can hold.
 import * as THREE from "three";
 import { SETTINGS } from "../settings.js";
 
@@ -15,8 +15,8 @@ export const HANDLE = Object.freeze({
 export const HANDLE_MAX_FACE_SHARE = SETTINGS.handle.maxShareOfFace;
 
 /**
- * A closed solid block, Z up, standing on z = 0 and centred on the Z axis. The
- * stamp build moves it under the plate and shrinks it for small faces.
+ * A closed rectangular bar, Z up, standing on z = 0 and centred on the Z axis.
+ * The flat top meets the plate. The stamp build shrinks a copy for small faces.
  */
 export function createSmallHandle({
   widthMm = HANDLE.widthMm,

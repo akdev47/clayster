@@ -39,15 +39,16 @@ const dispose = (built) => {
   built.clay.dispose();
 };
 
-test("the small handle is a tiny closed rectangular block, nothing like the old 21 mm sample", () => {
+test("the handle is a long closed rectangular bar, big enough to hold", () => {
   const handle = createSmallHandle();
   const size = sizeOf(handle);
   assert.ok(Math.abs(size.x - HANDLE.widthMm) < 1e-6);
   assert.ok(Math.abs(size.y - HANDLE.depthMm) < 1e-6);
   assert.ok(Math.abs(size.z - HANDLE.heightMm) < 1e-6);
-  assert.ok(size.x > size.y, "a rectangle, not a square");
-  assert.ok(Math.max(size.x, size.y, size.z) < 15, "really small");
-  assert.equal(handle.getAttribute("position").count / 3, 12, "a plain block");
+  assert.ok(size.x >= 40, "long enough to hold");
+  assert.ok(size.y >= 12 && size.z >= 10, "thicker and taller than a fingertip");
+  assert.ok(size.x > size.y * 2, "a long rectangle, not a square block");
+  assert.equal(handle.getAttribute("position").count / 3, 12, "a plain rectangular bar");
   assert.ok(verifiedSTL(handle).size > 84, "closed, consistently oriented");
   handle.dispose();
 });

@@ -25,7 +25,7 @@ export const PRICING = Object.freeze({
 /** Face area in cm², from the built stamp when known, else the face setting. */
 export function faceAreaCm2(stamp, info) {
   const width = info?.width ?? stamp.faceSize;
-  const depth = info?.depth ?? stamp.faceSize;
+  const depth = info?.depth ?? stamp.faceHeight ?? stamp.faceSize;
   const box = (width * depth) / 100;
   return stamp.faceShape === "round" ? (box * Math.PI) / 4 : box;
 }

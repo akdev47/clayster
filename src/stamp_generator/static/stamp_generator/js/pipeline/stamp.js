@@ -8,17 +8,18 @@ import {
 } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
-import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
-import { createStampLayout, stampFaceShape, stampSizeIssue } from "./stampLayout.js";
+import { featureIssues, overflowIssue } from "./validate.js";
+import { createStampLayout, stampFaceShape, stampFaceSize, stampSizeIssue } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
 import { SETTINGS } from "../settings.js";
 
 export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
-  faceShape: "round", // 'round' | 'square'
+  faceShape: "minimal", // 'minimal' | 'round' | 'square'
   autoFaceSize: false,
   faceSize: SETTINGS.stamp.faceSizeMm.default,
+  faceHeight: null, // null matches faceSize, so the plate stays circular or square.
   faceThickness: SETTINGS.stamp.faceThicknessMm.default,
   reliefDepth: SETTINGS.stamp.reliefDepthMm.default,
   mode: "emboss", // 'emboss' | 'deboss'
@@ -74,9 +75,14 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
  * Everything is millimetres with Z up, so the geometry that comes out is
  * already in the orientation a slicer expects.
  */
-export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs = [] } = {}) {
+export function buildStamp(artwork, params, handleGeometry = null, {
+  textGlyphs = [],
+  checkPrintability = true,
+} = {}) {
   const settings = { ...DEFAULT_STAMP, ...params };
-  assertFaceSize(settings.faceSize);
+  const requestedFace = stampFaceSize(settings);
+  assertFaceSize(requestedFace.width);
+  assertFaceSize(requestedFace.height);
   assertFaceThickness(settings.faceThickness);
   settings.faceShape = stampFaceShape(settings.faceShape);
   if (
@@ -90,21 +96,18 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   // The shared layout is also rendered in 2D, so fitting and mirroring cannot
   // become a private transform applied only while generating this mesh.
   const layout = createStampLayout(artwork, settings, notes);
-  const { artwork: art, faceSize } = layout;
+  const { artwork: art } = layout;
   const fittedGlyphs = textGlyphs.map((glyph) => ({
     ...glyph,
     canonical: transform(glyph.canonical, layout.artworkTransform),
   }));
-  const thinIssues = [
-    ...thinFeatureIssues(art, { textGlyphs: fittedGlyphs }),
-    ...narrowGapIssues(art, { textGlyphs: fittedGlyphs }),
-  ];
-  if (layout.overflows) {
-    thinIssues.push({
-      level: "error",
-      code: "artwork-overflow",
-      message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
-    });
+  // The pipeline caches these against the artwork and passes false here so a
+  // 3D build does not measure the same strokes and gaps again.
+  const thinIssues = [];
+  if (checkPrintability) {
+    thinIssues.push(...featureIssues(art, { textGlyphs: fittedGlyphs }));
+    const overflow = overflowIssue(layout);
+    if (overflow) thinIssues.push(overflow);
   }
 
   const tooLarge = stampSizeIssue(layout.widthMm, layout.heightMm);
@@ -161,7 +164,7 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   return {
     stamp,
     clay,
-    info: describe(stamp, faceSize, settings),
+    info: describe(stamp, layout, settings),
     layout,
     notes,
     thinIssues,
@@ -175,11 +178,12 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
 // switched "Rounded edges" off.
 function buildBase(layout, settings) {
   const { edgeRoundingClaySideMm, edgeRoundingHandleSideMm } = SETTINGS.stamp;
+  const rounded = settings.roundedEdges ?? DEFAULT_STAMP.roundedEdges;
   return extrudeRoundedPlate(
     layout.face,
     settings.faceThickness,
-    settings.roundedEdges ? edgeRoundingClaySideMm : 0,
-    settings.roundedEdges ? edgeRoundingHandleSideMm : 0,
+    rounded ? edgeRoundingClaySideMm : 0,
+    rounded ? edgeRoundingHandleSideMm : 0,
   );
 }
 
@@ -247,7 +251,7 @@ function restOnPlate(geometry) {
 }
 
 // Measurements shown in the UI come from the finished mesh, including its handle.
-function describe(stamp, faceSize, settings) {
+function describe(stamp, layout, settings) {
   stamp.computeBoundingBox();
 
   const size = stamp.boundingBox.getSize(new THREE.Vector3());
@@ -259,7 +263,8 @@ function describe(stamp, faceSize, settings) {
     width: size.x,
     depth: size.y,
     height: size.z,
-    faceSize,
+    faceSize: layout.widthMm,
+    faceHeight: layout.heightMm,
     triangles: vertices / 3,
     mode: settings.mode,
   };

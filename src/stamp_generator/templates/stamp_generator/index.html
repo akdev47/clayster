@@ -137,7 +137,22 @@
                 </div>
               </div>
 
-              <p id="element-dimensions" class="pipeline-note">Width × Height: —</p>
+              <div id="element-dimensions" class="pipeline-field-grid">
+                <label class="control-label" for="element-width">
+                  Width
+                  <span class="pipeline-input-unit">
+                    <input id="element-width" class="form-control clay-input" type="number" min="0.1" step="0.1" />
+                    <span>mm</span>
+                  </span>
+                </label>
+                <label class="control-label" for="element-height">
+                  Height
+                  <span class="pipeline-input-unit">
+                    <input id="element-height" class="form-control clay-input" type="number" min="0.1" step="0.1" />
+                    <span>mm</span>
+                  </span>
+                </label>
+              </div>
 
               <div id="text-controls">
                 <label class="control-label" for="text-input">Text</label>
@@ -468,13 +483,13 @@
                   <button type="button" class="help-button" data-help="help-shape" aria-expanded="false" aria-controls="help-shape" aria-label="More information">?</button>
                 </div>
                 <div id="help-shape" class="help-text" hidden>
-                  <p><strong>Round</strong> and <strong>Square</strong> use the face size below and stay centered. Sliding an element keeps that size. Artwork past the margin is shown in red.</p>
-                  <p><strong>Minimal</strong> wraps every visible element in a tight rectangle, with the margin above, below, and on both sides. Width and height follow the artwork. The plate grows when the design itself grows, and it stays the same size when you only slide an element.</p>
+                  <p><strong>Minimal</strong> is the starting shape. It wraps every visible element in a tight rectangle, with the margin above, below, and on both sides. Width and height follow the artwork. The plate grows when the design itself grows, and it stays the same size when you only slide an element.</p>
+                  <p><strong>Round</strong> and <strong>Square</strong> use the width and height below and stay centered. Width and height can differ, so Round can be a circle or an ellipse and Square can be a square or a rectangle. Sliding an element keeps that size. Artwork past the margin is shown in red.</p>
                 </div>
                 <div id="pipeline-face-shape" class="segmented-control pipeline-tabs">
-                  <button class="segment active" type="button" data-shape="round">Round</button>
+                  <button class="segment active" type="button" data-shape="minimal">Minimal</button>
+                  <button class="segment" type="button" data-shape="round">Round</button>
                   <button class="segment" type="button" data-shape="square">Square</button>
-                  <button class="segment" type="button" data-shape="minimal">Minimal</button>
                 </div>
 
                 <div class="setting-row mt-3">
@@ -512,14 +527,28 @@
                 <p class="control-label mt-3">Stamp width × height: <output id="pipeline-face-dimensions">—</output></p>
 
                 <div class="pipeline-field-grid mt-3">
-                  <label id="pipeline-face-size-field" class="control-label" for="pipeline-face-size">
-                    Face size (Width)
+                  <label id="pipeline-face-size-field" class="control-label" for="pipeline-face-size" hidden>
+                    Width
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-face-size"
                         data-limits="stamp.faceSizeMm"
                         class="form-control clay-input"
                         type="number"
+                      />
+                      <span>mm</span>
+                    </span>
+                  </label>
+                  <label id="pipeline-face-height-field" class="control-label" for="pipeline-face-height" hidden>
+                    Height
+                    <span class="pipeline-input-unit">
+                      <input
+                        id="pipeline-face-height"
+                        class="form-control clay-input"
+                        type="number"
+                        min="10"
+                        max="120"
+                        step="1"
                       />
                       <span>mm</span>
                     </span>
@@ -717,7 +746,7 @@
                     <dd id="pipeline-total-z">—</dd>
                   </div>
                   <div>
-                    <dt>Face size (Width)</dt>
+                    <dt>Face</dt>
                     <dd id="pipeline-summary-face-size">—</dd>
                   </div>
                   <div>

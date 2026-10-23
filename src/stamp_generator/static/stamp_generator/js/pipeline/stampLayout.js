@@ -12,6 +12,15 @@ const CLEARANCE_TOLERANCE_MM = 0.05;
 export const MIN_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.min;
 export const MAX_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.max;
 
+/** Width and height of a Round or Square face. A missing height matches the width. */
+export function stampFaceSize(settings = {}) {
+  const width = Number.isFinite(settings.faceSize)
+    ? settings.faceSize
+    : SETTINGS.stamp.faceSizeMm.default;
+  const height = Number.isFinite(settings.faceHeight) ? settings.faceHeight : width;
+  return { width, height };
+}
+
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
   if (shape === "outline") return "square";
@@ -52,14 +61,12 @@ export function stampMarginMaximum(settings = {}) {
   if (stampFaceShape(settings.faceShape ?? "round") === "minimal") {
     return MAX_STAMP_MARGIN_MM;
   }
-  const faceSize = Number.isFinite(settings.faceSize)
-    ? settings.faceSize
-    : SETTINGS.stamp.faceSizeMm.default;
+  const { width, height } = stampFaceSize(settings);
   return Math.max(
     MIN_STAMP_MARGIN_MM,
     Math.min(
       MAX_STAMP_MARGIN_MM,
-      faceSize * SETTINGS.stamp.edgeDistanceMaxShareOfFace,
+      Math.min(width, height) * SETTINGS.stamp.edgeDistanceMaxShareOfFace,
     ),
   );
 }
@@ -86,7 +93,11 @@ export function createStampLayout(artwork, settings, notes = []) {
     xMm: fitted.transform.xMm,
     yMm: fitted.transform.yMm,
   };
-  const face = stampFace(fitted.art, fitted.faceSize, settings);
+  const face = stampFace(fitted.art, {
+    ...settings,
+    faceSize: fitted.faceSize,
+    faceHeight: fitted.faceHeight,
+  });
   const overflows = extendsBeyond(fitted.art, face, stampMargin(settings));
   const faceBounds = bounds(face);
   const faceSize = fitted.faceSize;
@@ -123,10 +134,12 @@ export function layoutRenderElements(elements, artworkTransform) {
 export function fitToFace(artwork, settings, notes = []) {
   settings = { ...settings, faceShape: stampFaceShape(settings.faceShape) };
   const margin = stampMargin(settings);
+  const requested = stampFaceSize(settings);
   if (artwork.length === 0) {
     return {
       art: [],
-      faceSize: settings.faceSize ?? 50,
+      faceSize: requested.width,
+      faceHeight: requested.height,
       transform: { scale: 1, xMm: 0, yMm: 0 },
     };
   }
@@ -141,31 +154,38 @@ export function fitToFace(artwork, settings, notes = []) {
     };
   }
 
-  let faceSize = settings.faceSize ?? 50;
+  let faceSize = requested.width;
+  let faceHeight = requested.height;
   if (settings.autoFaceSize) {
+    // Automatic sizing stays one number on both axes.
     faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+    faceHeight = faceSize;
   }
   if (settings.autoFaceSize && settings.faceShape === "round") {
     // The rendered/exported circle has straight chords. Compensate for their
     // inset so even the actual 96-sided backing retains the full clearance.
     faceSize /= Math.cos(Math.PI / FACE_SEGMENTS);
+    faceHeight = faceSize;
   }
 
   return {
     art: transform(artwork, { scale: 1, xMm: 0, yMm: 0 }),
     faceSize,
+    faceHeight,
     transform: { scale: 1, xMm: 0, yMm: 0 },
     overflows: false,
   };
 }
 
-export function stampFace(artwork, faceSize, settings) {
+export function stampFace(artwork, settings) {
   const shape = stampFaceShape(settings.faceShape);
+  const { width, height } = stampFaceSize(settings);
   if (shape === "round") {
-    const radius = faceSize / 2;
+    const radiusX = width / 2;
+    const radiusY = height / 2;
     return [[Array.from({ length: FACE_SEGMENTS }, (_, index) => {
       const angle = (index / FACE_SEGMENTS) * Math.PI * 2;
-      return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+      return [Math.cos(angle) * radiusX, Math.sin(angle) * radiusY];
     })]];
   }
 
@@ -181,8 +201,13 @@ export function stampFace(artwork, faceSize, settings) {
     );
   }
 
-  const half = faceSize / 2;
-  return plateOutline(-half, -half, half, half, settings.roundedCorners);
+  return plateOutline(
+    -width / 2,
+    -height / 2,
+    width / 2,
+    height / 2,
+    settings.roundedCorners,
+  );
 }
 
 /**
