@@ -2,6 +2,13 @@ import { bounds, transform } from "./canonical.js";
 import { SETTINGS } from "../settings.js";
 
 const FACE_SEGMENTS = 96;
+const CORNER_SEGMENTS = 8; // Per quarter circle of a rounded corner.
+
+// How far inside the ideal outline the straight sides of a round plate and of a
+// rounded corner may lie: a 120 mm round plate has 96 sides that sit up to
+// 0.03 mm inside its circle. The editor measures to the ideal shape, so the
+// final check allows this much to agree with it, far below what can be printed.
+const CLEARANCE_TOLERANCE_MM = 0.05;
 export const MIN_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.min;
 export const MAX_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.max;
 
@@ -165,21 +172,59 @@ export function stampFace(artwork, faceSize, settings) {
   if (shape === "minimal" && artwork.length > 0) {
     const margin = stampMargin(settings);
     const box = bounds(artwork);
-    return [[[
-      [box.minX - margin, box.minY - margin],
-      [box.maxX + margin, box.minY - margin],
-      [box.maxX + margin, box.maxY + margin],
-      [box.minX - margin, box.maxY + margin],
-    ]]];
+    return plateOutline(
+      box.minX - margin,
+      box.minY - margin,
+      box.maxX + margin,
+      box.maxY + margin,
+      settings.roundedCorners,
+    );
   }
 
   const half = faceSize / 2;
-  return [[[
-    [-half, -half],
-    [half, -half],
-    [half, half],
-    [-half, half],
-  ]]];
+  return plateOutline(-half, -half, half, half, settings.roundedCorners);
+}
+
+/**
+ * A rectangular plate outline, counter-clockwise, with its corners rounded by
+ * settings.js (stamp.cornerRadiusMm) when `rounded` is true. The radius never
+ * exceeds 45% of the shortest side, so a very small plate keeps straight sides.
+ */
+export function plateOutline(minX, minY, maxX, maxY, rounded = false) {
+  const radius = rounded
+    ? Math.min(
+        SETTINGS.stamp.cornerRadiusMm,
+        0.45 * (maxX - minX),
+        0.45 * (maxY - minY),
+      )
+    : 0;
+  if (!(radius > 0)) {
+    return [[[
+      [minX, minY],
+      [maxX, minY],
+      [maxX, maxY],
+      [minX, maxY],
+    ]]];
+  }
+
+  // Each corner is a quarter circle around a point `radius` in from the corner.
+  const corners = [
+    [maxX - radius, minY + radius, -90],
+    [maxX - radius, maxY - radius, 0],
+    [minX + radius, maxY - radius, 90],
+    [minX + radius, minY + radius, 180],
+  ];
+  const ring = [];
+  for (const [centreX, centreY, start] of corners) {
+    for (let step = 0; step <= CORNER_SEGMENTS; step++) {
+      const angle = ((start + (90 * step) / CORNER_SEGMENTS) * Math.PI) / 180;
+      ring.push([
+        centreX + radius * Math.cos(angle),
+        centreY + radius * Math.sin(angle),
+      ]);
+    }
+  }
+  return [[ring]];
 }
 
 // Independently check the generated backing, including circular chords and
@@ -194,7 +239,8 @@ function extendsBeyond(artwork, face, margin) {
     const length = Math.hypot(dx, dy);
     for (const polygon of artwork) {
       for (const [px, py] of polygon[0]) {
-        if ((dx * (py - y) - dy * (px - x)) / length < margin - 1e-6) return true;
+        const clearance = (dx * (py - y) - dy * (px - x)) / length;
+        if (clearance < margin - CLEARANCE_TOLERANCE_MM) return true;
       }
     }
   }

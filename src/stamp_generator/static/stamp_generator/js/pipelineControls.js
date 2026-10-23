@@ -2,6 +2,7 @@
 import { enableDragResize } from "./resize.js";
 import { exportSTL } from "./exporters.js";
 import {
+  DEFAULT_STAMP,
   FACE_SIZE_LIMITS,
   FACE_THICKNESS_LIMITS,
 } from "./pipeline/stamp.js";
@@ -24,6 +25,7 @@ export function createPipelineControls(
   segmented(dom.faceShape, "shape", (faceShape) => {
     pipeline.setStamp({ faceShape });
     syncFaceSizeField(dom, pipeline);
+    syncRoundedCornersField(dom, pipeline);
   });
   bindNumber(
     dom.faceSize,
@@ -87,6 +89,12 @@ export function createPipelineControls(
   dom.mirror.addEventListener("change", () => {
     pipeline.setStamp({ mirror: dom.mirror.checked });
   });
+  dom.roundedEdges.addEventListener("change", () => {
+    pipeline.setStamp({ roundedEdges: dom.roundedEdges.checked });
+  });
+  dom.roundedCorners.addEventListener("change", () => {
+    pipeline.setStamp({ roundedCorners: dom.roundedCorners.checked });
+  });
   dom.handleSelect.addEventListener("change", () => {
     pipeline.setStamp({ handle: dom.handleSelect.value });
   });
@@ -138,6 +146,9 @@ function syncControls(dom, pipeline) {
   dom.reliefDepth.value = stamp.reliefDepth;
   dom.reliefReadout.textContent = `${stamp.reliefDepth} mm`;
   dom.mirror.checked = stamp.mirror;
+  dom.roundedEdges.checked = Boolean(stamp.roundedEdges ?? DEFAULT_STAMP.roundedEdges);
+  dom.roundedCorners.checked = Boolean(stamp.roundedCorners);
+  syncRoundedCornersField(dom, pipeline);
   dom.handleSelect.value = stamp.handle;
 
   selectSegment(dom.faceShape, "shape", stamp.faceShape);
@@ -146,6 +157,11 @@ function syncControls(dom, pipeline) {
 
 function syncFaceSizeField(dom, pipeline) {
   dom.faceSizeField.hidden = pipeline.stamp.faceShape === "minimal";
+}
+
+// A round plate has no corners, so the switch only shows for the other shapes.
+function syncRoundedCornersField(dom, pipeline) {
+  dom.roundedCornersField.hidden = pipeline.stamp.faceShape === "round";
 }
 
 function syncMarginControl(dom, pipeline) {
@@ -274,6 +290,9 @@ function collectDOM() {
     reliefDepth: byId("pipeline-relief-depth"),
     reliefReadout: byId("pipeline-relief-readout"),
     mirror: byId("pipeline-mirror"),
+    roundedEdges: byId("pipeline-rounded-edges"),
+    roundedCorners: byId("pipeline-rounded-corners"),
+    roundedCornersField: byId("pipeline-rounded-corners-field"),
     handleSelect: byId("pipeline-handle-select"),
     exportSTL: byId("pipeline-export-stl"),
     status: byId("pipeline-control-status"),
