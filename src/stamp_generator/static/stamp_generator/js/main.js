@@ -34,6 +34,7 @@ import { bounds, transform } from "./pipeline/canonical.js";
 import { readableStampDisplay } from "./stamp2dDisplay.js";
 import { ArtworkComposer } from "./pipeline/artworkComposition.js";
 import { createTextSizeControls, elementDimensionsCm } from "./sizing.js";
+import { SETTINGS, applyInputLimits } from "./settings.js";
 
 const state = {
   width: 60,
@@ -49,6 +50,9 @@ const designHistory = new DesignHistory(designModel);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
+
+// min/max/step of the input fields come from settings.js (data-limits).
+applyInputLimits(document);
 
 const artboard = $("#stamp-artboard");
 const canonicalArtwork = $("#canonical-artwork");
@@ -974,8 +978,8 @@ function startResize(event, element, item) {
   handle.addEventListener("pointercancel", stop);
 }
 
-const NEW_TEXT_SIZE_MM = 7.5;
-const NEW_TEXT_GAP_MM = 2;
+const NEW_TEXT_SIZE_MM = SETTINGS.text.newTextSizeMm;
+const NEW_TEXT_GAP_MM = SETTINGS.elements.newTextGapMm;
 
 // New text goes into free space under (or else above) the existing artwork
 // rather than on top of it, where it would merge into one unreadable shape.

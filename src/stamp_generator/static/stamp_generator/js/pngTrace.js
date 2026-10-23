@@ -1,9 +1,10 @@
 // Converts simple high-contrast raster artwork into closed SVG path contours.
 // SVG is an internal interchange only; the user still receives the finished STL.
+import { SETTINGS } from "./settings.js";
 
 const ALPHA_THRESHOLD = 128;
 const LUMINANCE_THRESHOLD = 128;
-const MAX_PIXELS = 4_000_000;
+const MAX_PIXELS = SETTINGS.images.png.maxPixels;
 const MAX_EDGES = 500_000;
 const BORDER_SAMPLE_LIMIT = 64;
 const DETECTION_DISTANCE = 42;
@@ -23,9 +24,9 @@ const PICK_SAMPLE_MESSAGE =
 const PICK_DISTRIBUTION_MESSAGE =
   "Add more background samples across bright and dark regions of the image.";
 
-export const MIN_PNG_BACKGROUND_TOLERANCE = 0.5;
-export const MAX_PNG_BACKGROUND_TOLERANCE = 1.5;
-export const DEFAULT_PNG_BACKGROUND_TOLERANCE = 1;
+export const MIN_PNG_BACKGROUND_TOLERANCE = SETTINGS.images.png.backgroundTolerance.min;
+export const MAX_PNG_BACKGROUND_TOLERANCE = SETTINGS.images.png.backgroundTolerance.max;
+export const DEFAULT_PNG_BACKGROUND_TOLERANCE = SETTINGS.images.png.backgroundTolerance.default;
 
 export const PNG_BACKGROUND_MODES = Object.freeze([
   "auto",
@@ -64,7 +65,7 @@ export async function tracePNGToSVGDetails(
     if (width === 0 || height === 0) throw new Error("The PNG image is empty.");
     if (width * height > MAX_PIXELS) {
       throw new Error(
-        "The PNG is too large to trace. Use an image under 4 megapixels.",
+        `The PNG is too large to trace. Use an image under ${MAX_PIXELS / 1_000_000} megapixels.`,
       );
     }
 

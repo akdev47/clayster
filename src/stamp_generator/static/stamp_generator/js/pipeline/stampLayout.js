@@ -1,8 +1,9 @@
 import { bounds, transform } from "./canonical.js";
+import { SETTINGS } from "../settings.js";
 
 const FACE_SEGMENTS = 96;
-export const MIN_STAMP_MARGIN_MM = 2;
-export const MAX_STAMP_MARGIN_MM = 20;
+export const MIN_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.min;
+export const MAX_STAMP_MARGIN_MM = SETTINGS.stamp.edgeDistanceMm.max;
 
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
@@ -12,10 +13,15 @@ export function stampFaceShape(shape = "round") {
 }
 
 export function stampMarginMaximum(settings = {}) {
-  const faceSize = Number.isFinite(settings.faceSize) ? settings.faceSize : 50;
+  const faceSize = Number.isFinite(settings.faceSize)
+    ? settings.faceSize
+    : SETTINGS.stamp.faceSizeMm.default;
   return Math.max(
     MIN_STAMP_MARGIN_MM,
-    Math.min(MAX_STAMP_MARGIN_MM, faceSize / 4),
+    Math.min(
+      MAX_STAMP_MARGIN_MM,
+      faceSize * SETTINGS.stamp.edgeDistanceMaxShareOfFace,
+    ),
   );
 }
 

@@ -10,6 +10,7 @@ import {
   simplify,
 } from "./canonical.js";
 import { hasThinCrossSection } from "../solidGeometry.js";
+import { SETTINGS } from "../settings.js";
 
 // Slivers below this area in mm² carry no printable detail and only upset the
 // boolean stage.
@@ -267,7 +268,10 @@ function dropDegenerate(artwork) {
 
 // Run after fitToFace(): a morphological opening removes regions narrower than
 // the requested physical width, including local necks, arms and walls.
-export function thinFeatureIssues(artwork, { minFeature = 0.8, textGlyphs = [] } = {}) {
+export function thinFeatureIssues(
+  artwork,
+  { minFeature = SETTINGS.checks.thinFeatureMm, textGlyphs = [] } = {},
+) {
   const issues = [];
   const thin = artwork.filter((polygon) =>
     hasThinCrossSection(polygon, minFeature),

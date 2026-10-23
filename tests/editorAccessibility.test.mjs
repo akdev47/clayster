@@ -75,7 +75,7 @@ test("stamp sizing has one automatic mode and only Round and Square face shapes"
   const html = await projectFile("index.html");
   assert.doesNotMatch(html, /id="pipeline-(?:auto-face|face-size|face-size-range)"/);
   assert.match(html, /id="pipeline-face-dimensions"/);
-  assert.match(html, /id="pipeline-margin"[\s\S]*?min="2"/);
+  assert.match(html, /id="pipeline-margin"[\s\S]*?data-limits="stamp\.edgeDistanceMm"/);
   assert.deepEqual([...html.matchAll(/data-shape="([^"]+)"/g)].map((match) => match[1]), ["round", "square"]);
   assert.doesNotMatch(html, /<strong>Artwork<\/strong>/);
   for (const shape of ["round", "square"]) {
