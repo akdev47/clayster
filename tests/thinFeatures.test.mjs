@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
 import opentype from "opentype.js";
 import { transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
@@ -33,17 +34,23 @@ const circle = (radius, segments = 128) =>
 
 const hasWarning = (input) => thinFeatureIssues(input).length === 1;
 
+// Widths in these tests are relative to the thin-details limit in settings.js,
+// so the tests keep working when that limit is tweaked.
+const MIN = SETTINGS.checks.thinFeatureMm;
+const THIN = MIN * 0.75; // clearly too thin (0.6 mm at the shipped 0.8 mm)
+const SAFE = MIN * 1.25; // clearly thick enough (1 mm at the shipped 0.8 mm)
+
 const defaultTextGlyph = (character) => offsetOutline(
   layoutText(notoSansBold, { text: character, size: 7.5 }),
   0.3 / 2,
 );
 
 test("strip just below the minimum feature width is warned", () => {
-  assert.equal(hasWarning([[rectangle(0, 0, 10, 0.79)]]), true);
+  assert.equal(hasWarning([[rectangle(0, 0, 10, MIN - 0.01)]]), true);
 });
 
 test("strip just above the minimum feature width is accepted", () => {
-  assert.equal(hasWarning([[rectangle(0, 0, 10, 0.81)]]), false);
+  assert.equal(hasWarning([[rectangle(0, 0, 10, MIN + 0.01)]]), false);
 });
 
 test("thin neck between thick regions is warned", () => {
@@ -51,14 +58,14 @@ test("thin neck between thick regions is warned", () => {
     [
       [-5, -2],
       [-1, -2],
-      [-1, -0.3],
-      [1, -0.3],
+      [-1, -THIN / 2],
+      [1, -THIN / 2],
       [1, -2],
       [5, -2],
       [5, 2],
       [1, 2],
-      [1, 0.3],
-      [-1, 0.3],
+      [1, THIN / 2],
+      [-1, THIN / 2],
       [-1, 2],
       [-5, 2],
     ],
@@ -72,10 +79,10 @@ test("narrow protruding arm is warned", () => {
     [
       [-3, -3],
       [3, -3],
-      [3, -0.3],
-      [6, -0.3],
-      [6, 0.3],
-      [3, 0.3],
+      [3, -THIN / 2],
+      [6, -THIN / 2],
+      [6, THIN / 2],
+      [3, THIN / 2],
       [3, 3],
       [-3, 3],
     ],
@@ -86,14 +93,14 @@ test("narrow protruding arm is warned", () => {
 
 test("thin wall between a hole and outer contour is warned", () => {
   const outer = rectangle(-5, -5, 5, 5);
-  const hole = rectangle(-3, -3, 3, 4.4);
+  const hole = rectangle(-3, -3, 3, 5 - THIN);
 
   assert.equal(hasWarning([[outer, hole]]), true);
 });
 
 test("safe wall between a hole and outer contour is accepted", () => {
   const outer = rectangle(-5, -5, 5, 5);
-  const hole = rectangle(-3, -3, 3, 4);
+  const hole = rectangle(-3, -3, 3, 5 - SAFE);
 
   assert.equal(hasWarning([[outer, hole]]), false);
 });
@@ -101,7 +108,7 @@ test("safe wall between a hole and outer contour is accepted", () => {
 test("only the thin polygon in multiple artwork polygons is counted", () => {
   const issues = thinFeatureIssues([
     [rectangle(0, 0, 4, 4)],
-    [rectangle(6, 0, 12, 0.6)],
+    [rectangle(6, 0, 12, THIN)],
   ]);
 
   assert.equal(issues.length, 1);
@@ -121,8 +128,8 @@ test("sharp valid corners are accepted", () => {
 test("curved donut walls are checked near the threshold", () => {
   const outer = circle(10);
 
-  assert.equal(hasWarning([[outer, circle(9.21)]]), true);
-  assert.equal(hasWarning([[outer, circle(9.19)]]), false);
+  assert.equal(hasWarning([[outer, circle(10 - (MIN - 0.01))]]), true);
+  assert.equal(hasWarning([[outer, circle(10 - (MIN + 0.01))]]), false);
 });
 
 test("reversed winding and redundant points do not change the result", () => {
@@ -159,17 +166,17 @@ test("Noto Sans Bold glyph result is stable under rigid transforms and detects r
     ]) {
       assert.deepEqual(thinFeatureIssues(transformed), []);
     }
-    assert.equal(hasWarning(transform(glyph, { scale: 0.5 })), true);
+    assert.equal(hasWarning(transform(glyph, { scale: MIN / 2 })), true);
   }
 });
 
 const artwork = [
   [
     [
-      [-10, -0.5],
-      [10, -0.5],
-      [10, 0.5],
-      [-10, 0.5],
+      [-10, -SAFE / 2],
+      [10, -SAFE / 2],
+      [10, SAFE / 2],
+      [-10, SAFE / 2],
     ],
   ],
 ];
@@ -196,7 +203,7 @@ test("artwork that becomes too thin after element scaling is warned in final lay
   }).art;
   const issues = thinFeatureIssues(final);
   assert.equal(issues.length, 1);
-  assert.match(issues[0].message, /thinner than about 0\.8 mm/i);
+  assert.ok(issues[0].message.includes(`thinner than about ${MIN} mm`));
 });
 
 test("automatic backing preserves safe widths, including legacy fixed-face settings", () => {
@@ -213,10 +220,10 @@ test("artwork requiring no fitting stays unchanged", () => {
 });
 
 test("thin glyph attribution uses geometry and retains generic warnings for ambiguous ownership", () => {
-  const polygon = [rectangle(0, 0, 5, 0.6)];
+  const polygon = [rectangle(0, 0, 5, THIN)];
   const glyph = { elementId: "text", character: "a", line: 2, column: 3, canonical: [polygon] };
   const named = thinFeatureIssues([polygon], { textGlyphs: [glyph] });
-  assert.equal(named[0].message, "Potentially thin letters: a (below approximately 0.8 mm).");
+  assert.equal(named[0].message, `Potentially thin letters: a (below approximately ${MIN} mm).`);
   assert.match(named[0].details[0], /line 2, character 3/);
   assert.equal(named[0].thinGlyphs[0], glyph);
 
@@ -228,7 +235,7 @@ test("thin glyph attribution uses geometry and retains generic warnings for ambi
     assert.match(issues[0].message, /^1 shape looks thinner/);
     assert.equal(issues.length, 1);
   }
-  const elsewhere = { ...glyph, canonical: [[rectangle(10, 10, 15, 10.6)]] };
+  const elsewhere = { ...glyph, canonical: [[rectangle(10, 10, 15, 10 + THIN)]] };
   assert.match(thinFeatureIssues([polygon], { textGlyphs: [elsewhere] })[0].message,
     /^1 shape looks thinner/);
 });

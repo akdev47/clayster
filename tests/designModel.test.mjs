@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import {
   DEFAULT_ELEMENT_TRANSFORM,
   DesignModel,
@@ -127,7 +128,7 @@ test("keeps ids stable while updating source and physical transform", () => {
 
   assert.equal(updated.id, "text-1");
   assert.equal(updated.source.text, "Updated");
-  assert.equal(updated.source.fontSizeMm, 16);
+  assert.equal(updated.source.fontSizeMm, SETTINGS.text.defaultSizeMm);
   assert.equal(updated.transform.xMm, 12);
   assert.equal(updated.transform.scale, 1);
   assert.equal(updated.transform.mirrorY, true);

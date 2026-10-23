@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/designHistory.js";
 import { ArtworkComposer } from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
@@ -82,20 +83,20 @@ test("arrow keys move the selected element in authoritative millimetres", () => 
   editor.moveFromArrowKey("text-1", "ArrowRight");
   editor.moveFromArrowKey("text-1", "ArrowLeft");
 
-  assert.equal(KEYBOARD_MOVE_STEP_MM, 0.5);
+  assert.equal(KEYBOARD_MOVE_STEP_MM, SETTINGS.elements.keyboardMoveStepMm);
   assert.equal(model.getElement("text-1").transform.xMm, 3);
   assert.equal(model.getElement("text-1").transform.yMm, -2);
   assert.equal(editor.selectedId, "text-1");
 });
 
 test("arrow-up is positive canonical Y and arrow-down is negative", () => {
-  assert.deepEqual(arrowKeyDelta("ArrowUp"), { xMm: 0, yMm: 0.5 });
-  assert.deepEqual(arrowKeyDelta("ArrowDown"), { xMm: 0, yMm: -0.5 });
+  assert.deepEqual(arrowKeyDelta("ArrowUp"), { xMm: 0, yMm: KEYBOARD_MOVE_STEP_MM });
+  assert.deepEqual(arrowKeyDelta("ArrowDown"), { xMm: 0, yMm: -KEYBOARD_MOVE_STEP_MM });
 
   const model = new DesignModel({ elements: [textElement()] });
   const editor = new DesignEditorController(model);
   editor.moveFromArrowKey("text-1", "ArrowUp");
-  assert.equal(model.getElement("text-1").transform.yMm, 0.5);
+  assert.equal(model.getElement("text-1").transform.yMm, KEYBOARD_MOVE_STEP_MM);
 });
 
 test("element arrow handling ignores form fields and modifier shortcuts", () => {
@@ -254,10 +255,11 @@ test("text resize previews are transient and commit one authoritative size chang
   history.redo();
   assert.equal(model.getElement("text-1").source.fontSizeMm, 15);
 
+  // Scale well past the largest allowed text size, whatever settings.js says it is.
   const limitedPreview = textResizePreview(
     resized.source.fontSizeMm,
     resized.transform,
-    10,
+    (2 * MAX_TEXT_SIZE_MM) / resized.source.fontSizeMm,
   );
   assert.equal(limitedPreview.fontSizeMm, MAX_TEXT_SIZE_MM);
 });
@@ -399,7 +401,7 @@ test("duplicating copies editable properties, offsets, selects, and supports und
 
   const duplicate = editor.duplicateSelected();
 
-  assert.equal(DUPLICATE_OFFSET_MM, 2);
+  assert.equal(DUPLICATE_OFFSET_MM, SETTINGS.elements.duplicateOffsetMm);
   assert.notEqual(duplicate.id, original.id);
   assert.equal(model.elements.length, 2);
   assert.equal(editor.selectedId, duplicate.id);
@@ -512,7 +514,7 @@ test("keyboard movement remains undoable, redoable and deletable", () => {
 
   history.redo();
   editor.ensureSelection();
-  assert.equal(model.getElement("text-1").transform.xMm, 0.5);
+  assert.equal(model.getElement("text-1").transform.xMm, KEYBOARD_MOVE_STEP_MM);
   assert.equal(editor.deleteSelected().id, "text-1");
   assert.equal(model.getElement("text-1"), null);
 });

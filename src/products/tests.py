@@ -30,9 +30,10 @@ class ProductCreate(TestCase):
     def test_prouct_creation(self):
         product = create_dummy_product()
 
-        self.assertEqual(product.name, "Stamp_Dummy")
+        # create_dummy_product() makes a custom stamp product (see products/utils.py).
+        self.assertEqual(product.name, "Stamp_Dummy2")
         self.assertEqual(product.price, Decimal("10.00"))
-        self.assertEqual(product.product_type, Product.ProductType.STANDARD)
+        self.assertEqual(product.product_type, Product.ProductType.CUSTOM_STAMP)
         self.assertEqual(Product.objects.count(), 1)
 
     # call dummy product creation twice to return same output
