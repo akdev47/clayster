@@ -1,3 +1,10 @@
+function faceShapeLabel(faceShape) {
+  if (faceShape === "outline") return "Artwork outline";
+  if (faceShape === "square") return "Square";
+  if (faceShape === "minimal") return "Minimal";
+  return "Round";
+}
+
 function sourceName(reference) {
   if (typeof reference === "string") return reference.split("/").at(-1);
   return reference?.name ?? "Unnamed image";
@@ -15,9 +22,7 @@ export function reviewSummary(designModel, stamp, dimensions) {
     ["Text elements", String(textCount)],
     ["Images / logos", images.length ? images.join(", ") : "None"],
     ["Stamp dimensions", dimensions],
-    ["Face shape", stamp.faceShape === "outline"
-      ? "Artwork outline"
-      : stamp.faceShape === "square" ? "Square" : "Round"],
+    ["Face shape", faceShapeLabel(stamp.faceShape)],
     ["Base thickness", `${stamp.faceThickness} mm`],
     ["Relief", `${stamp.mode === "emboss" ? "Raised" : "Recessed"} · ${stamp.reliefDepth} mm`],
     ["Mirror design", stamp.mirror ? "Enabled" : "Disabled"],

@@ -4,14 +4,14 @@
  * exposes these — they are set here and the text pipeline follows them.
  *
  * The limit is a width rather than a count of characters on purpose: how many
- * fit is a question about the font and the size, not about the stamp. A 60 mm
- * row takes three "W"s at 16 mm and seven at 8 mm, and an "i" is worth a
- * quarter of a "W" wherever it lands. Measuring glyphs answers that for every
+ * fit is a question about the font and the size, not about the stamp. A wide
+ * row holds fewer large letters than small ones, and an "i" is worth a
+ * fraction of a "W" wherever it lands. Measuring glyphs answers that for every
  * font, including an uploaded one; a character count cannot.
  */
 export const TEXT_LIMITS = {
-  // The widest a single row of text may be.
-  rowWidth: 60,
+  // The widest a single row of text may be. The stamp plate grows with it.
+  rowWidth: 200,
 
   // How many rows it may run to before the text counts as too long.
   rows: 4,

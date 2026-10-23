@@ -27,4 +27,9 @@ test("review summary uses live visible elements and stamp settings", () => {
     Relief: "Recessed · 1.5 mm",
     "Mirror design": "Disabled",
   });
+  assert.equal(
+    reviewSummary(model, { ...stamp, faceShape: "minimal" }, "60 × 40 mm")
+      .find(([label]) => label === "Face shape")[1],
+    "Minimal",
+  );
 });

@@ -7,8 +7,8 @@ export const MAX_STAMP_MARGIN_MM = 20;
 export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
   if (shape === "outline") return "square";
-  if (shape === "round" || shape === "square") return shape;
-  throw new Error("Unsupported stamp shape. Choose Round or Square.");
+  if (shape === "round" || shape === "square" || shape === "minimal") return shape;
+  throw new Error("Unsupported stamp shape. Choose Round, Square, or Minimal.");
 }
 
 export function stampMarginMaximum(settings = {}) {
@@ -85,11 +85,18 @@ export function fitToFace(artwork, settings, notes = []) {
     };
   }
 
-  let faceSize = settings.faceSize ?? 50;
-  if (settings.autoFaceSize) {
-    faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+  if (settings.faceShape === "minimal") {
+    const box = bounds(artwork);
+    return {
+      art: transform(artwork, { scale: 1, xMm: 0, yMm: 0 }),
+      faceSize: Math.max(box.width, box.height) + margin * 2,
+      transform: { scale: 1, xMm: 0, yMm: 0 },
+      overflows: false,
+    };
   }
-  if (settings.autoFaceSize && settings.faceShape === "round") {
+
+  let faceSize = sizeAroundOrigin(artwork, settings.faceShape) + margin * 2;
+  if (settings.faceShape === "round") {
     // The rendered/exported circle has straight chords. Compensate for their
     // inset so even the actual 96-sided backing retains the full clearance.
     faceSize /= Math.cos(Math.PI / FACE_SEGMENTS);
@@ -104,12 +111,24 @@ export function fitToFace(artwork, settings, notes = []) {
 }
 
 export function stampFace(artwork, faceSize, settings) {
-  if (stampFaceShape(settings.faceShape) === "round") {
+  const shape = stampFaceShape(settings.faceShape);
+  if (shape === "round") {
     const radius = faceSize / 2;
     return [[Array.from({ length: FACE_SEGMENTS }, (_, index) => {
       const angle = (index / FACE_SEGMENTS) * Math.PI * 2;
       return [Math.cos(angle) * radius, Math.sin(angle) * radius];
     })]];
+  }
+
+  if (shape === "minimal" && artwork.length > 0) {
+    const margin = stampMargin(settings);
+    const box = bounds(artwork);
+    return [[[
+      [box.minX - margin, box.minY - margin],
+      [box.maxX + margin, box.minY - margin],
+      [box.maxX + margin, box.maxY + margin],
+      [box.minX - margin, box.maxY + margin],
+    ]]];
   }
 
   const half = faceSize / 2;

@@ -222,7 +222,7 @@ test("both face shapes keep at least 2 mm clearance, including acute and off-cen
     [[[[0, 0], [40, 0], [0, 2]]]],
     [...rectangle(-22, -5, -12, 5), ...rectangle(15, -3, 25, 4)],
   ];
-  for (const faceShape of ["round", "square"]) {
+  for (const faceShape of ["round", "square", "minimal"]) {
     for (const artwork of shapes) {
       const snapshot = structuredClone(artwork);
       for (const margin of [0, 2, 5]) {
