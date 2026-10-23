@@ -247,22 +247,67 @@ export function solidBoolean(
     ) {
       throw new Error("The stamp operation did not produce a valid solid.");
     }
-    // Return ordinary Three.js geometry for the viewer and exporters.
-    const mesh = result.getMesh();
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(mesh.vertProperties, 3),
-    );
-    geometry.setIndex(
-      new THREE.BufferAttribute(new Uint32Array(mesh.triVerts), 1),
-    );
-    const flat = geometry.toNonIndexed();
-    geometry.dispose();
-    flat.computeVertexNormals();
-    return flat;
+    return toGeometry(result);
   } finally {
     // WASM solids need explicit cleanup, including when a check fails.
+    temporary.reverse().forEach((object) => object.delete());
+  }
+}
+
+// Ordinary Three.js geometry for the viewer and exporters.
+function toGeometry(solid) {
+  const mesh = solid.getMesh();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(mesh.vertProperties, 3),
+  );
+  geometry.setIndex(
+    new THREE.BufferAttribute(new Uint32Array(mesh.triVerts), 1),
+  );
+  const flat = geometry.toNonIndexed();
+  geometry.dispose();
+  flat.computeVertexNormals();
+  return flat;
+}
+
+/**
+ * Raises a canonical multipolygon (outer ring first, then its holes) straight
+ * up by `depth` millimetres into a closed solid that stands on z = 0.
+ *
+ * Manifold triangulates the top and bottom itself. Three.js's ExtrudeGeometry
+ * does not: it joins every hole to the outline with a straight bridge, and when
+ * other points of the shape lie exactly on that bridge (for example along the
+ * straight edge of a rectangle that text overlaps) the mesh gets overlapping
+ * edges and is no longer a closed solid. That only happened at certain sizes
+ * and positions, which made it hard to spot. Needs initializeSolids() to have
+ * finished.
+ */
+export function extrudeOutline(multiPolygon, depth) {
+  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!(depth > 0)) throw new RangeError("The extrusion depth must be above 0.");
+  if (multiPolygon.length === 0) return new THREE.BufferGeometry();
+
+  const temporary = [];
+  const keep = (object) => {
+    temporary.push(object);
+    return object;
+  };
+  try {
+    // Each polygon owns its holes; separate polygons add together. Even-odd
+    // filling keeps the holes without depending on how the rings wind.
+    const outlines = multiPolygon.map((polygon) =>
+      keep(new engine.CrossSection(polygon, "EvenOdd")),
+    );
+    const section = keep(engine.CrossSection.union(outlines));
+    if (section.isEmpty()) return new THREE.BufferGeometry();
+
+    const solid = keep(engine.Manifold.extrude(section, depth));
+    if (solid.status() !== "NoError" || solid.isEmpty()) {
+      throw new Error("The artwork could not be raised into a closed solid.");
+    }
+    return toGeometry(solid);
+  } finally {
     temporary.reverse().forEach((object) => object.delete());
   }
 }
