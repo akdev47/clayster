@@ -5,25 +5,32 @@ import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
-import { createStampLayout, stampFaceShape } from "./stampLayout.js";
+import { createStampLayout, stampFaceShape, stampSizeIssue } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
+import { SETTINGS } from "../settings.js";
 
 export { fitToFace } from "./stampLayout.js";
 
 export const DEFAULT_STAMP = {
   faceShape: "round", // 'round' | 'square'
   autoFaceSize: false,
-  faceSize: 50,
-  faceThickness: 4,
-  reliefDepth: 2,
+  faceSize: SETTINGS.stamp.faceSizeMm.default,
+  faceThickness: SETTINGS.stamp.faceThicknessMm.default,
+  reliefDepth: SETTINGS.stamp.reliefDepthMm.default,
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
-  margin: 2,
+  margin: SETTINGS.stamp.edgeDistanceMm.default,
   handle: "small", // 'small' | 'none'
 };
 
-export const FACE_THICKNESS_LIMITS = Object.freeze({ min: 1, max: 20 });
-export const FACE_SIZE_LIMITS = Object.freeze({ min: 10, max: 120 });
+export const FACE_THICKNESS_LIMITS = Object.freeze({
+  min: SETTINGS.stamp.faceThicknessMm.min,
+  max: SETTINGS.stamp.faceThicknessMm.max,
+});
+export const FACE_SIZE_LIMITS = Object.freeze({
+  min: SETTINGS.stamp.faceSizeMm.min,
+  max: SETTINGS.stamp.faceSizeMm.max,
+});
 
 export function assertFaceSize(value) {
   if (
@@ -93,6 +100,9 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
       message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
     });
   }
+
+  const tooLarge = stampSizeIssue(layout.widthMm, layout.heightMm);
+  if (tooLarge !== null) thinIssues.push(tooLarge);
 
   if (offTheMug(bounds(art))) {
     notes.push(

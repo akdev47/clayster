@@ -106,6 +106,23 @@ Run the JavaScript checks and the Django tests with:
 `tests/importMap.test.mjs` and `tests/browserModules.test.mjs` check that every
 import in the stamp generator resolves the way the browser resolves it.
 
+## Settings you can tweak
+
+The numbers you may want to change (stamp size and thickness, the distance
+from the text to the stamp edge, the handle size, when the page warns about
+details that are too thin, text and element limits, PNG limits, the maximum
+quantity) live in one file:
+`src/stamp_generator/static/stamp_generator/js/settings.js`. Every value has an
+English and a Dutch comment that says what it does and what happens when you
+raise or lower it. Change a number, reload the page, done. A value that makes
+no sense (for example a minimum above its maximum) stops the page with a
+message that names the setting. Three values are also checked by the server
+(`src/orders/pricing.py`) and must stay equal to it: `order.maxQuantity` and
+`MAX_QUANTITY`, `stamp.maxWidthMm` and `MAX_STAMP_WIDTH_MM`, `stamp.maxLengthMm`
+and `MAX_STAMP_LENGTH_MM`. The last two are the largest stamp (200 x 200 mm): a
+bigger one shows an error and cannot be exported or ordered.
+`node --test tests/settings.test.mjs` fails if they drift apart.
+
 ## How ordering works
 
 The order page sends the order to Django (`POST /api/orders/`): the details and

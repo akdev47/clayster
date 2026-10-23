@@ -7,6 +7,7 @@ import {
   MIN_PNG_BACKGROUND_TOLERANCE,
   PNG_BACKGROUND_MODES,
 } from "./pngTrace.js";
+import { SETTINGS } from "./settings.js";
 
 export const ELEMENT_KINDS = Object.freeze(["text", "svg", "png"]);
 export const ELEMENT_OPERATIONS = Object.freeze(["add"]);
@@ -30,9 +31,9 @@ const SOURCE_DEFAULTS = Object.freeze({
       id: null,
       reference: null,
     }),
-    fontSizeMm: 16,
+    fontSizeMm: SETTINGS.text.defaultSizeMm,
     letterSpacingRatio: 0,
-    lineSpacing: 1.25,
+    lineSpacing: SETTINGS.text.lineSpacing.default,
     alignment: "center",
     // Stroke thickness change on top of the font's own weight, in mm. The
     // outline is grown (+) or shrunk (-) by half of it on every side.
@@ -41,13 +42,13 @@ const SOURCE_DEFAULTS = Object.freeze({
   svg: Object.freeze({
     // A File, URL, or durable asset reference. Object URLs are UI-only.
     reference: null,
-    baseSizeMm: 30,
+    baseSizeMm: SETTINGS.elements.pictureSizeMm.default,
   }),
   png: Object.freeze({
     reference: null,
-    baseSizeMm: 30,
+    baseSizeMm: SETTINGS.elements.pictureSizeMm.default,
     tracing: Object.freeze({
-      smoothing: 2,
+      smoothing: SETTINGS.images.png.smoothing.default,
       backgroundMode: DEFAULT_PNG_BACKGROUND_MODE,
       backgroundSamples: Object.freeze([]),
       backgroundTolerance: DEFAULT_PNG_BACKGROUND_TOLERANCE,

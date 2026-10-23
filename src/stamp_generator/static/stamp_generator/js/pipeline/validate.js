@@ -10,6 +10,7 @@ import {
   simplify,
 } from "./canonical.js";
 import { gapClosure, groupsCloserThan, hasThinCrossSection } from "../solidGeometry.js";
+import { SETTINGS } from "../settings.js";
 
 // Slivers below this area in mm² carry no printable detail and only upset the
 // boolean stage.
@@ -267,7 +268,10 @@ function dropDegenerate(artwork) {
 
 // Run after fitToFace(): a morphological opening removes regions narrower than
 // the requested physical width, including local necks, arms and walls.
-export function thinFeatureIssues(artwork, { minFeature = 0.8, textGlyphs = [] } = {}) {
+export function thinFeatureIssues(
+  artwork,
+  { minFeature = SETTINGS.checks.thinFeatureMm, textGlyphs = [] } = {},
+) {
   const issues = [];
   const thin = artwork.filter((polygon) =>
     hasThinCrossSection(polygon, minFeature),
@@ -315,9 +319,10 @@ export function thinFeatureIssues(artwork, { minFeature = 0.8, textGlyphs = [] }
   return issues;
 }
 
-// Provisional clear gap: three 0.4 mm nozzle lines. A clay test of slots and
-// holes can replace this number. The 0.8 mm stroke check stays separate.
-export const MIN_CLEAR_GAP_MM = 1.2;
+// Provisional clear gap (settings.checks.clearGapMm): three 0.4 mm nozzle
+// lines. A clay test of slots and holes can replace this number. The stroke
+// check (settings.checks.thinFeatureMm) stays separate.
+export const MIN_CLEAR_GAP_MM = SETTINGS.checks.clearGapMm;
 
 // Run after fitToFace(), beside the stroke check. Warns when a morphological
 // close joins separate shapes or fills an enclosed hole. It does not move

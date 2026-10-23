@@ -6,17 +6,21 @@ import { textLetterSpacingMm } from "./artworkComposition.js";
 import { fitText, layoutText } from "./text.js";
 import { thinFeatureIssues } from "./validate.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
+import { SETTINGS } from "../settings.js";
 
-export const MIN_PRINTABLE_FEATURE_MM = 0.8;
-export const LETTER_THICKNESS_STEP_MM = 0.1;
-export const MAX_LETTER_THICKNESS_MM = 1.5;
-export const TEXT_SIZE_SEARCH_STEP_MM = 0.5;
-export const MAX_TEXT_SIZE_SEARCH_MM = 60;
+// All from settings.js, so the fix aims at exactly what the warning checks and
+// stays inside what the text controls allow.
+export const MIN_PRINTABLE_FEATURE_MM = SETTINGS.checks.thinFeatureMm;
+export const LETTER_THICKNESS_STEP_MM = SETTINGS.text.letterThicknessMm.step;
+export const MAX_LETTER_THICKNESS_MM = SETTINGS.text.letterThicknessMm.max;
+export const TEXT_SIZE_SEARCH_STEP_MM = SETTINGS.text.sizeMm.step;
+export const MAX_TEXT_SIZE_SEARCH_MM = SETTINGS.text.sizeMm.max;
 
 const wasmUrl = import.meta.resolve("manifold-3d/manifold.wasm");
 
 /**
- * Returns the smallest thickness, then size, that clears the 0.8 mm check.
+ * Returns the smallest thickness, then size, that clears the thin-details check
+ * (settings.checks.thinFeatureMm).
  * Null means the text is already clear, or neither change can clear it.
  */
 export async function printableTextAdjustment(font, source, elementTransform = {}) {

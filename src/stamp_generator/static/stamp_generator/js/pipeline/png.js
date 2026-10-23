@@ -11,10 +11,11 @@ import {
   simplify,
 } from "./canonical.js";
 import { scaleToSize } from "./svg.js";
+import { SETTINGS } from "../settings.js";
 
-const MIN_TRACE_TOLERANCE_MM = 0.05;
-const MAX_TRACE_TOLERANCE_MM = 0.5;
-export const DEFAULT_PNG_SMOOTHING = 2;
+const MIN_TRACE_TOLERANCE_MM = SETTINGS.images.png.traceToleranceMm.min;
+const MAX_TRACE_TOLERANCE_MM = SETTINGS.images.png.traceToleranceMm.max;
+export const DEFAULT_PNG_SMOOTHING = SETTINGS.images.png.smoothing.default;
 
 export async function loadPNGArtwork(
   file,

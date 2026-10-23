@@ -102,6 +102,26 @@ class PricingTests(SimpleTestCase):
         zones = set(pricing.PRICING["shipping"]["by_country_cents"])
         self.assertEqual(set(pricing.COUNTRIES), zones)
 
+    def test_the_largest_stamp_is_200_by_200_mm(self):
+        stamp = {"faceShape": "square", "faceSize": 50, "handle": "small"}
+        self.assertEqual(
+            (pricing.MAX_STAMP_WIDTH_MM, pricing.MAX_STAMP_LENGTH_MM), (200, 200)
+        )
+        # Exactly the maximum fits, and so does a hair over it (compared to 0.01 mm).
+        for info in ({"width": 200, "depth": 200}, {"width": 200.004, "depth": 199.996}):
+            with self.subTest(info=info):
+                estimate_price(stamp, info, 1, "NL")
+        # Width and length are limited separately; the message names the maximum.
+        for info in ({"width": 200.02, "depth": 100}, {"width": 100, "depth": 200.02},
+                     {"width": 250, "depth": 250}):
+            with self.subTest(info=info), self.assertRaisesMessage(
+                PricingError, "at most 200 x 200 mm"
+            ):
+                estimate_price(stamp, info, 1, "NL")
+        # Without measurements the face size setting stands in for both.
+        with self.assertRaisesMessage(PricingError, "at most 200 x 200 mm"):
+            estimate_price({**stamp, "faceSize": 201}, None, 1, "NL")
+
     def test_bad_input_cannot_be_priced(self):
         stamp = {"faceShape": "square", "faceSize": 50, "handle": "none"}
         for quantity in (0, -1, 1000, 1.5, "2", True, None):
@@ -310,6 +330,19 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("does not match", response.json()["errors"]["general"])
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_a_stamp_larger_than_200_by_200_mm_is_refused(self):
+        for measurements in ({"width": 201, "depth": 50, "height": 6},
+                             {"width": 50, "depth": 201, "height": 6}):
+            with self.subTest(measurements=measurements):
+                payload = self.payload()
+                payload["measurements"] = {**payload["measurements"], **measurements}
+
+                response = self.post_order(payload)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("at most 200 x 200 mm", response.json()["errors"]["general"])
         self.assertEqual(Order.objects.count(), 0)
 
     def test_measurements_are_required(self):

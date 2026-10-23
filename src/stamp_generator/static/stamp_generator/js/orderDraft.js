@@ -1,9 +1,10 @@
 // Order details and delivery address collected on the order page, kept locally
 // until the order has been placed (see orderApi.js). Nothing here talks to a
 // server: buildOrderPayload() returns the body that gets sent.
+import { SETTINGS } from "./settings.js";
 
 export const ORDER_DRAFT_KEY = "clayster.orderDraft.v1";
-export const MAX_QUANTITY = 999;
+export const MAX_QUANTITY = SETTINGS.order.maxQuantity;
 
 // Placeholder list; the backend will own the countries it can deliver to.
 // `OTHER` is the catch-all shipping zone for any other country.

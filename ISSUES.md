@@ -4,10 +4,12 @@ Keep this file up to date: tick items when done (and move them to **Done**),
 add new ones as they come up. Tags: **[bug]**, **[ux]**, **[backend]**,
 **[idea]**, **[tech]**. Items marked *decide* need a decision before work starts.
 
-Last updated: 2026-10-19
+Last updated: 2026-10-23
 
 ## Done
 
+- [x] **[ux] Maximum stamp size 200 x 200 mm.** A stamp whose plate is wider or longer than `stamp.maxWidthMm` / `stamp.maxLengthMm` (settings.js) shows an error that names the size and the maximum, and cannot be exported or ordered until the design is smaller. The server refuses the same orders (`MAX_STAMP_WIDTH_MM` / `MAX_STAMP_LENGTH_MM` in `orders/pricing.py`).
+- [x] **[tech] One settings file for the tweakable numbers.** `js/settings.js` holds the stamp size and thickness, edge distance, handle size, the thin-details warning, text and element defaults and limits, PNG limits and the maximum quantity, each with an English and Dutch comment. The form fields get their min/max/step from it (`data-limits`), and a test keeps the values the server also checks (`MAX_QUANTITY`, `MAX_STAMP_WIDTH_MM`, `MAX_STAMP_LENGTH_MM`) in agreement. Not in it on purpose: the internal geometry tolerances.
 - [x] **[ux] Small handle on every stamp.** New stamps start with a really small rectangular handle (free, no price line); "No handle" is still in the Handle dropdown. The old 21 mm sample handle and its €3 price are gone. The handle's shape and size are the constants in `pipeline/handle.js`; replace them once the reference picture's measurements are known.
 - [x] **[ux] PNG photos give poor results.** Help text explains it; a preview of the traced shape or a warning on very detailed images would be better.
 - [x] **[ux] Keyboard use.** Elements cannot be moved with the arrow keys, visible focus outlines are removed on design elements, and the alignment buttons are not labelled correctly.
@@ -71,4 +73,5 @@ Last updated: 2026-10-19
 
 ## Technical debt
 
+- [ ] **[tech] Tests that repeat today's setting values.** About 25 older tests contain numbers such as a 6 mm stamp height, a 0.5 mm arrow-key step or the 0.8 mm thin limit, so changing a value in `settings.js` fails them. Point them at `SETTINGS` (as `tests/settings.test.mjs` does) so a tweak never needs a test edit.
 

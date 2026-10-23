@@ -75,7 +75,7 @@ test("stamp sizing offers Round, Square, and a tight Minimal face", async () => 
   const html = await projectFile("index.html");
   assert.match(html, /id="pipeline-face-size"/);
   assert.match(html, /id="pipeline-face-dimensions"/);
-  assert.match(html, /id="pipeline-margin"[\s\S]*?min="2"/);
+  assert.match(html, /id="pipeline-margin"[\s\S]*?data-limits="stamp\.edgeDistanceMm"/);
   assert.deepEqual(
     [...html.matchAll(/data-shape="([^"]+)"/g)].map((match) => match[1]),
     ["round", "square", "minimal"],

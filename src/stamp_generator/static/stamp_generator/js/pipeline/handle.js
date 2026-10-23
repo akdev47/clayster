@@ -1,17 +1,18 @@
 // The handle every stamp gets by default: a really small rectangular block under the plate.
 import * as THREE from "three";
+import { SETTINGS } from "../settings.js";
 
-// The shape in one place. Change the numbers to change the handle; nothing else
-// in the app depends on them.
+// The shape and size come from settings.js (handle), where each value is
+// explained.
 export const HANDLE = Object.freeze({
-  widthMm: 12, // Along X, the stamp's width.
-  depthMm: 6, // Along Y.
-  heightMm: 5, // How far it hangs below the plate.
+  widthMm: SETTINGS.handle.widthMm, // Along X, the stamp's width.
+  depthMm: SETTINGS.handle.depthMm, // Along Y.
+  heightMm: SETTINGS.handle.heightMm, // How far it hangs below the plate.
 });
 
 // A small face gets a proportionally smaller handle: its longer side may use at
 // most this share of the face's shorter side.
-export const HANDLE_MAX_FACE_SHARE = 0.5;
+export const HANDLE_MAX_FACE_SHARE = SETTINGS.handle.maxShareOfFace;
 
 /**
  * A closed solid block, Z up, standing on z = 0 and centred on the Z axis. The
