@@ -85,6 +85,14 @@ test("a wrong value stops the page with a message that names the setting", () =>
     new RegExp(`stamp\\.faceSizeMm: min \\(${face.max + 1}\\) is above max \\(${face.max}\\)`),
   );
   assert.match(
+    problemsOf((s) => { s.stamp.faceSizeMm.max = stamp.maxWidthMm + 1; }),
+    /stamp\.faceSizeMm\.max must not be above stamp\.maxWidthMm/,
+  );
+  assert.match(
+    problemsOf((s) => { s.stamp.maxLengthMm = 0; }),
+    /stamp\.maxWidthMm and stamp\.maxLengthMm must be above 0/,
+  );
+  assert.match(
     problemsOf((s) => { s.stamp.faceSizeMm.default = face.min - 1; }),
     new RegExp(`stamp\\.faceSizeMm: default \\(${face.min - 1}\\) is below min \\(${face.min}\\)`),
   );
@@ -239,16 +247,26 @@ test("applyInputLimits sets min, max and step, and rejects a link to nothing", (
 test("limits the server also checks cannot drift from the page", () => {
   const serverNumber = (name) => Number(pricingPy.match(new RegExp(`^${name}\\s*=\\s*(\\d+)`, "m"))?.[1]);
   const maxQuantity = serverNumber("MAX_QUANTITY");
-  const maxFace = serverNumber("MAX_FACE_MM");
-  assert.ok(maxQuantity > 0 && maxFace > 0, "found both values in src/orders/pricing.py");
+  const maxWidth = serverNumber("MAX_STAMP_WIDTH_MM");
+  const maxLength = serverNumber("MAX_STAMP_LENGTH_MM");
+  assert.ok(
+    maxQuantity > 0 && maxWidth > 0 && maxLength > 0,
+    "found the values in src/orders/pricing.py",
+  );
 
   assert.equal(
     SETTINGS.order.maxQuantity,
     maxQuantity,
     "order.maxQuantity must equal MAX_QUANTITY in src/orders/pricing.py",
   );
-  assert.ok(
-    SETTINGS.stamp.faceSizeMm.max <= maxFace,
-    `stamp.faceSizeMm.max (${SETTINGS.stamp.faceSizeMm.max}) is above MAX_FACE_MM (${maxFace}) in src/orders/pricing.py; such a stamp would be refused at checkout`,
+  assert.equal(
+    SETTINGS.stamp.maxWidthMm,
+    maxWidth,
+    "stamp.maxWidthMm must equal MAX_STAMP_WIDTH_MM in src/orders/pricing.py",
+  );
+  assert.equal(
+    SETTINGS.stamp.maxLengthMm,
+    maxLength,
+    "stamp.maxLengthMm must equal MAX_STAMP_LENGTH_MM in src/orders/pricing.py",
   );
 });

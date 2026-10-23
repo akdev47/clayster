@@ -5,7 +5,7 @@ import { solidBoolean as booleanGeometry } from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
-import { createStampLayout, stampFaceShape } from "./stampLayout.js";
+import { createStampLayout, stampFaceShape, stampSizeIssue } from "./stampLayout.js";
 import { fitHandleToFace } from "./handle.js";
 import { SETTINGS } from "../settings.js";
 
@@ -100,6 +100,9 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
       message: `Some artwork extends beyond the ${faceSize} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
     });
   }
+
+  const tooLarge = stampSizeIssue(layout.widthMm, layout.heightMm);
+  if (tooLarge !== null) thinIssues.push(tooLarge);
 
   if (offTheMug(bounds(art))) {
     notes.push(

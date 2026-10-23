@@ -49,16 +49,36 @@ const definition = {
   stamp: {
     // EN: Width of the stamp face (a round stamp is this wide, a square stamp
     //     is this wide and this long). `default` is the size of a new design;
-    //     `min`/`max` limit the Face size field and slider. The server also
-    //     checks the size (MAX_FACE_MM in src/orders/pricing.py, 250 mm), so
-    //     keep `max` below that or big orders are refused at checkout.
+    //     `min`/`max` limit the Face size field and slider. The finished
+    //     stamp is also held to maxWidthMm and maxLengthMm below, so keep
+    //     `max` at or under those.
     // NL: Breedte van het stempelvlak (een ronde stempel is zo breed, een
     //     vierkante stempel is zo breed en zo lang). `default` is de maat van
     //     een nieuw ontwerp; `min`/`max` begrenzen het veld en de schuifbalk
-    //     voor de stempelgrootte. De server controleert de maat ook
-    //     (MAX_FACE_MM in src/orders/pricing.py, 250 mm): houd `max` daaronder
-    //     anders worden grote bestellingen bij het afrekenen geweigerd.
+    //     voor de stempelgrootte. De klare stempel wordt ook begrensd door
+    //     maxWidthMm en maxLengthMm hieronder: houd `max` daar op of onder.
     faceSizeMm: { default: 50, min: 10, max: 120, step: 1 },
+
+    // EN: The largest stamp that can be made, measured over the finished
+    //     plate: width along X, length along Y. This is what stops a stamp
+    //     from growing without limit (the Minimal shape follows the artwork,
+    //     so big artwork makes a big plate). A bigger stamp shows an error
+    //     that names the size and the maximum, and it cannot be exported or
+    //     ordered until the design is smaller. The server checks the same
+    //     limit when an order arrives (MAX_STAMP_WIDTH_MM and
+    //     MAX_STAMP_LENGTH_MM in src/orders/pricing.py): keep them equal, a
+    //     test fails if they differ. Sizes are compared to 0.01 mm.
+    // NL: De grootste stempel die gemaakt kan worden, gemeten over de klare
+    //     plaat: breedte langs X, lengte langs Y. Dit voorkomt dat een stempel
+    //     onbeperkt groeit (de vorm Minimal volgt het ontwerp, dus een groot
+    //     ontwerp geeft een grote plaat). Een grotere stempel toont een
+    //     foutmelding met de maat en het maximum, en kan niet worden
+    //     geëxporteerd of besteld tot het ontwerp kleiner is. De server
+    //     controleert dezelfde grens bij een bestelling (MAX_STAMP_WIDTH_MM en
+    //     MAX_STAMP_LENGTH_MM in src/orders/pricing.py): houd ze gelijk, een
+    //     test faalt als ze verschillen. Maten worden vergeleken op 0,01 mm.
+    maxWidthMm: 200,
+    maxLengthMm: 200,
 
     // EN: Thickness of the base plate, without the raised letters. Thicker is
     //     sturdier but uses more clay and print time; thinner can bend or
@@ -359,6 +379,14 @@ export function validateSettings(settings) {
   rule(
     stamp.reliefDepthMm.default < stamp.faceThicknessMm.default,
     "stamp.reliefDepthMm.default must be smaller than stamp.faceThicknessMm.default",
+  );
+  rule(
+    stamp.maxWidthMm > 0 && stamp.maxLengthMm > 0,
+    "stamp.maxWidthMm and stamp.maxLengthMm must be above 0",
+  );
+  rule(
+    stamp.faceSizeMm.max <= Math.min(stamp.maxWidthMm, stamp.maxLengthMm),
+    "stamp.faceSizeMm.max must not be above stamp.maxWidthMm and stamp.maxLengthMm",
   );
   rule(
     stamp.faceSizeMm.min > 2 * stamp.edgeDistanceMm.min,

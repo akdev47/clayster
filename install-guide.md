@@ -116,9 +116,11 @@ quantity) live in one file:
 English and a Dutch comment that says what it does and what happens when you
 raise or lower it. Change a number, reload the page, done. A value that makes
 no sense (for example a minimum above its maximum) stops the page with a
-message that names the setting. Two values are also checked by the server
-(`src/orders/pricing.py`): `order.maxQuantity` must equal `MAX_QUANTITY`, and
-`stamp.faceSizeMm.max` must not be above `MAX_FACE_MM`.
+message that names the setting. Three values are also checked by the server
+(`src/orders/pricing.py`) and must stay equal to it: `order.maxQuantity` and
+`MAX_QUANTITY`, `stamp.maxWidthMm` and `MAX_STAMP_WIDTH_MM`, `stamp.maxLengthMm`
+and `MAX_STAMP_LENGTH_MM`. The last two are the largest stamp (200 x 200 mm): a
+bigger one shows an error and cannot be exported or ordered.
 `node --test tests/settings.test.mjs` fails if they drift apart.
 
 ## How ordering works

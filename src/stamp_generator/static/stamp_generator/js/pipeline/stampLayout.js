@@ -12,6 +12,34 @@ export function stampFaceShape(shape = "round") {
   throw new Error("Unsupported stamp shape. Choose Round, Square, or Minimal.");
 }
 
+const roundToHundredth = (value) => Math.round(value * 100) / 100;
+const oneDecimal = (value) => (Math.round(value * 10) / 10).toString();
+
+/**
+ * The error to show when the finished plate is larger than the largest stamp
+ * that can be made (settings.js: stamp.maxWidthMm and stamp.maxLengthMm), or
+ * null when it fits. Like the overflow error it blocks export and ordering
+ * until the design is smaller. Sizes are compared to 0.01 mm, the same as the
+ * server does, so both sides always agree.
+ */
+export function stampSizeIssue(widthMm, lengthMm) {
+  const { maxWidthMm, maxLengthMm } = SETTINGS.stamp;
+  if (
+    roundToHundredth(widthMm) <= maxWidthMm &&
+    roundToHundredth(lengthMm) <= maxLengthMm
+  ) {
+    return null;
+  }
+  return {
+    level: "error",
+    code: "stamp-too-large",
+    message:
+      `The stamp would be ${oneDecimal(widthMm)} × ${oneDecimal(lengthMm)} mm, ` +
+      `but the largest stamp is ${maxWidthMm} × ${maxLengthMm} mm. ` +
+      "Make the design smaller.",
+  };
+}
+
 export function stampMarginMaximum(settings = {}) {
   // Minimal has no set face size, so the margin can use its own full range.
   if (stampFaceShape(settings.faceShape ?? "round") === "minimal") {
