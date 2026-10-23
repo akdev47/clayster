@@ -88,6 +88,26 @@ test("a wrong value stops the page with a message that names the setting", () =>
     problemsOf((s) => { s.stamp.faceSizeMm.max = stamp.maxWidthMm + 1; }),
     /stamp\.faceSizeMm\.max must not be above stamp\.maxWidthMm/,
   );
+  for (const name of ["edgeRoundingClaySideMm", "edgeRoundingHandleSideMm"]) {
+    assert.match(
+      problemsOf((s) => { s.stamp[name] = stamp.edgeDistanceMm.min + 0.5; }),
+      new RegExp(`stamp\\.${name} must be at least 0 and at most stamp\\.edgeDistanceMm\\.min`),
+      name,
+    );
+    assert.match(
+      problemsOf((s) => { s.stamp[name] = -1; }),
+      new RegExp(`stamp\\.${name} must be at least 0`),
+      name,
+    );
+  }
+  assert.match(
+    problemsOf((s) => { s.stamp.cornerRadiusMm = stamp.edgeDistanceMm.min + 0.5; }),
+    /stamp\.cornerRadiusMm must be above 0 and at most stamp\.edgeDistanceMm\.min/,
+  );
+  assert.match(
+    problemsOf((s) => { s.stamp.cornerRadiusMm = 0; }),
+    /stamp\.cornerRadiusMm must be above 0/,
+  );
   assert.match(
     problemsOf((s) => { s.stamp.maxLengthMm = 0; }),
     /stamp\.maxWidthMm and stamp\.maxLengthMm must be above 0/,

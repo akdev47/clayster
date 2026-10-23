@@ -232,6 +232,7 @@ test("both face shapes keep at least 2 mm clearance, including acute and off-cen
       for (const margin of [0, 2, 5]) {
         const layout = createStampLayout(artwork, {
           ...DEFAULT_STAMP,
+          roundedCorners: false, // this test measures a plain rectangle
           mirror: false,
           faceShape,
           margin,

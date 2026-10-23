@@ -117,6 +117,60 @@ const definition = {
     //     stempelgrootte (0.25 = een kwart), zodat er op een kleine stempel
     //     genoeg ruimte overblijft voor het ontwerp.
     edgeDistanceMaxShareOfFace: 0.25,
+
+    // EN: Rounds the edge all the way round the plate, so the plate does not
+    //     leave a sharp cut in the clay and is pleasant to hold. These are the
+    //     radii of the rounding (2 = a quarter circle with a radius of 2 mm),
+    //     used when the customer has "Rounded edges" switched on (it starts
+    //     on; see `roundedEdges` in `DEFAULT_STAMP`); 0 leaves that edge sharp.
+    //     The larger the radius, the further from the edge the curve begins.
+    //     The CLAY side is the side with the letters. It is the edge that meets
+    //     the clay, so it gets the larger rounding; it prints without supports.
+    //     The HANDLE side is the back of the plate. There the rounding is an
+    //     overhang for the printer: the steepest layer step is about 54 degrees
+    //     from vertical at 1 mm, 61 at 1.5 mm and 65 at 2 mm (0.2 mm layers),
+    //     so above about 1 mm that side needs supports. Both must stay at or
+    //     under the edge distance above, so that letters never sit on the curved
+    //     part (the check at load enforces this). Together they are never taller
+    //     than the base thickness (if they would be, both shrink in proportion).
+    //     Keep each at 0.8 or more, or 0: with a 0.4 mm nozzle a smaller
+    //     rounding is lost in printing.
+    // NL: Rondt de rand helemaal rond de plaat af, zodat de plaat geen scherpe
+    //     snede in de klei maakt en prettig vast te houden is. Dit zijn de
+    //     stralen van de afronding (2 = een kwartcirkel met een straal van
+    //     2 mm), gebruikt als de klant "Rounded edges" aan heeft staan (het
+    //     begint aan; zie `roundedEdges` in `DEFAULT_STAMP`); 0 laat die rand
+    //     scherp. Hoe groter de straal, hoe verder van de rand de bocht begint.
+    //     De KLEIKANT is de kant met de letters. Dat is de rand die de klei
+    //     raakt, dus die krijgt de grotere afronding; hij print zonder support.
+    //     De HANDVATKANT is de achterkant van de plaat. Daar is de afronding een
+    //     overhang voor de printer: de steilste laagstap is ongeveer 54 graden
+    //     van verticaal bij 1 mm, 61 bij 1,5 mm en 65 bij 2 mm (lagen van
+    //     0,2 mm), dus boven ongeveer 1 mm heeft die kant support nodig. Beide
+    //     moeten op of onder de randafstand hierboven blijven, zodat letters
+    //     nooit op het gebogen deel staan (de controle bij het laden dwingt dit
+    //     af). Samen zijn ze nooit hoger dan de basisdikte (als ze dat wel
+    //     zouden zijn, krimpen beide in verhouding). Houd elk op 0,8 of hoger,
+    //     of op 0: met een 0,4 mm nozzle gaat een kleinere afronding verloren
+    //     bij het printen.
+    edgeRoundingClaySideMm: 2,
+    edgeRoundingHandleSideMm: 1,
+
+    // EN: The radius of the rounded corners of a Square or Minimal plate, seen
+    //     from above, when the customer switches "Rounded corners" on (a Round
+    //     plate has no corners). It must be above 0 and at most the edge
+    //     distance, so that the usable area for artwork stays a plain square
+    //     and artwork never gets close to a curved corner (the check at load
+    //     enforces this). A small plate never gets a radius of more than about
+    //     45% of its shortest side.
+    // NL: De straal van de afgeronde hoeken van een vierkante of Minimal
+    //     plaat, van boven gezien, als de klant "Rounded corners" aanzet (een
+    //     ronde plaat heeft geen hoeken). Hij moet boven 0 zijn en hooguit de
+    //     randafstand, zodat het bruikbare gebied voor het ontwerp een gewoon
+    //     vierkant blijft en het ontwerp nooit dicht bij een gebogen hoek komt
+    //     (de controle bij het laden dwingt dit af). Een kleine plaat krijgt
+    //     nooit een straal van meer dan ongeveer 45% van de kortste zijde.
+    cornerRadiusMm: 2,
   },
 
   // ==========================================================================
@@ -395,6 +449,16 @@ export function validateSettings(settings) {
   rule(
     stamp.edgeDistanceMaxShareOfFace > 0 && stamp.edgeDistanceMaxShareOfFace <= 0.5,
     "stamp.edgeDistanceMaxShareOfFace must be above 0 and at most 0.5",
+  );
+  for (const name of ["edgeRoundingClaySideMm", "edgeRoundingHandleSideMm"]) {
+    rule(
+      stamp[name] >= 0 && stamp[name] <= stamp.edgeDistanceMm.min,
+      `stamp.${name} must be at least 0 and at most stamp.edgeDistanceMm.min`,
+    );
+  }
+  rule(
+    stamp.cornerRadiusMm > 0 && stamp.cornerRadiusMm <= stamp.edgeDistanceMm.min,
+    "stamp.cornerRadiusMm must be above 0 and at most stamp.edgeDistanceMm.min",
   );
   rule(
     handle.widthMm > 0 && handle.depthMm > 0 && handle.heightMm > 0,

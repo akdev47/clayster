@@ -30,10 +30,13 @@ const rectangle = (minX, minY, maxX, maxY) => [[[
   [maxX, maxY],
   [minX, maxY],
 ]]];
+// Sharp corners unless a test asks for rounded ones, so these tests do not
+// depend on whether the option is on by default.
 const settings = (patch = {}) => ({
   ...DEFAULT_STAMP,
   mirror: false,
   handle: "none",
+  roundedCorners: false,
   ...patch,
 });
 

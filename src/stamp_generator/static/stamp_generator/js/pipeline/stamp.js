@@ -1,7 +1,11 @@
 // Builds the printable backing, artwork, and optional handle, plus a separate mug preview.
 import * as THREE from "three";
 import { bounds, transform } from "./canonical.js";
-import { solidBoolean as booleanGeometry, extrudeOutline } from "../solidGeometry.js";
+import {
+  solidBoolean as booleanGeometry,
+  extrudeOutline,
+  extrudeRoundedPlate,
+} from "../solidGeometry.js";
 import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { narrowGapIssues, thinFeatureIssues } from "./validate.js";
@@ -20,6 +24,8 @@ export const DEFAULT_STAMP = {
   mode: "emboss", // 'emboss' | 'deboss'
   mirror: true,
   margin: SETTINGS.stamp.edgeDistanceMm.default,
+  roundedEdges: true, // Softens the top and bottom edge of the plate; the customer can switch it off
+  roundedCorners: false, // Square and Minimal only; the customer switches it on
   handle: "small", // 'small' | 'none'
 };
 
@@ -162,33 +168,19 @@ export function buildStamp(artwork, params, handleGeometry = null, { textGlyphs 
   };
 }
 
+// The plate is built from the same outline the 2D view and the overflow check
+// use (layout.face), so all three always agree. Its edges are rounded by the
+// radii in settings.js (stamp.edgeRoundingClaySideMm for the side with the
+// letters, stamp.edgeRoundingHandleSideMm for the back) unless the customer has
+// switched "Rounded edges" off.
 function buildBase(layout, settings) {
-  const thickness = settings.faceThickness;
-  const { faceSize } = layout;
-  let geometry;
-
-  if (settings.faceShape === "round") {
-    geometry = new THREE.CylinderGeometry(
-      faceSize / 2,
-      faceSize / 2,
-      thickness,
-      96,
-    );
-    geometry.rotateX(Math.PI / 2); // three builds cylinders Y-up; the app is Z-up.
-    geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
-  } else if (settings.faceShape === "minimal") {
-    geometry = new THREE.BoxGeometry(layout.widthMm, layout.heightMm, thickness);
-    geometry.translate(
-      layout.minX + layout.widthMm / 2,
-      layout.minY + layout.heightMm / 2,
-      thickness / 2,
-    );
-  } else {
-    geometry = new THREE.BoxGeometry(faceSize, faceSize, thickness);
-    geometry.translate(0, 0, thickness / 2); // Sit the plate on z = 0.
-  }
-
-  return geometry;
+  const { edgeRoundingClaySideMm, edgeRoundingHandleSideMm } = SETTINGS.stamp;
+  return extrudeRoundedPlate(
+    layout.face,
+    settings.faceThickness,
+    settings.roundedEdges ? edgeRoundingClaySideMm : 0,
+    settings.roundedEdges ? edgeRoundingHandleSideMm : 0,
+  );
 }
 
 // Raised artwork stands on top of the plate; recessed artwork is the volume
