@@ -2,6 +2,7 @@ import json
 from functools import cache
 from pathlib import Path
 
+from django.conf import settings
 from django.shortcuts import render
 from django.templatetags.static import static
 from django.urls import reverse
@@ -28,6 +29,10 @@ def index(request):
     config = {
         "pricing": pricing_for_page(),
         "orderEndpoint": reverse("orders_api:create_order"),
+        # Customers get their stamp by ordering it, so the "Export STL" button
+        # is only for development (DEBUG) and for staff who are logged in. The
+        # file of every order can also be downloaded from its order page.
+        "canExportStl": settings.DEBUG or request.user.is_staff,
     }
     return render(
         request,

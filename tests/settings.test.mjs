@@ -150,7 +150,15 @@ test("a wrong value stops the page with a message that names the setting", () =>
   );
   assert.match(
     problemsOf((s) => { s.stamp.oops = "50"; }),
-    /stamp\.oops must be a number or a/,
+    /stamp\.oops must be a number, true or false, or a/,
+  );
+  assert.match(
+    problemsOf((s) => { s.elements.stretch.min = 0; }),
+    /elements\.stretch must have a min above 0/,
+  );
+  assert.match(
+    problemsOf((s) => { s.elements.keepProportions = "yes"; }),
+    /keepProportions must be a number, true or false/,
   );
   // All problems are listed at once, not one per attempt.
   const both = problemsOf((s) => {

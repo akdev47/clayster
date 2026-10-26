@@ -5,10 +5,9 @@ import opentype from "opentype.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/designHistory.js";
-import { DesignEditorController, textResizePreview } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
+import { DesignEditorController, elementOwnSize, textResizePreview } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
 import { SharedDesignControls } from "../src/stamp_generator/static/stamp_generator/js/sharedDesignControls.js";
-import { createResizeTarget } from "../src/stamp_generator/static/stamp_generator/js/pipelineControls.js";
-import { createTextSizeControls, elementDimensionsCm, pointsToMillimetres, millimetresToPoints, uniformSizeChange } from "../src/stamp_generator/static/stamp_generator/js/sizing.js";
+import { createTextSizeControls, pointsToMillimetres, millimetresToPoints, uniformSizeChange } from "../src/stamp_generator/static/stamp_generator/js/sizing.js";
 import { bounds, transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 import { ArtworkComposer } from "../src/stamp_generator/static/stamp_generator/js/pipeline/artworkComposition.js";
 import { layoutText } from "../src/stamp_generator/static/stamp_generator/js/pipeline/text.js";
@@ -53,24 +52,24 @@ test("typography points convert exactly at the UI boundary", () => {
   }
 });
 
-test("Text, SVG and PNG measurements use actual scaled, rotated canonical bounds in cm", () => {
+test("Text, SVG and PNG measurements are the element's own scaled and stretched size in mm, however it is turned", () => {
   const shape = rectangle(-10, -5, 10, 5);
   for (const kind of ["text", "svg", "png"]) {
     const element = { kind, canonical: shape };
     const snapshot = structuredClone(element);
-    const actual = elementDimensionsCm(shape, {
+    const actual = elementOwnSize(shape, {
       xMm: 100, yMm: -30, scale: 2, rotationDeg: 90, mirrorX: true,
     });
-    close(actual.width, 2);
-    close(actual.height, 4);
-    const rotated = elementDimensionsCm(shape, { rotationDeg: 45 });
-    close(rotated.width, 3 / Math.sqrt(2));
-    close(rotated.height, 3 / Math.sqrt(2));
+    close(actual.width, 40);
+    close(actual.height, 20);
+    const turned = elementOwnSize(shape, { rotationDeg: 45, scale: 1.5, stretchX: 2 });
+    close(turned.width, 60);
+    close(turned.height, 15);
     assert.deepEqual(element, snapshot);
   }
-  assert.equal(elementDimensionsCm([]), null);
-  assert.equal(elementDimensionsCm(undefined), null);
-  close(elementDimensionsCm(rectangle(0, 0, 30, 20)).width, 3);
+  assert.equal(elementOwnSize([]), null);
+  assert.equal(elementOwnSize(undefined), null);
+  close(elementOwnSize(rectangle(0, 0, 30, 20), {}).width, 30);
 });
 
 class Input extends EventTarget {
@@ -130,7 +129,7 @@ test("point field, slider and transient handle preview share one undoable physic
     controls.update(preview.fontSizeMm);
     close(Number(range.value), millimetresToPoints(preview.fontSizeMm));
     assert.equal(model.getElement("text"), beforePreview);
-    const previewDimensions = elementDimensionsCm(beforeGeometry.renderElements[0].canonical, preview.transform);
+    const previewDimensions = elementOwnSize(beforeGeometry.renderElements[0].canonical, preview.transform);
     assert.ok(previewDimensions.width > 0);
     await composer.compose(model.elements);
     assert.equal(conversions, beforeConversions, "preview must reuse converted glyphs");
@@ -151,26 +150,6 @@ test("point field, slider and transient handle preview share one undoable physic
     input.value = value;
     input.dispatchEvent(new Event("input"));
     assert.equal(model.getElement("text"), stable);
-  }
-});
-
-test("3D resize drives Text size or image scale without a manual face-size path", () => {
-  for (const kind of ["text", "svg", "png"]) {
-    const model = new DesignModel({ elements: [{ id: kind, kind, source: kind === "text" ? { fontSizeMm: 7.5 } : {} }] });
-    const editor = new DesignEditorController(model);
-    const shared = new SharedDesignControls(model, editor);
-    const target = createResizeTarget({}, shared);
-    editor.select(null);
-    assert.equal(target.sizeDriver, null);
-    editor.select(kind);
-    const value = kind === "text" ? pointsToMillimetres(36) : 1.5;
-    close(target.applySize(value), value);
-    if (kind === "text") {
-      close(model.getElement(kind).source.fontSizeMm, value);
-      assert.equal(model.getElement(kind).transform.scale, 1);
-    } else {
-      assert.equal(model.getElement(kind).transform.scale, value);
-    }
   }
 });
 

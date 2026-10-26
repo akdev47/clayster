@@ -16,6 +16,9 @@ export const DEFAULT_ELEMENT_TRANSFORM = Object.freeze({
   xMm: 0,
   yMm: 0,
   scale: 1,
+  // Width compared with height: 1 keeps the natural proportions, 2 is twice as
+  // wide. The side handles and the width field change this one on its own.
+  stretchX: 1,
   rotationDeg: 0,
   mirrorX: false,
   mirrorY: false,
@@ -75,6 +78,7 @@ export function createElementTransform(transform = {}) {
     "xMm",
     "yMm",
     "scale",
+    "stretchX",
     "rotationDeg",
     "pivotX",
     "pivotY",
@@ -85,6 +89,9 @@ export function createElementTransform(transform = {}) {
   }
   if (!(result.scale > 0)) {
     throw new RangeError("Element transform scale must be greater than zero.");
+  }
+  if (!(result.stretchX > 0)) {
+    throw new RangeError("Element transform stretchX must be greater than zero.");
   }
 
   return Object.freeze(result);

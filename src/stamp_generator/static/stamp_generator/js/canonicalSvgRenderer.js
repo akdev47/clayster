@@ -114,10 +114,10 @@ export function createCanonicalSvgRenderer(svg) {
 
 /** Affine canonical Y-up transform expressed in SVG Y-down coordinates. */
 export function canonicalSvgTransform(options = {}) {
-  const { scale = 1, rotationDeg = 0, mirrorX = false, mirrorY = false, pivotX = 0, pivotY = 0 } = options;
+  const { scale = 1, stretchX = 1, rotationDeg = 0, mirrorX = false, mirrorY = false, pivotX = 0, pivotY = 0 } = options;
   const x = options.xMm ?? options.offsetX ?? 0;
   const y = options.yMm ?? options.offsetY ?? 0;
-  return `translate(${pivotX + x} ${-pivotY - y}) rotate(${-rotationDeg}) scale(${mirrorX ? -scale : scale} ${mirrorY ? -scale : scale}) translate(${-pivotX} ${pivotY})`;
+  return `translate(${pivotX + x} ${-pivotY - y}) rotate(${-rotationDeg}) scale(${(mirrorX ? -scale : scale) * stretchX} ${mirrorY ? -scale : scale}) translate(${-pivotX} ${pivotY})`;
 }
 
 function faceNode(paths) {

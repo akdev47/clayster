@@ -305,6 +305,29 @@ const definition = {
     //     oorspronkelijke grootte.
     scale: { default: 1, min: 0.05, max: 4, step: 0.05 },
 
+    // EN: How far an element (text, SVG, PNG) may be made wider or narrower on
+    //     its own, compared with its height. 1 = natural proportions, 2 = twice
+    //     as wide as it is tall, 0.5 = half as wide. Used by the side handles
+    //     and by the width and height fields when "Keep proportions" is off.
+    // NL: Hoeveel breder of smaller een element (tekst, SVG, PNG) los van de
+    //     hoogte gemaakt mag worden. 1 = natuurlijke verhoudingen, 2 = twee keer
+    //     zo breed als hoog, 0,5 = half zo breed. Gebruikt door de zijhandvaten
+    //     en door de velden breedte en hoogte als "Keep proportions" uit staat.
+    stretch: { default: 1, min: 0.1, max: 10, step: 0.05 },
+
+    // EN: Whether typing a width or a height in the element panel also changes
+    //     the other one, so the proportions stay the same (true), or changes
+    //     only the one you typed (false). The customer can switch it with the
+    //     "Keep proportions" switch; this is what it starts as. Dragging a
+    //     corner handle always keeps the proportions, dragging a side handle
+    //     never does.
+    // NL: Of het typen van een breedte of hoogte in het elementenpaneel ook de
+    //     andere verandert, zodat de verhoudingen gelijk blijven (true), of
+    //     alleen degene die je typt (false). De klant kan dit omzetten met de
+    //     schakelaar "Keep proportions"; dit is de beginstand. Een hoekhandvat
+    //     slepen behoudt altijd de verhoudingen, een zijhandvat slepen nooit.
+    keepProportions: true,
+
     // EN: Size of a newly added SVG or PNG picture (its longest side, in
     //     millimetres) and the limits of the "Source size" field.
     // NL: Grootte van een nieuw toegevoegde SVG- of PNG-afbeelding (de
@@ -402,7 +425,9 @@ export function validateSettings(settings) {
   const walk = (node, path) => {
     for (const [key, value] of Object.entries(node)) {
       const here = path ? `${path}.${key}` : key;
-      if (typeof value === "number") {
+      if (typeof value === "boolean") {
+        continue;
+      } else if (typeof value === "number") {
         if (!Number.isFinite(value)) problems.push(`${here} must be a number`);
       } else if (value !== null && typeof value === "object") {
         const { min, max, step } = value;
@@ -421,7 +446,7 @@ export function validateSettings(settings) {
         }
         walk(value, here);
       } else {
-        problems.push(`${here} must be a number or a { default, min, max, step } range`);
+        problems.push(`${here} must be a number, true or false, or a { default, min, max, step } range`);
       }
     }
   };
@@ -485,6 +510,16 @@ export function validateSettings(settings) {
     elements.scale.default >= elements.scale.min &&
       elements.scale.default <= elements.scale.max,
     "elements.scale.default must be within its min and max",
+  );
+  rule(
+    elements.stretch.min > 0 &&
+      elements.stretch.default >= elements.stretch.min &&
+      elements.stretch.default <= elements.stretch.max,
+    "elements.stretch must have a min above 0 and a default within its min and max",
+  );
+  rule(
+    typeof elements.keepProportions === "boolean",
+    "elements.keepProportions must be true or false",
   );
   rule(
     Number.isInteger(order.maxQuantity) && order.maxQuantity >= 1,

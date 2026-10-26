@@ -78,11 +78,21 @@ test("reads the price list, endpoint and CSRF token the page provides", () => {
       token: "abc",
     }),
   );
-  assert.deepEqual(config, { pricing: { baseCents: 1 }, orderEndpoint: "/api/orders/", csrfToken: "abc" });
+  assert.deepEqual(config, { pricing: { baseCents: 1 }, orderEndpoint: "/api/orders/", canExportStl: false, csrfToken: "abc" });
+});
+
+test("the STL download is only on when the server says this visitor may use it", () => {
+  const read = (config) => readServerConfig(fakeDocument({ config: JSON.stringify(config) })).canExportStl;
+  assert.equal(read({ canExportStl: true }), true);
+  assert.equal(read({ canExportStl: false }), false);
+  assert.equal(read({}), false);
+  // Only a real true counts, not something that merely looks true.
+  assert.equal(read({ canExportStl: "true" }), false);
+  assert.equal(read({ canExportStl: 1 }), false);
 });
 
 test("a page without config, or with broken config, gives nulls", () => {
-  const empty = { pricing: null, orderEndpoint: null, csrfToken: null };
+  const empty = { pricing: null, orderEndpoint: null, canExportStl: false, csrfToken: null };
   assert.deepEqual(readServerConfig(fakeDocument({})), empty);
   assert.deepEqual(readServerConfig(fakeDocument({ config: "{not json" })), empty);
 });

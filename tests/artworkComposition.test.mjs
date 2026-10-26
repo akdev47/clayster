@@ -376,6 +376,7 @@ test("the legacy single-source adapter preserves the current source fields", () 
     xMm: 0,
     yMm: 0,
     scale: 1,
+    stretchX: 1,
     rotationDeg: 0,
     mirrorX: false,
     mirrorY: false,

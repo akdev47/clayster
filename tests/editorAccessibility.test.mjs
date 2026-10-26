@@ -56,7 +56,7 @@ test("Text exposes one synchronized size control while images keep Scale", async
     /#element-scale-control"\)\.classList\.toggle\("d-none", !element \|\| isText\)/,
   );
   const resizeHandler = main.match(
-    /function startResize[\s\S]*?function freeSpotForNewText/,
+    /function startResize[\s\S]*?function newTextSpot/,
   )?.[0];
   assert.match(resizeHandler, /startTextSizeMm/);
   assert.match(resizeHandler, /resizePreviewTransforms\.set/);
@@ -67,7 +67,7 @@ test("Text exposes one synchronized size control while images keep Scale", async
     /element\.source\.fontSizeMm \* element\.transform\.scale/,
   );
   assert.match(html, /id="element-dimensions"/);
-  assert.match(main, /elementDimensionsCm\(/);
+  assert.match(main, /elementOwnSize\(/);
   assert.match(main, /resizePreviewTransforms\.get\(element\.id\) \?\? element\.transform/);
 });
 
@@ -192,7 +192,11 @@ test("new Text uses the safer thickness and shows it in the control", async () =
   )?.[0];
 
   assert.ok(addTextHandler, "missing Add Text handler");
-  assert.match(addTextHandler, /thicknessMm:\s*0\.3/);
+  assert.match(addTextHandler, /\.\.\.NEW_TEXT/, "a new text starts from the shared new-text settings");
+  assert.match(
+    main,
+    /const NEW_TEXT = Object\.freeze\(\{[\s\S]*?thicknessMm:\s*0\.3/,
+  );
   assert.match(
     main,
     /#font-weight"\)\.value = element\.source\.thicknessMm/,

@@ -1,5 +1,4 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
-import { enableDragResize } from "./resize.js";
 import { exportSTL } from "./exporters.js";
 import {
   DEFAULT_STAMP,
@@ -12,14 +11,8 @@ import {
   stampMargin,
   stampMarginMaximum,
 } from "./pipeline/stampLayout.js";
-import { MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE } from "./editor2dInteractions.js";
-import { millimetresToPoints } from "./sizing.js";
 
-export function createPipelineControls(
-  viewer,
-  pipeline,
-  { designControls = null } = {},
-) {
+export function createPipelineControls(viewer, pipeline) {
   const dom = collectDOM();
   syncControls(dom, pipeline);
 
@@ -105,9 +98,6 @@ export function createPipelineControls(
   dom.roundedCorners.addEventListener("change", () => {
     pipeline.setStamp({ roundedCorners: dom.roundedCorners.checked });
   });
-  dom.handleSelect.addEventListener("change", () => {
-    pipeline.setStamp({ handle: dom.handleSelect.value });
-  });
 
   dom.exportSTL.addEventListener("click", () =>
     run(dom, async () => {
@@ -136,19 +126,6 @@ export function createPipelineControls(
     dom.exportSTL.disabled = true;
     dom.faceDimensions.textContent = "—";
   });
-
-  const resizeTarget = createResizeTarget(pipeline, designControls);
-  enableDragResize(viewer, resizeTarget, {
-    onSize: (value) => {
-      if (resizeTarget.sizeDriver?.field === "textSizeMm") {
-        const points = Math.round(millimetresToPoints(value) * 100) / 100;
-        dom.textSize.value = dom.textSizeInput.value = String(points);
-        dom.textSizeOutput.textContent = `${points} pt`;
-      } else {
-        dom.elementScale.value = String(round1(value));
-      }
-    },
-  });
 }
 
 function syncControls(dom, pipeline) {
@@ -166,7 +143,6 @@ function syncControls(dom, pipeline) {
   dom.roundedEdges.checked = Boolean(stamp.roundedEdges ?? DEFAULT_STAMP.roundedEdges);
   dom.roundedCorners.checked = Boolean(stamp.roundedCorners);
   syncRoundedCornersField(dom, pipeline);
-  dom.handleSelect.value = stamp.handle;
 
   selectSegment(dom.faceShape, "shape", stamp.faceShape);
   selectSegment(dom.reliefMode, "mode", stamp.mode);
@@ -280,35 +256,6 @@ function showStatus(dom, message, ok = false) {
   dom.status.classList.toggle("ok", ok);
 }
 
-function round1(value) {
-  return Math.round(value * 10) / 10;
-}
-
-export function createResizeTarget(pipeline, designControls) {
-  return {
-    get sizeDriver() {
-      const selected = designControls?.selectedElement() ?? null;
-      if (selected === null) return null;
-      if (selected.kind === "text") {
-        return { field: "textSizeMm", value: selected.source.fontSizeMm * selected.transform.scale };
-      }
-      return { field: "elementScale", value: selected.transform.scale };
-    },
-
-    applySize(value) {
-      const driver = this.sizeDriver;
-      if (driver === null) return null;
-      if (driver.field === "textSizeMm") {
-        return designControls.updateSelectedTextSize(value).source.fontSizeMm;
-      }
-
-      const scale = clamp(value, MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE);
-      designControls.updateSelectedTransform({ scale });
-      return scale;
-    },
-  };
-}
-
 function clamp(value, minimum, maximum) {
   return Math.min(Math.max(value, minimum), maximum);
 }
@@ -316,10 +263,6 @@ function clamp(value, minimum, maximum) {
 function collectDOM() {
   const byId = (id) => document.getElementById(id);
   return {
-    elementScale: byId("element-scale"),
-    textSize: byId("font-size"),
-    textSizeInput: byId("font-size-input"),
-    textSizeOutput: byId("font-size-value"),
     faceShape: byId("pipeline-face-shape"),
     faceSize: byId("pipeline-face-size"),
     faceSizeField: byId("pipeline-face-size-field"),
@@ -335,7 +278,6 @@ function collectDOM() {
     roundedEdges: byId("pipeline-rounded-edges"),
     roundedCorners: byId("pipeline-rounded-corners"),
     roundedCornersField: byId("pipeline-rounded-corners-field"),
-    handleSelect: byId("pipeline-handle-select"),
     exportSTL: byId("pipeline-export-stl"),
     status: byId("pipeline-control-status"),
   };

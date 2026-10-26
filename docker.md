@@ -48,6 +48,11 @@ In the normal image `DJANGO_DEBUG` is `false`, so a crashing page shows only
 "Server Error", but the stack trace is in `docker compose logs web`. Never run
 with `DJANGO_DEBUG=true` on a public server.
 
+`DJANGO_DEBUG` also decides whether the design page shows the "Export STL"
+button: it does in development mode, and in the normal image only for staff who
+are logged in. Customers get their file through the order, and staff can
+download it from the order page (`/orders/<id>/`).
+
 ## Database migrations
 
 **Applying.** Migrations run automatically every time the container starts.

@@ -13,8 +13,11 @@ import { createDesignElement, DesignModel } from "./designModel.js";
 import {
   DesignEditorController,
   canonicalOverlayBox,
+  centerTarget,
   cornerDragScale,
+  elementOwnSize,
   fitsFace,
+  freeSpotForNewText,
   isEditingField,
   MAX_ELEMENT_SCALE,
   MAX_TEXT_SIZE_MM,
@@ -22,6 +25,7 @@ import {
   MIN_TEXT_SIZE_MM,
   shouldHandleElementArrowKey,
   shouldHandleElementDeleteKey,
+  stretchedTransform,
   textResizePreview,
 } from "./editor2dInteractions.js";
 import { SharedDesignControls } from "./sharedDesignControls.js";
@@ -35,9 +39,9 @@ import {
 import { bounds, transform } from "./pipeline/canonical.js";
 import { readableStampDisplay } from "./stamp2dDisplay.js";
 import { ArtworkComposer } from "./pipeline/artworkComposition.js";
-import { createTextSizeControls, elementDimensionsCm } from "./sizing.js";
+import { createTextSizeControls, uniformSizeChange } from "./sizing.js";
 import { SETTINGS, applyInputLimits } from "./settings.js";
-import { loadFont } from "./pipeline/text.js";
+import { layoutText, loadFont } from "./pipeline/text.js";
 import { printableTextAdjustment } from "./pipeline/fixThinText.js";
 
 const state = {
@@ -47,6 +51,7 @@ const state = {
   minY: -22.5,
 };
 
+const serverConfig = readServerConfig();
 const designModel = new DesignModel();
 const editor = new DesignEditorController(designModel);
 const designControls = new SharedDesignControls(designModel, editor);
@@ -133,7 +138,10 @@ const textSizeControls = createTextSizeControls({
   },
 });
 
-createPipelineControls(viewer, pipeline, { designControls });
+createPipelineControls(viewer, pipeline);
+// Customers do not get a download button; only development and staff do.
+$("#pipeline-export-controls").hidden = !serverConfig.canExportStl;
+document.querySelector(".pipeline-export-readiness").hidden = !serverConfig.canExportStl;
 artboard.addEventListener("wheel", resizeSelectedFromTrackpad, {
   passive: false,
 });
@@ -199,11 +207,7 @@ const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
       thinGlyphHighlight.clear();
       return;
     }
-    thinGlyphHighlight.show(
-      glyphs,
-      lastScene.dimensions,
-      pipeline.result.layout.artworkTransform.mirrorX,
-    );
+    thinGlyphHighlight.show(glyphs, lastScene.dimensions);
   },
 });
 
@@ -374,22 +378,26 @@ function logoPlaceholder(kind) {
   `;
 }
 
-function formatElementSizeMm(dimensions) {
-  if (dimensions === null) return null;
-  return `${(dimensions.width * 10).toFixed(1)} × ${(dimensions.height * 10).toFixed(1)} mm`;
+function formatElementSizeMm(size) {
+  if (size === null) return null;
+  return `${size.width.toFixed(1)} × ${size.height.toFixed(1)} mm`;
 }
 
+// The corners resize the whole element and keep its proportions. The sides
+// change that side only: the top and bottom the height, left and right the width.
 function addResizeHandles(element) {
   if (element.id !== editor.selectedId) return "";
 
-  const sizeLabel = formatElementSizeMm(
-    elementDimensionsCm(displayGeometry.get(element.id)),
-  );
+  const sizeLabel = formatElementSizeMm(elementSizeMm(element));
   return `
     <span class="resize-handle handle-top-left"></span>
     <span class="resize-handle handle-top-right"></span>
     <span class="resize-handle handle-bottom-left"></span>
     <span class="resize-handle handle-bottom-right"></span>
+    <span class="resize-handle handle-top" data-side="top"></span>
+    <span class="resize-handle handle-bottom" data-side="bottom"></span>
+    <span class="resize-handle handle-left" data-side="left"></span>
+    <span class="resize-handle handle-right" data-side="right"></span>
     <span class="selection-size"${sizeLabel === null ? " hidden" : ""}>${sizeLabel ?? ""}</span>
   `;
 }
@@ -432,7 +440,8 @@ function renderArtboard() {
     item.addEventListener("keydown", moveElementFromKeyboard);
     item.querySelectorAll(".resize-handle").forEach((handle) => {
       handle.addEventListener("pointerdown", (event) => {
-        startResize(event, element, item);
+        if (handle.dataset.side === undefined) startResize(event, element, item);
+        else startEdgeResize(event, element, item, handle.dataset.side);
       });
     });
     artboard.append(item);
@@ -704,28 +713,26 @@ function updateTextSizeControl(fontSizeMm) {
   textSizeControls.update(fontSizeMm);
 }
 
-function selectedElementSizeMm(element) {
-  const dimensions = elementDimensionsCm(displayGeometry.get(element.id));
-  if (dimensions === null) return null;
-  return { width: dimensions.width * 10, height: dimensions.height * 10 };
+// The element's own width and height in millimetres as it is drawn right now:
+// with a resize that is still being dragged, or that is waiting for a text to
+// be laid out again at its new size, already applied.
+function elementSizeMm(element) {
+  return elementOwnSize(
+    renderGeometry.get(element.id),
+    resizePreviewTransforms.get(element.id) ?? element.transform,
+  );
 }
 
 function updateElementDimensions() {
   const element = selectedElement();
-  // Reuse the geometry already transformed for the 2D view, including cheap
-  // drag previews, rather than converting or transforming the source again.
-  const dimensions = element === null ? null : selectedElementSizeMm(element);
-  const sizeLabel = formatElementSizeMm(
-    dimensions === null
-      ? null
-      : { width: dimensions.width / 10, height: dimensions.height / 10 },
-  );
-  $("#center-element").disabled = pipeline.busy || dimensions === null;
+  const size = element === null ? null : elementSizeMm(element);
+  const sizeLabel = formatElementSizeMm(size);
+  updateCenterButtons();
   for (const [input, value] of [
-    [$("#element-width"), dimensions?.width],
-    [$("#element-height"), dimensions?.height],
+    [$("#element-width"), size?.width],
+    [$("#element-height"), size?.height],
   ]) {
-    input.disabled = dimensions === null;
+    input.disabled = size === null;
     if (input === document.activeElement) continue;
     input.value = value == null ? "" : value.toFixed(1);
   }
@@ -736,22 +743,87 @@ function updateElementDimensions() {
   }
 }
 
+// What the selected element is centered on: the plate for Round and Square, and
+// for Minimal (where the plate only wraps the artwork) the other elements.
+function selectedCenterTarget() {
+  const selected = selectedElement();
+  if (selected === null || lastScene === null) return null;
+  return centerTarget({
+    faceShape: pipeline.stamp.faceShape,
+    face: lastScene.face,
+    others: designModel.elements
+      .filter(({ id }) => id !== selected.id)
+      .flatMap(({ id }) => displayGeometry.get(id) ?? []),
+  });
+}
+
+function updateCenterButtons() {
+  const element = selectedElement();
+  const unavailable =
+    pipeline.busy ||
+    element === null ||
+    !displayGeometry.has(element.id) ||
+    selectedCenterTarget() === null;
+  for (const id of ["#center-element-x", "#center-element-y", "#center-element"]) {
+    $(id).disabled = unavailable;
+  }
+
+  // Lining everything up only makes sense with something to line up.
+  const lined = designModel.elements.filter(
+    ({ id, visible }) => visible && displayGeometry.has(id),
+  );
+  $("#center-all-elements").hidden = lined.length < 2;
+  $("#center-all-elements").disabled = pipeline.busy;
+}
+
+// A typed width or height. With "Keep proportions" on, the other side follows;
+// with it off, only the side that was typed changes.
 function applyElementSize(axis, requested) {
   const element = selectedElement();
-  const dimensions = element === null ? null : selectedElementSizeMm(element);
-  const change = dimensions === null
-    ? null
-    : uniformSizeChange(dimensions, axis, requested);
+  const size = element === null ? null : elementSizeMm(element);
+  const change = size === null ? null : uniformSizeChange(size, axis, requested);
   if (change === null) {
     updateElementDimensions();
     return;
   }
-  editor.resizeByFactor(element.id, change.factor);
+
+  // A text is resized by its font size, and the letter thickness sits on top of
+  // the letters without growing with them, so it is left out when working out
+  // the new size. That way a typed size is the size you get.
+  const keepProportions = $("#element-keep-proportions").checked;
+  const byFontSize = element.kind === "text" && (keepProportions || axis === "height");
+  const thickness = byFontSize ? element.source.thicknessMm : 0;
+  const factor =
+    size[axis] - thickness > 0 && requested - thickness > 0
+      ? (requested - thickness) / (size[axis] - thickness)
+      : change.factor;
+
+  const changed = keepProportions
+    ? editor.resizeByFactor(element.id, factor)
+    : editor.resizeAxis(element.id, axis, factor);
+  if (changed !== null) holdTextPreview(element.id);
   render();
-  const next = selectedElementSizeMm(element);
+
+  // Show what was actually made of it (the limits can stop it short of the request).
+  const next = elementSizeMm(designModel.getElement(element.id) ?? element);
   if (next === null) return;
   $("#element-width").value = next.width.toFixed(1);
   $("#element-height").value = next.height.toFixed(1);
+}
+
+// A text is laid out again at its new size a moment after it changes. Until
+// that is done the old outline is drawn scaled to the new size, so it does not
+// jump back for a moment.
+function holdTextPreview(id) {
+  const element = designModel.getElement(id);
+  const renderedSizeMm = renderedTextSizes.get(id);
+  if (element?.kind !== "text" || !(renderedSizeMm > 0)) return;
+
+  const scale =
+    (element.source.fontSizeMm * element.transform.scale) / renderedSizeMm;
+  if (Math.abs(scale - element.transform.scale) < 1e-9) return;
+  resizePreviewTransforms.set(id, { ...element.transform, scale });
+  committedResizePreviews.add(id);
 }
 
 function updatePNGSampleControls(element) {
@@ -1058,43 +1130,163 @@ function startResize(event, element, item) {
   handle.addEventListener("pointercancel", stop);
 }
 
+// Dragging a side handle changes that side only; the other side stays as it is
+// and so does the edge opposite the handle. The handle follows the pointer along
+// the element's own axis, so this also works for an element that is turned.
+// A text's height is a new font size, which is laid out only once the drag has
+// ended, so until then the drag shows the outline that is already there, scaled.
+function startEdgeResize(event, element, item, side) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const canonical = renderGeometry.get(element.id);
+  if (canonical === undefined) return;
+  const axis = side === "left" || side === "right" ? "width" : "height";
+  const startTransform = element.transform;
+  const startSize = elementOwnSize(canonical, startTransform);
+  if (startSize === null || !(startSize[axis] > 0)) return;
+
+  interactionActive = true;
+  interactionViewport = { ...state };
+  selectElement(element.id);
+  item.focus({ preventScroll: true });
+  const handle = event.currentTarget;
+  handle.setPointerCapture(event.pointerId);
+
+  const outward = side === "right" || side === "top" ? 1 : -1;
+  const anchor = outward === 1 ? "start" : "end";
+  const radians = (startTransform.rotationDeg * Math.PI) / 180;
+  // The element's own axis as it points on the screen, where Y runs downward.
+  const along =
+    axis === "width"
+      ? { x: Math.cos(radians), y: -Math.sin(radians) }
+      : { x: -Math.sin(radians), y: -Math.cos(radians) };
+  const millimetresPerPixel = state.width / artboard.getBoundingClientRect().width;
+  const startPointer = { x: event.clientX, y: event.clientY };
+  const startTextSizeMm =
+    element.kind === "text"
+      ? element.source.fontSizeMm * startTransform.scale
+      : null;
+  const limits =
+    element.kind === "text" && axis === "height"
+      ? {
+          minFactor: MIN_TEXT_SIZE_MM / startTextSizeMm,
+          maxFactor: editor.maxTextSizeMm / startTextSizeMm,
+          scaleLimits: false,
+        }
+      : {};
+  let preview = null;
+
+  const resize = (moveEvent) => {
+    const travel =
+      ((moveEvent.clientX - startPointer.x) * along.x +
+        (moveEvent.clientY - startPointer.y) * along.y) *
+      outward *
+      millimetresPerPixel;
+    const factor = Math.max(0.02, (startSize[axis] + travel) / startSize[axis]);
+    const next = stretchedTransform(canonical, startTransform, axis, factor, anchor, limits);
+    if (next === null) return;
+
+    preview = next;
+    resizePreviewTransforms.set(element.id, preview);
+    renderCanonicalArtwork();
+    applyOverlayBounds(item, element);
+    if (element.kind === "text" && axis === "height") {
+      updateTextSizeControl(startTextSizeMm * (preview.scale / startTransform.scale));
+    }
+  };
+
+  const stop = () => {
+    handle.removeEventListener("pointermove", resize);
+    handle.removeEventListener("pointerup", stop);
+    handle.removeEventListener("pointercancel", stop);
+
+    if (preview === null) {
+      resizePreviewTransforms.delete(element.id);
+    } else {
+      // The controller makes the change for real, the same way as a typed size.
+      const factor =
+        axis === "width"
+          ? preview.stretchX / startTransform.stretchX
+          : preview.scale / startTransform.scale;
+      if (element.kind === "text" && axis === "height") {
+        // The preview stays on screen until the text has been laid out again.
+        committedResizePreviews.add(element.id);
+      } else {
+        resizePreviewTransforms.delete(element.id);
+      }
+      editor.resizeAxis(element.id, axis, factor, anchor);
+    }
+
+    interactionActive = false;
+    interactionViewport = null;
+    render();
+  };
+
+  handle.addEventListener("pointermove", resize);
+  handle.addEventListener("pointerup", stop);
+  handle.addEventListener("pointercancel", stop);
+}
+
 const NEW_TEXT_SIZE_MM = SETTINGS.text.newTextSizeMm;
 const NEW_TEXT_GAP_MM = SETTINGS.elements.newTextGapMm;
 
 // New text goes into free space under (or else above) the existing artwork
 // rather than on top of it, where it would merge into one unreadable shape.
-function freeSpotForNewText(heightMm) {
-  const occupied = designModel.elements.flatMap((element) => {
-    const canonical = renderGeometry.get(element.id);
-    return element.visible && canonical !== undefined
-      ? transform(canonical, element.transform)
-      : [];
+function newTextSpot(extent) {
+  return freeSpotForNewText({
+    occupied: designModel.elements.flatMap((element) => {
+      const canonical = renderGeometry.get(element.id);
+      return element.visible && canonical !== undefined
+        ? transform(canonical, element.transform)
+        : [];
+    }),
+    limit: editor.faceLimit,
+    extent,
+    gapMm: NEW_TEXT_GAP_MM,
   });
-  if (occupied.length === 0) return 0;
-
-  const box = bounds(occupied);
-  const limit = editor.faceLimit;
-  const reach = limit === null ? Infinity : limit.halfExtent;
-  const below = box.minY - NEW_TEXT_GAP_MM - heightMm / 2;
-  if (Math.abs(below) + heightMm / 2 <= reach) return below;
-  const above = box.maxY + NEW_TEXT_GAP_MM + heightMm / 2;
-  if (Math.abs(above) + heightMm / 2 <= reach) return above;
-  return 0;
 }
 
-$("#add-text").addEventListener("click", () => {
+const NEW_TEXT = Object.freeze({
+  text: "TEXT",
+  font: Object.freeze({ id: "sans-bold", reference: null }),
+  fontSizeMm: NEW_TEXT_SIZE_MM,
+  letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
+  lineSpacing: 1.25,
+  alignment: "center",
+  thicknessMm: 0.3,
+});
+
+// How far a new text reaches above and below the point it is placed at (its
+// baseline), measured on the real font with the letter thickness around the
+// letters, so the gap to the artwork beside it comes out as set.
+async function newTextExtent() {
+  const half = NEW_TEXT.thicknessMm / 2;
+  try {
+    const font = await loadFont(
+      BUILT_IN_FONTS.find(({ id }) => id === NEW_TEXT.font.id).url,
+    );
+    const box = bounds(
+      layoutText(font, {
+        text: NEW_TEXT.text,
+        size: NEW_TEXT.fontSizeMm,
+        lineSpacing: NEW_TEXT.lineSpacing,
+        align: NEW_TEXT.alignment,
+      }),
+    );
+    return { top: box.maxY + half, bottom: Math.max(0, -box.minY) + half };
+  } catch {
+    // No font to measure: treat the text as a block around its placing point.
+    return { top: NEW_TEXT_SIZE_MM / 2, bottom: NEW_TEXT_SIZE_MM / 2 };
+  }
+}
+
+$("#add-text").addEventListener("click", async () => {
+  const extent = await newTextExtent();
   designControls.addElement(
     "text",
-    {
-      text: "TEXT",
-      font: { id: "sans-bold", reference: null },
-      fontSizeMm: NEW_TEXT_SIZE_MM,
-      letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
-      lineSpacing: 1.25,
-      alignment: "center",
-      thicknessMm: 0.3,
-    },
-    { yMm: freeSpotForNewText(NEW_TEXT_SIZE_MM) },
+    { ...NEW_TEXT, font: { ...NEW_TEXT.font } },
+    { yMm: newTextSpot(extent) },
   );
   render();
   const input = $("#text-input");
@@ -1473,6 +1665,7 @@ function bindElementSize(selector, axis) {
 
 bindElementSize("#element-width", "width");
 bindElementSize("#element-height", "height");
+$("#element-keep-proportions").checked = SETTINGS.elements.keepProportions;
 bindTransformNumber("#element-x", "xMm");
 bindTransformNumber("#element-y", "yMm");
 bindTransformNumber(
@@ -1487,10 +1680,31 @@ $("#transform-controls-toggle").addEventListener("click", () => {
   setTransformControlsExpanded(!transformControlsExpanded);
 });
 
-$("#center-element").addEventListener("click", () => {
+$("#center-all-elements").addEventListener("click", () => {
   if (pipeline.busy || lastScene === null) return;
-  if (editor.centerSelectedOnStamp(lastScene.face) !== null) render();
+  const target = centerTarget({
+    faceShape: pipeline.stamp.faceShape,
+    face: lastScene.face,
+    others: designModel.elements.flatMap(({ id, visible }) =>
+      visible ? displayGeometry.get(id) ?? [] : [],
+    ),
+  });
+  if (target !== null && editor.centerAllOnStamp(target) !== null) render();
 });
+
+for (const [selector, axis] of [
+  ["#center-element-x", "x"],
+  ["#center-element-y", "y"],
+  ["#center-element", "both"],
+]) {
+  $(selector).addEventListener("click", () => {
+    if (pipeline.busy || lastScene === null) return;
+    const target = selectedCenterTarget();
+    if (target !== null && editor.centerSelectedOnStamp(target, axis) !== null) {
+      render();
+    }
+  });
+}
 
 $("#element-mirror-x").addEventListener("change", (event) => {
   designControls.updateSelectedTransform({ mirrorX: event.target.checked });
@@ -1610,7 +1824,7 @@ const orderPage = createOrderPage({
   onBack: () => showPage("review"),
   renderPreview: renderOrderPreview,
   createStl: () => createSTL(exportable(viewer, pipeline)),
-  config: readServerConfig(),
+  config: serverConfig,
 });
 
 function showPage(name) {

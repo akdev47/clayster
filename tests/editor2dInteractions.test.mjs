@@ -15,6 +15,7 @@ import {
   cornerDragScale,
   fitElementTransform,
   fitsFace,
+  freeSpotForNewText,
   shouldHandleElementArrowKey,
   shouldHandleElementDeleteKey,
   screenDeltaToMillimetres,
@@ -547,4 +548,65 @@ test("switching views preserves the same selected element state", () => {
   assert.equal(editor.selectedId, "text-1");
   assert.equal(model.getElement("text-1"), elementBefore);
   assert.equal(model.getElement("text-1").transform.xMm, 12);
+});
+
+test("a new text goes under the artwork that is already there, or above it, never on top of it", () => {
+  const rows = [[[[-10, -3], [10, -3], [10, 3], [-10, 3]]]]; // 20 x 6, around the middle
+  const low = [[[[-10, -9], [10, -9], [10, -3], [-10, -3]]]]; // the same, lower down
+  const gapMm = 2;
+  const heightMm = 6;
+  // A text that reaches 3 mm each way from the point it is placed at.
+  const extent = { top: heightMm / 2, bottom: heightMm / 2 };
+  const underRows = -3 - gapMm - heightMm / 2; // -8
+  const aboveLow = -3 + gapMm + heightMm / 2; // 2
+
+  assert.equal(freeSpotForNewText({ occupied: [], limit: null, extent, gapMm }), 0, "an empty stamp starts in the middle");
+
+  // A Minimal stamp has no limit: there is always room below.
+  assert.equal(freeSpotForNewText({ occupied: rows, limit: null, extent, gapMm }), underRows);
+  assert.equal(freeSpotForNewText({ occupied: rows, limit: undefined, extent, gapMm }), underRows);
+
+  // Round and Square stamps limit it to the usable face, with its own half height.
+  for (const shape of ["round", "square"]) {
+    const roomy = { shape, halfWidth: 30, halfHeight: 25 };
+    assert.equal(freeSpotForNewText({ occupied: rows, limit: roomy, extent, gapMm }), underRows, shape);
+
+    // Low down on the stamp there is no room below, so it goes above.
+    const tight = { shape, halfWidth: 30, halfHeight: 12 };
+    assert.equal(freeSpotForNewText({ occupied: low, limit: tight, extent, gapMm }), aboveLow, shape);
+
+    // No room at all: the middle, as before.
+    const tiny = { shape, halfWidth: 30, halfHeight: 4 };
+    assert.equal(freeSpotForNewText({ occupied: low, limit: tiny, extent, gapMm }), 0, shape);
+  }
+
+  // The height of the face counts, not its width.
+  const wideLow = { shape: "square", halfWidth: 60, halfHeight: 12 };
+  assert.equal(freeSpotForNewText({ occupied: low, limit: wideLow, extent, gapMm }), aboveLow);
+  const narrowHigh = { shape: "square", halfWidth: 4, halfHeight: 25 };
+  assert.equal(freeSpotForNewText({ occupied: rows, limit: narrowHigh, extent, gapMm }), underRows);
+
+  // Limits from before the face could be a rectangle are still understood.
+  assert.equal(freeSpotForNewText({ occupied: rows, limit: { shape: "square", halfExtent: 25 }, extent, gapMm }), underRows);
+});
+
+test("a new text is placed by its real letters: the baseline is not the middle", () => {
+  const close = (actual, expected, message) =>
+    assert.ok(Math.abs(actual - expected) < 1e-9, `${message}: ${actual} != ${expected}`);
+  const rows = [[[[-10, 0], [10, 0], [10, 6], [-10, 6]]]]; // text standing on y = 0
+  const gapMm = 2;
+  // Letters 5.5 mm tall above the baseline, with 0.15 mm of thickness below it.
+  const extent = { top: 5.5, bottom: 0.15 };
+
+  const under = freeSpotForNewText({ occupied: rows, limit: null, extent, gapMm });
+  close(under + extent.top, 0 - gapMm, "the top of the new text is a gap under the old text");
+  // A text centred on its placing point would have come out 2.5 mm too high.
+  assert.ok(under < 0 - gapMm - extent.top + 1e-9);
+
+  // No room below when the old text is low on the face, so it goes above, with
+  // the bottom of the new text a gap over the old text.
+  const lowRows = [[[[-10, -12], [10, -12], [10, -6], [-10, -6]]]];
+  const limit = { shape: "square", halfWidth: 30, halfHeight: 16 };
+  const above = freeSpotForNewText({ occupied: lowRows, limit, extent, gapMm });
+  close(above - extent.bottom, -6 + gapMm, "the bottom of the new text is a gap over the old text");
 });

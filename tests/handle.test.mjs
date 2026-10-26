@@ -125,16 +125,11 @@ test("fitHandleToFace never enlarges the handle", () => {
   assert.ok(sizeOf(small).x <= HANDLE_MAX_FACE_SHARE * 12 + 1e-6, "uses the shorter side");
 });
 
-test("the handle dropdown offers the small handle first and no sample handle", () => {
+test("the page offers no handle choice: every stamp gets the small handle", () => {
   const html = readFileSync(new URL("templates/stamp_generator/index.html", root), "utf8");
-  const select = html.match(/<select id="pipeline-handle-select"[^>]*>([\s\S]*?)<\/select>/);
-  assert.ok(select, "handle dropdown exists");
-  const options = [...select[1].matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)].map(
-    ([, value, label]) => [value, label],
-  );
-  assert.deepEqual(options, [
-    ["small", "Small handle"],
-    ["none", "No handle — face only"],
-  ]);
+  assert.ok(!html.includes("pipeline-handle-select"), "no handle dropdown");
+  assert.ok(!/<select[^>]*handle/i.test(html));
+  assert.ok(!/No handle/i.test(html));
   assert.ok(!/sample handle/i.test(html));
+  assert.equal(DEFAULT_STAMP.handle, "small");
 });

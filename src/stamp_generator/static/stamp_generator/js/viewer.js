@@ -1,20 +1,8 @@
 // Displays the pipeline's stamp and mug meshes, with lighting, measurements, and camera controls.
 import * as THREE from "three";
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
-import {
-  computeBoundsTree,
-  disposeBoundsTree,
-  acceleratedRaycast,
-} from "three-mesh-bvh";
 import { setupOrbitControls } from "./controls.js";
 import { DimensionBox } from "./dimensions.js";
-
-// A stamp with a handle runs to tens of thousands of triangles, and hit-testing
-// the pointer against every one of them on each mouse move would stutter.
-// three-mesh-bvh turns that into a tree descent.
-THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 // Slicers put Z up and measure in millimetres. Matching that here means an
 // exported file lands on the build plate the same way round as it looks on
@@ -120,7 +108,6 @@ export function createViewer(container) {
   // Replaces a preview mesh, disposing whatever it was showing before so a
   // live preview does not leak a geometry on every keystroke.
   const setGeometry = (mesh, geometry) => {
-    mesh.geometry?.disposeBoundsTree?.();
     mesh.geometry?.dispose();
     mesh.geometry = geometry ?? undefined;
     mesh.visible = geometry !== null && geometry !== undefined;
@@ -129,86 +116,11 @@ export function createViewer(container) {
   const show = ({ stamp, clay }) => {
     setGeometry(stampMesh, stamp);
     setGeometry(clayMesh, clay);
-
-    // A fresh build ends any drag preview, so the mesh goes back to 1:1.
-    stampMesh.scale.set(1, 1, 1);
-    stampMesh.geometry?.computeBoundsTree?.();
-
     refreshDimensions();
   };
 
   const refreshDimensions = () => {
     dimensions.update(stampMesh.visible ? boxOf(stampMesh) : new THREE.Box3());
-  };
-
-  // --- hit testing and the drag-to-resize preview ------------------------
-
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
-
-  const overStamp = (event) => {
-    if (!stampMesh.visible) return false;
-
-    const rect = renderer.domElement.getBoundingClientRect();
-    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    raycaster.setFromCamera(pointer, camera);
-    raycaster.firstHitOnly = true;
-
-    return raycaster.intersectObject(stampMesh, false).length > 0;
-  };
-
-  // Where the stamp sits on screen and how big it looks there, in pixels.
-  // A resize drag needs both: the centre to measure distance from, and the
-  // radius to turn that distance into a sensible scale factor.
-  const stampScreenMetrics = () => {
-    const rect = renderer.domElement.getBoundingClientRect();
-    const box = boxOf(stampMesh);
-    const centre = box.getCenter(new THREE.Vector3());
-    const worldRadius = Math.max(
-      box.getBoundingSphere(new THREE.Sphere()).radius,
-      0.001,
-    );
-
-    // A point one radius to the camera's right, so the projected distance
-    // between the two is the stamp's apparent radius whatever the angle.
-    const right = new THREE.Vector3().setFromMatrixColumn(
-      camera.matrixWorld,
-      0,
-    );
-    const edge = centre.clone().addScaledVector(right, worldRadius);
-
-    const toScreen = (point) => {
-      const ndc = point.clone().project(camera);
-      return {
-        x: rect.left + ((ndc.x + 1) / 2) * rect.width,
-        y: rect.top + ((1 - ndc.y) / 2) * rect.height,
-      };
-    };
-
-    const screenCentre = toScreen(centre);
-    const screenEdge = toScreen(edge);
-
-    return {
-      ...screenCentre,
-      radius: Math.max(
-        Math.hypot(
-          screenEdge.x - screenCentre.x,
-          screenEdge.y - screenCentre.y,
-        ),
-        8,
-      ),
-    };
-  };
-
-  // Rebuilding the mesh takes hundreds of milliseconds, far too slow for a
-  // drag. Scaling X and Y instead is instant and is also what actually
-  // changes: the face and artwork grow while plate thickness and relief depth
-  // stay put. The real geometry is rebuilt once, on release.
-  const previewScale = (factor) => {
-    stampMesh.scale.set(factor, factor, 1);
-    refreshDimensions();
   };
 
   // Moves the camera back far enough for `box` to fill the view, keeping
@@ -249,9 +161,6 @@ export function createViewer(container) {
     show,
     frame,
     refreshDimensions,
-    overStamp,
-    stampScreenMetrics,
-    previewScale,
     stampMesh,
     clayMesh,
   };

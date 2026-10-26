@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { DesignModel } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
 import { DesignHistory } from "../src/stamp_generator/static/stamp_generator/js/designHistory.js";
-import { DesignEditorController } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
+import { DesignEditorController, centerTarget } from "../src/stamp_generator/static/stamp_generator/js/editor2dInteractions.js";
 import { bounds, transform } from "../src/stamp_generator/static/stamp_generator/js/pipeline/canonical.js";
 import { Pipeline } from "../src/stamp_generator/static/stamp_generator/js/pipeline/index.js";
 import { createStampLayout, layoutRenderElements } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stampLayout.js";
@@ -143,11 +143,168 @@ for (const faceShape of ["round", "square"]) {
   });
 }
 
-test("Center on Stamp is a shared, labelled button inside the collapsible transform panel", () => {
+test("the centre buttons sit in the visible element panel, not in the collapsed transform panel", () => {
   const root = new URL("../src/stamp_generator/", import.meta.url);
   const html = readFileSync(new URL("templates/stamp_generator/index.html", root), "utf8");
   const main = readFileSync(new URL("static/stamp_generator/js/main.js", root), "utf8");
-  assert.match(html, /id="transform-controls-content" hidden>[\s\S]*?<button id="center-element" type="button" class="btn subtle-button w-100 mt-3" disabled>\s*Center on Stamp\s*<\/button>/);
-  assert.match(main, /#center-element"\)\.disabled = pipeline\.busy \|\| dimensions === null/);
-  assert.match(main, /editor\.centerSelectedOnStamp\(lastScene\.face\)/);
+
+  const group = html.match(/<div id="center-controls"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/)?.[0] ?? "";
+  for (const [id, label] of [
+    ["center-element-x", "Left–right"],
+    ["center-element-y", "Up–down"],
+    ["center-element", "Both"],
+  ]) {
+    assert.match(group, new RegExp(`<button id="${id}" type="button" class="btn subtle-button" disabled>${label}</button>`));
+  }
+  assert.match(group, /aria-label="Center the selected element on the stamp"/);
+  assert.match(group, /data-help="help-center"/);
+  assert.match(html, /<div id="help-center" class="help-text" hidden>/);
+  const collapsed = html.match(/id="transform-controls-content" hidden>[\s\S]*?<button id="duplicate-element"/)?.[0] ?? "";
+  assert.ok(collapsed.length > 0 && !collapsed.includes("center-element"), "nothing to centre inside the collapsed panel");
+
+  assert.match(main, /centerSelectedOnStamp\(target, axis\)/);
+  assert.match(main, /\["#center-element-x", "x"\]/);
+  assert.match(main, /\["#center-element-y", "y"\]/);
+});
+
+const target = rectangle(-10, -10, 10, 10); // centre (0, 0)
+const wide = [[[[0, 0], [20, 0], [20, 4], [0, 4]]]]; // 20 x 4, centre (10, 2) before it is moved
+
+for (const axis of ["x", "y", "both"]) {
+  test(`centering ${axis === "both" ? "both ways" : `only ${axis === "x" ? "left-right" : "up-down"}`} moves just that direction`, () => {
+    const model = new DesignModel({ elements: [
+      { id: "line", kind: "svg", transform: { xMm: 7, yMm: 13 } },
+    ] });
+    const editor = new DesignEditorController(model);
+    editor.canonicalFor = () => wide;
+    const start = model.getElement("line").transform;
+    const moved = editor.centerSelectedOnStamp(target, axis);
+    const box = bounds(transform(wide, moved.transform));
+    const at = { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
+
+    if (axis === "y") {
+      assert.equal(moved.transform.xMm, start.xMm, "left-right is left alone");
+    } else {
+      close(at.x, 0);
+    }
+    if (axis === "x") {
+      assert.equal(moved.transform.yMm, start.yMm, "up-down is left alone");
+    } else {
+      close(at.y, 0);
+    }
+    // Nothing but the position changed.
+    assert.deepEqual({ ...moved.transform, xMm: 0, yMm: 0 }, { ...start, xMm: 0, yMm: 0 });
+  });
+}
+
+test("several texts can be lined up on one axis without stacking them", () => {
+  const model = new DesignModel({ elements: [
+    { id: "top", kind: "svg", transform: { xMm: 6, yMm: 8 } },
+    { id: "bottom", kind: "svg", transform: { xMm: -9, yMm: -8 } },
+  ] });
+  const editor = new DesignEditorController(model);
+  editor.canonicalFor = () => wide;
+  for (const id of ["top", "bottom"]) {
+    editor.select(id);
+    editor.centerSelectedOnStamp(target, "x");
+  }
+  const centreOf = (id) => {
+    const box = bounds(transform(wide, model.getElement(id).transform));
+    return { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
+  };
+  close(centreOf("top").x, 0);
+  close(centreOf("bottom").x, 0);
+  close(centreOf("top").y - centreOf("bottom").y, 16, "they keep their distance");
+});
+
+test("a Round or Square stamp is centred on its plate, a Minimal one on the other elements", () => {
+  const plate = rectangle(-30, -20, 30, 20);
+  const others = [rectangle(10, 10, 20, 14)[0], rectangle(14, -6, 30, -2)[0]];
+
+  for (const faceShape of ["round", "square"]) {
+    assert.equal(centerTarget({ faceShape, face: plate, others }), plate);
+    assert.equal(centerTarget({ faceShape, face: [] }), null);
+  }
+  const alone = centerTarget({ faceShape: "minimal", face: plate, others: [] });
+  assert.equal(alone, null, "nothing to line up with");
+
+  const rest = centerTarget({ faceShape: "minimal", face: plate, others });
+  assert.deepEqual(bounds(rest), bounds(others), "a box around everything else");
+  assert.equal(rest.length, 1);
+  // The plate is not used at all: it is made from the very elements being moved.
+  assert.notDeepEqual(bounds(rest), bounds(plate));
+});
+
+function lines() {
+  const model = new DesignModel({ elements: [
+    { id: "top", kind: "svg", transform: { xMm: 9, yMm: 8 } },
+    { id: "middle", kind: "svg", transform: { xMm: -14, yMm: 0 } },
+    { id: "bottom", kind: "svg", transform: { xMm: 17, yMm: -8 } },
+    { id: "hidden", kind: "svg", visible: false, transform: { xMm: 30, yMm: 0 } },
+  ] });
+  const editor = new DesignEditorController(model);
+  editor.canonicalFor = () => wide;
+  return { model, editor, history: new DesignHistory(model) };
+}
+const centreX = (model, id) => {
+  const box = bounds(transform(wide, model.getElement(id).transform));
+  return (box.minX + box.maxX) / 2;
+};
+
+test("Center all puts every visible element on one center line in a single undo step", () => {
+  const { model, editor, history } = lines();
+  const before = Object.fromEntries(model.elements.map((element) => [element.id, element]));
+  let changes = 0;
+  model.addEventListener("change", () => changes++);
+
+  assert.equal(editor.centerAllOnStamp(target), 3);
+  assert.equal(changes, 1, "one change for all of them");
+  for (const id of ["top", "middle", "bottom"]) {
+    close(centreX(model, id), 0);
+    assert.equal(model.getElement(id).transform.yMm, before[id].transform.yMm, `${id} keeps its height`);
+  }
+  assert.deepEqual(model.getElement("hidden"), before.hidden, "hidden elements stay as they were");
+
+  assert.equal(editor.centerAllOnStamp(target), 0, "already in line");
+  assert.equal(changes, 1, "nothing changed, so nothing is recorded");
+
+  assert.equal(history.undo(), true);
+  for (const id of Object.keys(before)) assert.deepEqual(model.getElement(id), before[id]);
+  assert.equal(history.canUndo, false, "one undo brings back all three");
+});
+
+test("Center all gives the same result whatever order the elements are in", () => {
+  const spots = (ids) => {
+    const { model, editor } = lines();
+    model.replaceElements(ids.map((id) => model.getElement(id)));
+    editor.centerAllOnStamp(target);
+    return Object.fromEntries(model.elements.map((element) => [element.id, element.transform.xMm]));
+  };
+  const one = spots(["top", "middle", "bottom", "hidden"]);
+  const other = spots(["bottom", "hidden", "top", "middle"]);
+  assert.deepEqual(one, other);
+});
+
+test("Center all on a Minimal stamp uses the middle of everything together", () => {
+  const { model, editor } = lines();
+  editor.canonicalFor = () => wide;
+  const everything = model.elements
+    .filter(({ visible }) => visible)
+    .flatMap(({ transform: place }) => transform(wide, place));
+  const middle = bounds(everything);
+  const goal = (middle.minX + middle.maxX) / 2;
+
+  const face = centerTarget({ faceShape: "minimal", face: rectangle(-1, -1, 1, 1), others: everything });
+  editor.centerAllOnStamp(face);
+  for (const id of ["top", "middle", "bottom"]) close(centreX(model, id), goal);
+});
+
+test("Center all waits for geometry and a stamp face", () => {
+  const { model, editor } = lines();
+  const original = model.elements;
+  assert.equal(editor.centerAllOnStamp([]), null);
+  assert.equal(editor.centerAllOnStamp(undefined), null);
+  editor.canonicalFor = () => undefined;
+  assert.equal(editor.centerAllOnStamp(target), null);
+  assert.equal(model.elements, original, "the list itself was not replaced");
 });
