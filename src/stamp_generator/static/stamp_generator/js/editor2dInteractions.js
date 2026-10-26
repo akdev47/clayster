@@ -50,10 +50,116 @@ export function centeredScaleTransform(canonical, startTransform, scale) {
   };
 }
 
+/**
+ * The element's own width and height in millimetres: its outline with scale,
+ * stretch and mirroring applied but not turned, so "width" always runs along the
+ * element's own X axis however it is rotated. Null when there is no outline.
+ */
+export function elementOwnSize(canonical, elementTransform) {
+  if (!canonical?.length) return null;
+  const { width, height } = bounds(transform(canonical, ownAxes(elementTransform)));
+  return { width, height };
+}
+
+// Scale, stretch and mirroring only: the outline in the element's own frame.
+function ownAxes({ scale = 1, stretchX = 1, mirrorX = false, mirrorY = false }) {
+  return { scale, stretchX, mirrorX, mirrorY };
+}
+
+const clamp = (value, minimum, maximum) =>
+  Math.min(Math.max(value, minimum), maximum);
+
+/**
+ * Makes one side of an element bigger or smaller and leaves the other as it is.
+ *
+ * `axis` is "width" or "height" (along the element's own axes) and `factor`
+ * multiplies it. `anchor` says what stays where it was: "centre", or "start" /
+ * "end" for the left / bottom edge or the right / top edge. The width is changed
+ * by stretching only the X axis; the height by scaling the element and stretching
+ * it back, so the width does not move along. The result stays inside the
+ * stretch and scale limits of settings.js, so it can change by less than asked.
+ *
+ * `minFactor` / `maxFactor` narrow the factor further, and `scaleLimits: false`
+ * lets the height ignore the element scale limits (text is limited by its
+ * font size instead).
+ */
+export function stretchedTransform(
+  canonical,
+  startTransform,
+  axis,
+  factor,
+  anchor = "centre",
+  { minFactor = 0, maxFactor = Infinity, scaleLimits = true } = {},
+) {
+  if (!(factor > 0) || !Number.isFinite(factor)) return null;
+  const start = { ...startTransform, stretchX: startTransform.stretchX ?? 1 };
+
+  let next;
+  if (axis === "width") {
+    const stretchX = clamp(
+      start.stretchX * clamp(factor, minFactor, maxFactor),
+      MIN_STRETCH,
+      MAX_STRETCH,
+    );
+    next = { ...start, stretchX };
+  } else if (axis === "height") {
+    const lowest = Math.max(
+      minFactor,
+      scaleLimits ? MIN_ELEMENT_SCALE / start.scale : 0,
+      start.stretchX / MAX_STRETCH,
+    );
+    const highest = Math.min(
+      maxFactor,
+      scaleLimits ? MAX_ELEMENT_SCALE / start.scale : Infinity,
+      start.stretchX / MIN_STRETCH,
+    );
+    const grow = Math.min(Math.max(factor, lowest), highest);
+    next = {
+      ...start,
+      scale: start.scale * grow,
+      stretchX: start.stretchX / grow,
+    };
+  } else {
+    throw new TypeError(`Unknown element side: ${axis}.`);
+  }
+  return holdAnchor(canonical, start, next, axis, anchor);
+}
+
+// Moves `after` so that the chosen centre or edge of the element's own frame
+// stays at the same place on the stamp as it was in `before`. The place is
+// found with the shared transform itself, so rotation, mirroring and a pivot
+// are all accounted for.
+function holdAnchor(canonical, before, after, axis, anchor) {
+  const own = bounds(transform(canonical, ownAxes(before)));
+  const centreX = (own.minX + own.maxX) / 2;
+  const centreY = (own.minY + own.maxY) / 2;
+  const edge = (low, high, centre) =>
+    anchor === "start" ? low : anchor === "end" ? high : centre;
+  const local =
+    axis === "width"
+      ? { x: edge(own.minX, own.maxX, centreX), y: centreY }
+      : { x: centreX, y: edge(own.minY, own.maxY, centreY) };
+
+  // The outline point that sits there: undo the scale and mirroring.
+  const source = [[[[
+    local.x / ((before.mirrorX ? -1 : 1) * before.scale * before.stretchX),
+    local.y / ((before.mirrorY ? -1 : 1) * before.scale),
+  ]]]];
+  const [wasX, wasY] = transform(source, before)[0][0][0];
+  const [nowX, nowY] = transform(source, after)[0][0][0];
+  return {
+    ...after,
+    xMm: after.xMm + wasX - nowX,
+    yMm: after.yMm + wasY - nowY,
+  };
+}
+
 // Realistic range for an element's scale, shared by the corner handles and the
 // scale field so both allow the same sizes.
 export const MIN_ELEMENT_SCALE = SETTINGS.elements.scale.min;
 export const MAX_ELEMENT_SCALE = SETTINGS.elements.scale.max;
+export const MIN_STRETCH = SETTINGS.elements.stretch.min;
+export const MAX_STRETCH = SETTINGS.elements.stretch.max;
 export const MIN_TEXT_SIZE_MM = SETTINGS.text.sizeMm.min;
 export const MAX_TEXT_SIZE_MM = SETTINGS.text.sizeMm.max;
 export const TEXT_SIZE_STEP_MM = SETTINGS.text.sizeMm.step;
@@ -139,6 +245,47 @@ export function fitElementTransform(canonical, startTransform, limit) {
         );
   const scale = Math.min(startTransform.scale, maximumScale);
   return centeredTransform(canonical, { ...startTransform, scale });
+}
+
+/**
+ * The height (Y, in mm) at which to add a new text: in free space under the
+ * artwork that is already there (`occupied`, its outlines), or else above it,
+ * with `gapMm` between them, so the new text does not land on top of it.
+ * `extent` is how far the new text reaches above (`top`) and below (`bottom`)
+ * the point it is placed at, which for text is its baseline. `limit` is the
+ * usable face (or null when the plate follows the artwork). With no room above
+ * or below, it is the middle of the stamp.
+ */
+export function freeSpotForNewText({ occupied, limit, extent, gapMm }) {
+  if (occupied.length === 0) return 0;
+
+  const box = bounds(occupied);
+  const reach = limit === null || limit === undefined ? Infinity : limitAxes(limit).halfHeight;
+  const fits = (spot) => spot - extent.bottom >= -reach && spot + extent.top <= reach;
+  const below = box.minY - gapMm - extent.top;
+  if (fits(below)) return below;
+  const above = box.maxY + gapMm + extent.bottom;
+  if (fits(above)) return above;
+  return 0;
+}
+
+/**
+ * What the selected element is centred on, as an outline, or null when there is
+ * nothing to centre on. A Round or Square plate has a fixed middle: the plate
+ * itself. A Minimal plate only wraps the artwork, so it has no middle of its
+ * own; the element is lined up with the rest of the design instead (`others` is
+ * the outlines of every other visible element).
+ */
+export function centerTarget({ faceShape, face, others = [] }) {
+  if (faceShape !== "minimal") return face?.length ? face : null;
+  if (!others.some((polygon) => polygon.length > 0)) return null;
+  const box = bounds(others);
+  return [[[
+    [box.minX, box.minY],
+    [box.maxX, box.minY],
+    [box.maxX, box.maxY],
+    [box.minX, box.maxY],
+  ]]];
 }
 
 const ARROW_MOVEMENT = Object.freeze({
@@ -294,13 +441,30 @@ export function constrainToFace(canonical, elementTransform, limit) {
   return at(high);
 }
 
+// The stretch that keeps a text exactly as wide when its font size changes by
+// `grow`. The letter thickness is added around the letters and does not grow
+// with the font, so it is taken off before working out how the width changes.
+// `fallback` (the plain 1 / grow) is used when that cannot be worked out.
+function keptWidthStretch(element, canonical, grow, fallback) {
+  const { scale, stretchX } = element.transform;
+  const own = elementOwnSize(canonical, element.transform);
+  const thickness = element.source.thicknessMm;
+  if (scale !== 1 || own === null || !(own.width / stretchX - thickness > 0)) {
+    return fallback;
+  }
+
+  const unstretched = own.width / stretchX; // letters plus thickness
+  const after = (unstretched - thickness) * grow + thickness;
+  return clamp(stretchX * (unstretched / after), MIN_STRETCH, MAX_STRETCH);
+}
+
 /** UI-only selection/view state plus mutations of authoritative design intent. */
 export class DesignEditorController {
   constructor(model, { selectedId = model.elements[0]?.id ?? null } = {}) {
     this.model = model;
     this.selectedId = selectedId;
     this.view = "2d";
-    // Set by the app: { shape, halfExtent } of the usable face, or null.
+    // Set by the app: { shape, halfWidth, halfHeight } of the usable face, or null.
     this.faceLimit = null;
     // Set by the app: id => canonical geometry of that element, or undefined.
     this.canonicalFor = () => undefined;
@@ -432,6 +596,51 @@ export class DesignEditorController {
     });
   }
 
+  /**
+   * Changes one side of an element and leaves the other (see stretchedTransform).
+   * The width is a stretch for every kind of element. The height scales a
+   * picture, and changes a text's font size, with the stretch adjusted so the
+   * width stays the same.
+   */
+  resizeAxis(id, axis, factor, anchor = "centre") {
+    const element = this.model.getElement(id);
+    const canonical = this.canonicalFor(id);
+    if (element === null || !canonical?.length) return null;
+    this.select(id);
+
+    if (element.kind === "text" && axis === "height") {
+      const currentSizeMm = element.source.fontSizeMm * element.transform.scale;
+      const next = stretchedTransform(
+        canonical,
+        element.transform,
+        axis,
+        factor,
+        anchor,
+        {
+          minFactor: MIN_TEXT_SIZE_MM / currentSizeMm,
+          maxFactor: this.maxTextSizeMm / currentSizeMm,
+          scaleLimits: false,
+        },
+      );
+      if (next === null) return null;
+      const grow = next.scale / element.transform.scale;
+      return this.setTextSize(id, currentSizeMm * grow, {
+        xMm: next.xMm,
+        yMm: next.yMm,
+        stretchX: keptWidthStretch(element, canonical, grow, next.stretchX),
+      });
+    }
+
+    const next = stretchedTransform(
+      canonical,
+      element.transform,
+      axis,
+      factor,
+      anchor,
+    );
+    return next === null ? null : this.model.updateElement(id, { transform: next });
+  }
+
   setTextSize(id, fontSizeMm, transformPatch = {}) {
     const element = this.model.getElement(id);
     if (element === null || element.kind !== "text") return null;
@@ -450,22 +659,61 @@ export class DesignEditorController {
     });
   }
 
-  /** Aligns to the current backing in readable canonical coordinates (mm). */
-  centerSelectedOnStamp(stampFace) {
+  /**
+   * Moves the element to the middle of `stampFace`, in readable canonical
+   * coordinates (mm). `axis` is "x" for left-right only, "y" for up-down only,
+   * or "both"; the other direction keeps its place.
+   */
+  centerSelectedOnStamp(stampFace, axis = "both") {
     const element = this.selectedElement();
     const canonical = element === null ? undefined : this.canonicalFor(element.id);
     if (!element || !canonical?.length || !stampFace?.length) return null;
 
     const face = bounds(stampFace);
     const centered = centeredTransform(canonical, element.transform);
-    const xMm = centered.xMm + (face.minX + face.maxX) / 2;
-    const yMm = centered.yMm + (face.minY + face.maxY) / 2;
+    const xMm =
+      axis === "y"
+        ? element.transform.xMm
+        : centered.xMm + (face.minX + face.maxX) / 2;
+    const yMm =
+      axis === "x"
+        ? element.transform.yMm
+        : centered.yMm + (face.minY + face.maxY) / 2;
     if (
       Math.abs(xMm - element.transform.xMm) <= EPSILON &&
       Math.abs(yMm - element.transform.yMm) <= EPSILON
     ) return element;
 
     return this.model.updateElement(element.id, { transform: { xMm, yMm } });
+  }
+
+  /**
+   * Puts every visible element on one vertical centre line, the middle of
+   * `stampFace`, and leaves each one's height alone, so lines of text sit neatly
+   * under each other. All elements are moved together, in one undo step, so the
+   * result does not depend on the order they are in. Returns how many moved
+   * (zero when they were already in line), or null when there was nothing to do.
+   */
+  centerAllOnStamp(stampFace) {
+    if (!stampFace?.length) return null;
+    const middle = bounds(stampFace);
+    const centreX = (middle.minX + middle.maxX) / 2;
+
+    let moved = 0;
+    let usable = 0;
+    const elements = this.model.elements.map((element) => {
+      const canonical = this.canonicalFor(element.id);
+      if (!element.visible || !canonical?.length) return element;
+      usable += 1;
+
+      const xMm = centeredTransform(canonical, element.transform).xMm + centreX;
+      if (Math.abs(xMm - element.transform.xMm) <= EPSILON) return element;
+      moved += 1;
+      return { ...element, transform: { ...element.transform, xMm } };
+    });
+    if (usable === 0) return null;
+    if (moved > 0) this.model.replaceElements(elements);
+    return moved;
   }
 
   fitToStamp(id) {

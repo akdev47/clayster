@@ -1,7 +1,8 @@
 import json
 import re
 
-from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.test import TestCase, override_settings
 
 
 class IndexViewTests(TestCase):
@@ -50,3 +51,34 @@ class IndexViewTests(TestCase):
         self.assertEqual(config["orderEndpoint"], "/api/orders/")
         self.assertEqual(config["pricing"]["currency"], "EUR")
         self.assertRegex(response.content.decode(), r'<meta name="csrf-token" content="[^"]+"')
+
+
+class StlExportAccessTests(TestCase):
+    """The "Export STL" button is for development and staff, not for customers."""
+
+    def can_export(self):
+        response = self.client.get("/")
+        match = re.search(
+            r'<script id="clayster-config" type="application/json">(.*?)</script>',
+            response.content.decode(),
+            re.DOTALL,
+        )
+        return json.loads(match.group(1))["canExportStl"]
+
+    @override_settings(DEBUG=True)
+    def test_anyone_may_export_while_developing(self):
+        self.assertIs(self.can_export(), True)
+
+    @override_settings(DEBUG=False)
+    def test_customers_cannot_export_in_production(self):
+        self.assertIs(self.can_export(), False)
+
+        customer = get_user_model().objects.create_user("customer", password="pw")
+        self.client.force_login(customer)
+        self.assertIs(self.can_export(), False)
+
+    @override_settings(DEBUG=False)
+    def test_staff_may_still_export_in_production(self):
+        staff = get_user_model().objects.create_user("shop-staff", password="pw", is_staff=True)
+        self.client.force_login(staff)
+        self.assertIs(self.can_export(), True)

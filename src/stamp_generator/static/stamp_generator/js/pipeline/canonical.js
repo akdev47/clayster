@@ -324,7 +324,8 @@ export function bounds(multiPolygon) {
  * Applies an element transform in physical space.
  *
  * Points are moved to the pivot, mirrored on their local axes, uniformly
- * scaled, rotated counter-clockwise, moved back from the pivot, and finally
+ * scaled, widened or narrowed along the local X axis only by `stretchX` (1 = not
+ * at all), rotated counter-clockwise, moved back from the pivot, and finally
  * translated. `offsetX`/`offsetY` remain as aliases for the existing stamp
  * callers; shared design elements use `xMm`/`yMm`.
  *
@@ -334,6 +335,7 @@ export function bounds(multiPolygon) {
 export function transform(multiPolygon, options = {}) {
   const {
     scale = 1,
+    stretchX = 1,
     rotationDeg = 0,
     mirrorX = false,
     mirrorY = false,
@@ -347,7 +349,7 @@ export function transform(multiPolygon, options = {}) {
   const radians = (rotationDeg * Math.PI) / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
-  const scaleX = mirrorX ? -scale : scale;
+  const scaleX = (mirrorX ? -scale : scale) * stretchX;
   const scaleY = mirrorY ? -scale : scale;
   const reversesWinding = scaleX * scaleY < 0;
 
