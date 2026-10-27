@@ -1,103 +1,84 @@
 # Clayster
 
-## Getting started
+Clayster lets customers design a custom clay stamp in the browser and order it.
+They add text, SVG or PNG artwork, see the stamp in 2D and 3D (and pressed into
+clay), and order it. The finished 3D-printable STL file is built in the browser
+and stored with the order for production.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Made for the University of Twente design project 2026.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## What is in it
 
-## Add your files
+| Part | Where | What it does |
+|---|---|---|
+| Stamp generator | `src/stamp_generator/` | The design tool. Plain ES modules in the browser (no bundler): text and image conversion, checks, the 3D stamp, the order pages. |
+| Orders | `src/orders/` | Receives an order (`POST /api/orders/`), checks it, prices it on the server, stores it with its STL. Customer order page at `/order/<guid>/`. |
+| Shop back office | `src/dashboard/`, `src/products/`, `src/production/` | Staff pages for orders, products and the print queue. |
+| Settings and URLs | `src/config/` | Django settings, driven by `DJANGO_*` environment variables. |
+| Tests | `tests/` (JavaScript), `src/*/tests.py` (Django) | See below. |
 
-- [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-- [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Main technologies: Django 6.1, three.js, Manifold (3D solids, WebAssembly),
+opentype.js, Bootstrap.
 
-```
-cd existing_repo
-git remote add origin https://gitlab.utwente.nl/design-project-2026/clayster.git
-git branch -M main
-git push -uf origin main
-```
+## Run it
 
-## Integrate with your tools
+You need Node.js 22+, npm and Python 3.12+.
 
-- [Set up project integrations](https://gitlab.utwente.nl/design-project-2026/clayster/-/settings/integrations)
+    npm install                      # also copies the browser libraries to src/static/vendor/
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    cd src
+    python manage.py migrate
+    python manage.py runserver
 
-## Collaborate with your team
+The design tool is at http://localhost:8000/ and the back office at
+`/dashboard/`. Create a staff user with `python manage.py createsuperuser`.
 
-- [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-- [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-- [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-- [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-- [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+More detail: [install-guide.md](install-guide.md) (Linux and devenv) and
+[docker.md](docker.md) (running the site in Docker).
 
-## Test and Deploy
+## How the tool works
 
-Use the built-in continuous integration in GitLab.
+    text + font ---+
+    SVG upload ----+--> 2D outline (mm) --> checks and repair --> 3D stamp --> preview / STL
+    PNG upload ----+
 
-- [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-- [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-- [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-- [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-- [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+- The design is a list of elements (text, SVG, PNG), each with a position,
+  scale, stretch, rotation and mirroring (`designModel.js`).
+- Everything becomes one 2D outline in millimetres. The 2D view, the printability
+  checks and the 3D mesh all use that same outline and plate layout, so they
+  always agree.
+- The stamp is mirrored by default so the impression reads the right way round.
+- The 3D stamp is only built when needed (3D view, review, order), to keep 2D
+  editing fast.
+- Only the stamp is exported; the clay is preview only.
 
----
+## Settings you can change
 
-# Editing this README
+Stamp sizes, margins, plate rounding, handle size, warning limits, text and
+element limits and the maximum quantity are in one file:
+`src/stamp_generator/static/stamp_generator/js/settings.js`. Each value has an
+English and a Dutch comment. A nonsensical value stops the page with a message
+naming it. Three values must match the server (`src/orders/pricing.py`); a test
+checks this.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Tests
 
-## Suggestions for a good README
+    node --test tests/*.test.mjs     # JavaScript
+    cd src && python manage.py test  # Django
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+The page code in `main.js` is not loaded by any test; one test only checks that
+it imports everything it uses. Check UI changes in a browser.
 
-## Name
+## Good to know
 
-Choose a self-explaining name for your project.
-
-## Description
-
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-
-Show your appreciation to those who have contributed to the project.
-
-## License
-
-For open source projects, say how it is licensed.
-
-## Project status
-
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- **Export STL** on the design page only shows when `DJANGO_DEBUG=true` or a
+  staff user is logged in. Staff download each order's STL from the order page.
+- **Payment and email are placeholders**: paying always succeeds and the
+  confirmation email is printed in the server log. Connect the real ones in
+  `src/orders/payments.py` and `src/orders/emails.py`.
+- **Open issues and ideas** are listed in [ISSUES.md](ISSUES.md). Keep it up to
+  date when you fix or find something.
+- Generated and not committed: `src/static/vendor/` (run `npm run vendor`),
+  `db.sqlite3`, `media/`.
