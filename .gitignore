@@ -24,3 +24,7 @@ media/
 .env
 staticfiles/
 src/static/vendor/
+
+# Unit test covearge files
+.coverage
+htmlcov/

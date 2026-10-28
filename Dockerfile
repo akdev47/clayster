@@ -32,6 +32,9 @@ COPY --from=vendor /build/src/static/vendor ./src/static/vendor
 WORKDIR /app/src
 RUN DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput
 
+# Stop the build if any test fails, so broken code never starts.
+RUN DJANGO_SECRET_KEY=build-only python manage.py test
+
 # /data holds the SQLite database and uploaded files; mount a volume here.
 RUN useradd --system --create-home app \
     && mkdir /data \

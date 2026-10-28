@@ -13,13 +13,15 @@ from products.models import Product
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.messages.storage.fallback import FallbackStorage
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings, tag
 from django.urls import resolve, reverse
 
 from orders.views import index
 
 
+@tag("normal")
 class DashboardShellTests(TestCase):
+    # Test category: normal. The staff page layout and navigation.
     @classmethod
     def setUpTestData(cls):
         cls.staff = get_user_model().objects.create_user('shell-staff', is_staff=True)
@@ -48,8 +50,10 @@ class DashboardShellTests(TestCase):
         self.assertNotContains(response, '<script>alert(1)</script>')
 
 
+@tag("normal")
 @override_settings(DEBUG=False)
 class HomeDashboardTests(TestCase):
+    # Test category: normal. The staff home page overview.
     @classmethod
     def setUpTestData(cls):
         cls.staff = get_user_model().objects.create_user('home-staff', is_staff=True)

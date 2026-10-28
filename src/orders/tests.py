@@ -2,6 +2,7 @@ import json
 import re
 import struct
 import tempfile
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from unittest import mock
@@ -9,7 +10,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings, tag
 from django.urls import reverse
 from django.utils.formats import number_format
 
@@ -45,7 +46,9 @@ def real_stamp():
     return (DATA / "stamp.stl").read_bytes(), meta["stamp"], meta["info"]
 
 
+@tag("critical")
 class PricingTests(SimpleTestCase):
+    # Test category: critical. Calculates what the customer pays.
     """The shop's price must agree to the cent with the estimate the browser shows."""
 
     fixture = json.loads((DATA / "pricing_cases.json").read_text())
@@ -136,7 +139,9 @@ class PricingTests(SimpleTestCase):
                 estimate_price(stamp_value, None, 1, "NL")
 
 
+@tag("critical")
 class StlTests(SimpleTestCase):
+    # Test category: critical. Checks uploaded files before they are stored.
     box = [((0, 0, 0), (10, 0, 0), (10, 20, 0)), ((0, 0, 0), (10, 20, 0), (0, 20, 5))]
 
     def test_reads_the_size_of_a_valid_file(self):
@@ -236,7 +241,9 @@ class OrderMixin:
         return Order.objects.latest("pk"), response.json()["payUrl"]
 
 
+@tag("critical")
 class CreateOrderTests(OrderMixin, MediaTestCase):
+    # Test category: critical. Stores customer input and orders from the website.
     def test_creates_an_order_awaiting_payment(self):
         response = self.post_order()
 
@@ -264,7 +271,8 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
         self.assertEqual(item.product.product_type, Product.ProductType.CUSTOM_STAMP)
         self.assertEqual(item.design["measurements"]["width"], 50)
         self.assertEqual(item.design["stl"]["triangles"], 288)
-        self.assertEqual(item.stl_file.read(), real_stamp()[0])
+        with item.stl_file.open("rb") as stl:
+            self.assertEqual(stl.read(), real_stamp()[0])
 
     def test_nothing_is_paid_or_produced_yet(self):
         self.post_order()
@@ -405,7 +413,9 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
         self.assertEqual(response.status_code, 201)
 
 
+@tag("critical")
 class PaymentFlowTests(OrderMixin, MediaTestCase):
+    # Test category: critical. Payments and handing paid orders to production.
     def test_the_pay_page_shows_what_is_to_be_paid(self):
         order, pay_url = self.place_order()
         response = self.client.get(pay_url)
@@ -477,7 +487,9 @@ class PaymentFlowTests(OrderMixin, MediaTestCase):
         self.assertEqual(order.order_status, Order.OrderStatus.AWAITING_PAYMENT)
 
 
+@tag("critical")
 class CustomerOrderPageTests(OrderMixin, MediaTestCase):
+    # Test category: critical. Customer pages reachable by a secret link.
     def test_shows_the_order_with_only_part_of_the_customers_details(self):
         order, _ = self.place_order()
 
@@ -555,7 +567,9 @@ class CustomerOrderPageTests(OrderMixin, MediaTestCase):
         self.assertContains(page, "&lt;script&gt;alert(1)&lt;/script&gt;")
 
 
+@tag("critical")
 class StaffOrderViewTests(OrderMixin, MediaTestCase):
+    # Test category: critical. Staff actions that change order status and stock.
     def setUp(self):
         super().setUp()
         self.order, self.pay_url = self.place_order()
@@ -594,7 +608,408 @@ class StaffOrderViewTests(OrderMixin, MediaTestCase):
         self.assertContains(listing, "Awaiting payment")
 
 
+Status = Order.OrderStatus
+JobStatus = ProductionJob.ProductionStatus
+
+
+class StaffOrderMixin:
+    """A logged-in staff member and helpers to build orders without the website."""
+
+    def setUp(self):
+        super().setUp()
+        self.staff = get_user_model().objects.create_user("staff", is_staff=True)
+        self.client.force_login(self.staff)
+        self.customer = Customer.objects.create(first_name="Anna", last_name="Jansen", email="anna@example.nl")
+        self.mug = Product.objects.create(name="Mug stamp", price=Decimal("5.00"), stock=10)
+        self.custom = get_custom_stamp_product()
+
+    def make_order(self, status=Status.PROCESSING, customer=None):
+        return Order.objects.create(
+            customer=customer or self.customer,
+            order_status=status,
+            subtotal_price=Decimal("10.00"),
+            shipping_costs=Decimal("5.00"),
+            total_price=Decimal("15.00"),
+        )
+
+    def add_item(self, order, product=None, quantity=2, is_ready=False):
+        product = product or self.mug
+        return OrderItem.objects.create(
+            order=order,
+            product=product,
+            name=product.name,
+            quantity=quantity,
+            unit_price=product.price,
+            is_ready=is_ready,
+        )
+
+    def post(self, name, pk, data=None):
+        return self.client.post(reverse(f"orders:{name}", args=[pk]), data or {})
+
+    def assert_back_on_order(self, response, order):
+        self.assertRedirects(response, reverse("orders:order", args=[order.pk]))
+
+    def stock(self):
+        self.mug.refresh_from_db()
+        return self.mug.stock
+
+
+@tag("critical")
+class StaffOrderPermissionTests(StaffOrderMixin, TestCase):
+    # Test category: critical. Only staff may see or change orders.
+
+    def test_visitors_and_customers_are_sent_to_login(self):
+        order = self.make_order()
+        item = self.add_item(order)
+        requests = [
+            ("get", reverse("orders:index"), {}),
+            ("get", reverse("orders:order", args=[order.pk]), {}),
+            ("post", reverse("orders:change_status", args=[order.pk]), {"status": Status.SHIPPED}),
+            ("post", reverse("orders:mark_item_ready", args=[item.pk]), {}),
+            ("post", reverse("orders:undo_item_ready", args=[item.pk]), {}),
+            ("post", reverse("orders:add_to_production", args=[item.pk]), {}),
+        ]
+        customer = get_user_model().objects.create_user("customer")
+
+        for login in [None, customer]:
+            self.client.logout()
+            if login:
+                self.client.force_login(login)
+            for method, url, data in requests:
+                with self.subTest(user=login, url=url):
+                    response = getattr(self.client, method)(url, data)
+                    self.assertEqual(response.status_code, 302)
+                    self.assertTrue(response.url.startswith(reverse("admin:login")), response.url)
+
+        order.refresh_from_db()
+        item.refresh_from_db()
+        self.assertEqual(order.order_status, Status.PROCESSING)
+        self.assertFalse(item.is_ready)
+        self.assertFalse(ProductionJob.objects.exists())
+        self.assertEqual(self.stock(), 10)
+
+
+@tag("critical")
+class StaffOrderListTests(StaffOrderMixin, TestCase):
+    # Test category: critical. Staff find orders by status, customer or order number.
+
+    def setUp(self):
+        super().setUp()
+        other = Customer.objects.create(first_name="Piet", last_name="Bakker", email="piet@bakker.nl")
+        self.processing = self.make_order()
+        self.shipped = self.make_order(status=Status.SHIPPED, customer=other)
+        self.add_item(self.processing, quantity=3)
+        # Created in the same instant otherwise; make the shipped order the newer one.
+        Order.objects.filter(pk=self.processing.pk).update(
+            created_at=self.shipped.created_at - timedelta(seconds=1)
+        )
+
+    def listed(self, **params):
+        # The list shows only open orders unless a status filter is given.
+        params.setdefault("status", "all")
+        response = self.client.get(reverse("orders:index"), params)
+        self.assertEqual(response.status_code, 200)
+        return list(response.context["orders"])
+
+    def test_lists_every_order_newest_first(self):
+        self.assertEqual(self.listed(), [self.shipped, self.processing])
+
+    def test_counts_items_and_orders_per_status(self):
+        response = self.client.get(reverse("orders:index"), {"status": "all"})
+        orders = {order.pk: order for order in response.context["orders"]}
+
+        self.assertEqual(orders[self.processing.pk].item_count, 3)
+        self.assertEqual(orders[self.shipped.pk].item_count, 0)
+        self.assertEqual(response.context["processing_count"], 1)
+        self.assertEqual(response.context["ready_count"], 0)
+        self.assertEqual(response.context["today_count"], 2)
+
+    def test_filters_by_status(self):
+        self.assertEqual(self.listed(status="shipped"), [self.shipped])
+        self.assertEqual(self.listed(status="open"), [self.processing])
+
+    def test_searches_by_name_and_email(self):
+        self.assertEqual(self.listed(search="bakker"), [self.shipped])
+        self.assertEqual(self.listed(search="ANNA@example"), [self.processing])
+
+    def test_searches_by_order_number(self):
+        self.assertEqual(self.listed(search=str(self.processing.pk)), [self.processing])
+
+    def test_order_page_shows_the_order(self):
+        response = self.client.get(reverse("orders:order", args=[self.processing.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["order"], self.processing)
+        self.assertContains(response, "Anna")
+
+    def test_unknown_order_is_not_found(self):
+        response = self.client.get(reverse("orders:order", args=[9999]))
+
+        self.assertEqual(response.status_code, 404)
+
+
+@tag("critical")
+class ChangeStatusTests(StaffOrderMixin, TestCase):
+    # Test category: critical. Order status changes, including cancelling, which returns stock.
+
+    def test_changes_the_status(self):
+        order = self.make_order()
+
+        response = self.post("change_status", order.pk, {"status": Status.SHIPPED})
+
+        self.assert_back_on_order(response, order)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.SHIPPED)
+
+    def test_unknown_status_is_refused(self):
+        order = self.make_order()
+
+        self.post("change_status", order.pk, {"status": "XX"})
+
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.PROCESSING)
+
+    def test_same_status_changes_nothing(self):
+        order = self.make_order(status=Status.READY)
+
+        response = self.post("change_status", order.pk, {"status": Status.READY})
+
+        self.assert_back_on_order(response, order)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.READY)
+
+    def test_shipped_and_completed_orders_cannot_be_cancelled(self):
+        for status in [Status.SHIPPED, Status.COMPLETED]:
+            order = self.make_order(status=status)
+            with self.subTest(status=status):
+                self.post("change_status", order.pk, {"status": Status.CANCELLED})
+                order.refresh_from_db()
+                self.assertEqual(order.order_status, status)
+
+    def test_cancelling_cancels_waiting_production_jobs(self):
+        order = self.make_order()
+        item = self.add_item(order, product=self.custom)
+        waiting = ProductionJob.objects.create(product=self.custom, order_item=item, quantity=2)
+        printing = ProductionJob.objects.create(
+            product=self.custom, order_item=item, quantity=1, status=JobStatus.PRINTING
+        )
+
+        self.post("change_status", order.pk, {"status": Status.CANCELLED})
+
+        order.refresh_from_db()
+        waiting.refresh_from_db()
+        printing.refresh_from_db()
+        self.assertEqual(order.order_status, Status.CANCELLED)
+        self.assertEqual(waiting.status, JobStatus.CANCELLED)
+        self.assertEqual(printing.status, JobStatus.PRINTING)
+
+    def test_cancelling_returns_the_stock_of_ready_items(self):
+        # Marking the item ready took 2 from stock; cancelling must give them back.
+        order = self.make_order()
+        item = self.add_item(order, quantity=2)
+        self.post("mark_item_ready", item.pk)
+        self.assertEqual(self.stock(), 8)
+
+        self.post("change_status", order.pk, {"status": Status.CANCELLED})
+
+        item.refresh_from_db()
+        self.assertEqual(self.stock(), 10)
+        self.assertFalse(item.is_ready)
+
+    def test_only_accepts_post(self):
+        order = self.make_order()
+
+        response = self.client.get(reverse("orders:change_status", args=[order.pk]))
+
+        self.assertEqual(response.status_code, 405)
+
+
+@tag("critical")
+class ItemReadyTests(StaffOrderMixin, TestCase):
+    # Test category: critical. Marking items ready reserves stock; undoing returns it.
+
+    def test_ready_standard_item_takes_stock(self):
+        order = self.make_order()
+        item = self.add_item(order, quantity=3)
+
+        response = self.post("mark_item_ready", item.pk)
+
+        self.assert_back_on_order(response, order)
+        item.refresh_from_db()
+        self.assertTrue(item.is_ready)
+        self.assertEqual(self.stock(), 7)
+
+    def test_not_enough_stock_is_refused(self):
+        order = self.make_order()
+        item = self.add_item(order, quantity=11)
+
+        self.post("mark_item_ready", item.pk)
+
+        item.refresh_from_db()
+        self.assertFalse(item.is_ready)
+        self.assertEqual(self.stock(), 10)
+
+    def test_custom_stamp_takes_no_stock(self):
+        order = self.make_order()
+        item = self.add_item(order, product=self.custom, quantity=5)
+
+        self.post("mark_item_ready", item.pk)
+
+        item.refresh_from_db()
+        self.assertTrue(item.is_ready)
+        self.assertEqual(self.stock(), 10)
+
+    def test_order_is_ready_when_all_items_are(self):
+        order = self.make_order()
+        first = self.add_item(order, quantity=1)
+        second = self.add_item(order, product=self.custom)
+
+        self.post("mark_item_ready", first.pk)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.PROCESSING)
+
+        self.post("mark_item_ready", second.pk)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.READY)
+
+    def test_marking_twice_takes_stock_once(self):
+        order = self.make_order()
+        item = self.add_item(order, quantity=3)
+
+        self.post("mark_item_ready", item.pk)
+        self.post("mark_item_ready", item.pk)
+
+        self.assertEqual(self.stock(), 7)
+
+    def test_finished_orders_cannot_change(self):
+        for status in [Status.SHIPPED, Status.COMPLETED, Status.CANCELLED]:
+            order = self.make_order(status=status)
+            item = self.add_item(order)
+            ready_item = self.add_item(order, is_ready=True)
+            with self.subTest(status=status):
+                self.post("mark_item_ready", item.pk)
+                self.post("undo_item_ready", ready_item.pk)
+                item.refresh_from_db()
+                ready_item.refresh_from_db()
+                self.assertFalse(item.is_ready)
+                self.assertTrue(ready_item.is_ready)
+                self.assertEqual(self.stock(), 10)
+
+    def test_undo_returns_the_stock(self):
+        order = self.make_order()
+        item = self.add_item(order, quantity=3)
+        self.post("mark_item_ready", item.pk)
+
+        response = self.post("undo_item_ready", item.pk)
+
+        self.assert_back_on_order(response, order)
+        item.refresh_from_db()
+        self.assertFalse(item.is_ready)
+        self.assertEqual(self.stock(), 10)
+
+    def test_undo_puts_a_ready_order_back_in_processing(self):
+        order = self.make_order()
+        item = self.add_item(order, product=self.custom)
+        self.post("mark_item_ready", item.pk)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.READY)
+
+        self.post("undo_item_ready", item.pk)
+
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, Status.PROCESSING)
+
+    def test_undo_on_an_item_that_is_not_ready_changes_nothing(self):
+        order = self.make_order()
+        item = self.add_item(order)
+
+        self.post("undo_item_ready", item.pk)
+
+        item.refresh_from_db()
+        self.assertFalse(item.is_ready)
+        self.assertEqual(self.stock(), 10)
+
+    def test_unknown_item_is_not_found(self):
+        for name in ["mark_item_ready", "undo_item_ready", "add_to_production"]:
+            with self.subTest(view=name):
+                self.assertEqual(self.post(name, 9999).status_code, 404)
+
+
+@tag("critical")
+class AddItemToProductionTests(StaffOrderMixin, TestCase):
+    # Test category: critical. Sending an order item to production, never twice.
+
+    def test_creates_a_job_for_the_item(self):
+        order = self.make_order()
+        item = self.add_item(order, product=self.custom, quantity=4)
+
+        response = self.post("add_to_production", item.pk)
+
+        self.assert_back_on_order(response, order)
+        job = ProductionJob.objects.get()
+        self.assertEqual(job.order_item, item)
+        self.assertEqual(job.product, self.custom)
+        self.assertEqual(job.quantity, 4)
+
+    def test_an_item_is_added_only_once(self):
+        item = self.add_item(self.make_order(), product=self.custom)
+
+        self.post("add_to_production", item.pk)
+        self.post("add_to_production", item.pk)
+
+        self.assertEqual(ProductionJob.objects.count(), 1)
+
+    def test_a_cancelled_job_can_be_replaced(self):
+        item = self.add_item(self.make_order(), product=self.custom)
+        ProductionJob.objects.create(
+            product=self.custom, order_item=item, quantity=2, status=JobStatus.CANCELLED
+        )
+
+        self.post("add_to_production", item.pk)
+
+        self.assertEqual(ProductionJob.objects.filter(status=JobStatus.WAITING).count(), 1)
+
+
+@tag("not-critical")
+class TestOrderButtonTests(StaffOrderMixin, TestCase):
+    # Test category: not-critical. Debug buttons that create test orders, only with DEBUG on.
+
+    def test_hidden_when_debug_is_off(self):
+        for name in ["test_custom_order", "test_standard_order"]:
+            with self.subTest(view=name):
+                response = self.client.post(reverse(f"orders:{name}"), {"product_id": self.mug.pk})
+                self.assertEqual(response.status_code, 404)
+        self.assertFalse(Order.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_custom_test_order_goes_to_production(self):
+        response = self.client.post(reverse("orders:test_custom_order"))
+
+        order = Order.objects.get()
+        self.assertRedirects(response, reverse("orders:order", args=[order.pk]))
+        self.assertEqual(order.total_price, Decimal("24.95"))
+        self.assertEqual(ProductionJob.objects.get().order_item, order.items.get())
+
+    @override_settings(DEBUG=True)
+    def test_standard_test_order_uses_the_chosen_product(self):
+        response = self.client.post(reverse("orders:test_standard_order"), {"product_id": self.mug.pk})
+
+        order = Order.objects.get()
+        self.assertRedirects(response, reverse("orders:order", args=[order.pk]))
+        self.assertEqual(order.items.get().product, self.mug)
+        self.assertFalse(ProductionJob.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_standard_test_order_refuses_a_custom_product(self):
+        response = self.client.post(reverse("orders:test_standard_order"), {"product_id": self.custom.pk})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Order.objects.exists())
+
+
+@tag("critical")
 class OrderOverviewTests(TestCase):
+    # Test category: critical. Staff order list filters, counts and search.
     @classmethod
     def setUpTestData(cls):
         cls.staff = get_user_model().objects.create_user("overview-staff", is_staff=True)
