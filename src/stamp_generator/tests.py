@@ -2,10 +2,12 @@ import json
 import re
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase, override_settings, tag
 
 
+@tag("normal")
 class IndexViewTests(TestCase):
+    # Test category: normal. Serves the stamp editor page.
     def test_page_serves_the_tool_at_the_site_root(self):
         response = self.client.get("/")
 
@@ -53,7 +55,9 @@ class IndexViewTests(TestCase):
         self.assertRegex(response.content.decode(), r'<meta name="csrf-token" content="[^"]+"')
 
 
+@tag("normal")
 class StlExportAccessTests(TestCase):
+    # Test category: normal. The development STL export button is hidden from customers.
     """The "Export STL" button is for development and staff, not for customers."""
 
     def can_export(self):

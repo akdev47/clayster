@@ -217,7 +217,7 @@ def change_status(request, order_id):
 
             if item.product.product_type == Product.ProductType.STANDARD:
                 Product.objects.filter(pk=item.product_id).update(
-                    available_stock=F("available_stock") + item.quantity,
+                    stock=F("stock") + item.quantity,
                 )
 
             item.is_ready = False

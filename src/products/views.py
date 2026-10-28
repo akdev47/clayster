@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import F
 from django.views.decorators.http import require_POST
 from django.db.models.deletion import ProtectedError
+from django.http import FileResponse, Http404
 
 from .models import Product
 from production.models import ProductionJob
