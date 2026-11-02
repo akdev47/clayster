@@ -29,7 +29,7 @@ test("overlapping polygons are still repaired successfully", () => {
   assert.ok(
     result.issues.some(
       (issue) =>
-        issue.level === "fixed" && /merged overlapping/i.test(issue.message),
+        issue.level === "fixed" && /samengevoegd tot nette vormen/i.test(issue.message),
     ),
   );
 });
@@ -41,7 +41,7 @@ test("polygon repair failures return a clear validation error", () => {
     result.issues.some(
       (issue) =>
         issue.level === "error" &&
-        /could not be repaired safely/i.test(issue.message),
+        /niet veilig worden gerepareerd/i.test(issue.message),
     ),
   );
 });
@@ -75,7 +75,7 @@ test("isolated convex corner contacts receive a bounded local chamfer", () => {
   );
   assert.ok(result.issues.some(
     ({ level, message }) =>
-      level === "fixed" && /0\.005 mm local chamfer/i.test(message),
+      level === "fixed" && /afschuining van 0,005 mm/i.test(message),
   ));
 });
 
@@ -89,7 +89,7 @@ test("ambiguous multi-polygon point contacts fail closed", () => {
   assert.deepEqual(result.artwork, []);
   assert.ok(result.issues.some(
     ({ level, message }) =>
-      level === "error" && /ambiguous point contact/i.test(message),
+      level === "error" && /onduidelijk puntcontact/i.test(message),
   ));
 });
 
@@ -102,6 +102,6 @@ test("a concave point contact is not modified speculatively", () => {
   assert.deepEqual(result.artwork, []);
   assert.ok(result.issues.some(
     ({ level, message }) =>
-      level === "error" && /ambiguous point contact/i.test(message),
+      level === "error" && /onduidelijk puntcontact/i.test(message),
   ));
 });

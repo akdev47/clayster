@@ -17,7 +17,7 @@ export function exportSTL(parts, filename) {
 // can upload the same file the export button would give the customer.
 export function createSTL(parts) {
   if (parts.length === 0) {
-    throw new Error("Nothing to export — add a part first.");
+    throw new Error("Er is niets om te exporteren — voeg eerst een onderdeel toe.");
   }
   const geometries = [];
   let merged;
@@ -26,7 +26,7 @@ export function createSTL(parts) {
     // This collects triangles; it does not join overlapping solids like a boolean union.
     merged =
       geometries.length === 1 ? geometries[0] : mergeGeometries(geometries);
-    if (!merged) throw new Error("Could not merge the parts into one mesh.");
+    if (!merged) throw new Error("De onderdelen konden niet tot één mesh worden samengevoegd.");
     return verifiedSTL(merged);
   } finally {
     if (geometries.length > 1) merged?.dispose();
@@ -43,7 +43,7 @@ export function export3MF(parts, filename) {
 // Kept separate from the download so tests can inspect the actual archive.
 export function create3MF(parts) {
   if (parts.length === 0) {
-    throw new Error("Nothing to export — add a part first.");
+    throw new Error("Er is niets om te exporteren — voeg eerst een onderdeel toe.");
   }
 
   const model = buildModelXML(parts);

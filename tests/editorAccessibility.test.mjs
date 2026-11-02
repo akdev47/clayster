@@ -33,12 +33,17 @@ test("design elements have a visible focus-visible outline", async () => {
 test("alignment icon buttons expose action names and pressed state", async () => {
   const html = await projectFile("index.html");
 
+  const names = {
+    left: "Tekst links uitlijnen",
+    center: "Tekst in het midden uitlijnen",
+    right: "Tekst rechts uitlijnen",
+  };
   for (const alignment of ["left", "center", "right"]) {
     const button = html.match(
       new RegExp(`<button[^>]*data-align="${alignment}"[^>]*>`, "s"),
     );
     assert.ok(button, `missing ${alignment} alignment button`);
-    assert.match(button[0], new RegExp(`aria-label="Align text ${alignment}"`));
+    assert.match(button[0], new RegExp(`aria-label="${names[alignment]}"`));
     assert.match(button[0], /aria-pressed="(?:true|false)"/);
   }
 });
@@ -49,7 +54,7 @@ test("Text exposes one synchronized size control while images keep Scale", async
     projectFile("main.js"),
   ]);
 
-  assert.match(html, /<label for="font-size-input">Text size \(pt\)<\/label>/);
+  assert.match(html, /<label for="font-size-input">Tekstgrootte \(pt\)<\/label>/);
   assert.match(html, /id="element-scale-control"/);
   assert.match(
     main,
@@ -84,7 +89,7 @@ test("stamp sizing offers Round, Square, and a tight Minimal face", async () => 
     [...html.matchAll(/data-shape="([^"]+)"/g)].map((match) => match[1]),
     ["minimal", "round", "square"],
   );
-  assert.match(html, /<strong>Minimal<\/strong>/);
+  assert.match(html, /<strong>Minimaal<\/strong>/);
   assert.doesNotMatch(html, /<strong>Artwork<\/strong>/);
 });
 
@@ -94,7 +99,7 @@ test("the selected element controls expose a Duplicate action", async () => {
     projectFile("main.js"),
   ]);
 
-  assert.match(html, /<button id="duplicate-element"[^>]*>\s*Duplicate Element/);
+  assert.match(html, /<button id="duplicate-element"[^>]*>\s*Element dupliceren/);
   assert.match(main, /#duplicate-element"\)\.disabled = !element/);
   assert.match(main, /editor\.duplicateSelected\(\)/);
 });
@@ -110,7 +115,7 @@ test("position and transform controls can collapse without resetting selection",
   assert.ok(toggle, "missing position and transform collapse control");
   assert.match(toggle[0], /aria-expanded="false"/);
   assert.match(toggle[0], /aria-controls="transform-controls-content"/);
-  assert.match(toggle[0], /aria-label="Expand position and transform controls"/);
+  assert.match(toggle[0], /aria-label="Positie- en transformatieopties uitklappen"/);
   assert.match(html, /<div id="transform-controls-content" hidden>/);
 
   assert.match(main, /let transformControlsExpanded = false/);
@@ -132,7 +137,7 @@ test("letter spacing is presented and edited as a percentage", async () => {
     projectFile("main.js"),
   ]);
 
-  assert.match(html, /id="letter-spacing-value">13\.33%<\/output>/);
+  assert.match(html, /id="letter-spacing-value">13,33%<\/output>/);
   assert.match(main, /element\.source\.letterSpacingRatio \* 100/);
   assert.match(main, /letterSpacingRatio: Number\(event\.target\.value\) \/ 100/);
 });

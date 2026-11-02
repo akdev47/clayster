@@ -17,13 +17,25 @@ from .emails import send_order_confirmation
 from .models import Order
 from .services import pay_order
 
+# What the customer reads about their order. Staff see the English status
+# names of the model in the back office; the customer's pages are in Dutch
+# (settings.LANGUAGE_CODE is Dutch, which is also why amounts read 12,50).
+STATUS_LABELS = {
+    Order.OrderStatus.AWAITING_PAYMENT: "Wacht op betaling",
+    Order.OrderStatus.PROCESSING: "In behandeling",
+    Order.OrderStatus.READY: "Klaar",
+    Order.OrderStatus.SHIPPED: "Verzonden",
+    Order.OrderStatus.COMPLETED: "Afgerond",
+    Order.OrderStatus.CANCELLED: "Geannuleerd",
+}
+
 STATUS_MESSAGES = {
-    Order.OrderStatus.AWAITING_PAYMENT: "Waiting for your payment.",
-    Order.OrderStatus.PROCESSING: "Payment received. We are making your stamp.",
-    Order.OrderStatus.READY: "Your order is ready and will be shipped soon.",
-    Order.OrderStatus.SHIPPED: "Your order is on its way.",
-    Order.OrderStatus.COMPLETED: "Your order is complete.",
-    Order.OrderStatus.CANCELLED: "This order was cancelled.",
+    Order.OrderStatus.AWAITING_PAYMENT: "Wachten op je betaling.",
+    Order.OrderStatus.PROCESSING: "Betaling ontvangen. We maken je stempel.",
+    Order.OrderStatus.READY: "Je bestelling is klaar en wordt binnenkort verzonden.",
+    Order.OrderStatus.SHIPPED: "Je bestelling is onderweg.",
+    Order.OrderStatus.COMPLETED: "Je bestelling is afgerond.",
+    Order.OrderStatus.CANCELLED: "Deze bestelling is geannuleerd.",
 }
 
 
@@ -74,6 +86,7 @@ def order_status(request, public_id):
             "order": order,
             "items": order.items.all(),
             "discount": _discount(order, order.items.all()),
+            "status_label": STATUS_LABELS.get(order.order_status, ""),
             "status_message": STATUS_MESSAGES.get(order.order_status, ""),
             "masked_email": mask_email(order.customer.email),
             "order_url": _order_url(request, order),

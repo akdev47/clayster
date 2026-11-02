@@ -9,18 +9,18 @@ export const MAX_QUANTITY = SETTINGS.order.maxQuantity;
 // Placeholder list; the backend will own the countries it can deliver to.
 // `OTHER` is the catch-all shipping zone for any other country.
 export const COUNTRY_OPTIONS = Object.freeze([
-  { code: "NL", label: "Netherlands" },
-  { code: "BE", label: "Belgium" },
-  { code: "DE", label: "Germany" },
-  { code: "FR", label: "France" },
-  { code: "OTHER", label: "Other country" },
+  { code: "NL", label: "Nederland" },
+  { code: "BE", label: "België" },
+  { code: "DE", label: "Duitsland" },
+  { code: "FR", label: "Frankrijk" },
+  { code: "OTHER", label: "Ander land" },
 ]);
 
 const POSTAL_CODE_PATTERNS = {
-  NL: [/^\d{4}\s?[A-Za-z]{2}$/, "Use the format 1234 AB."],
-  BE: [/^\d{4}$/, "Use a 4-digit postal code."],
-  DE: [/^\d{5}$/, "Use a 5-digit postal code."],
-  FR: [/^\d{5}$/, "Use a 5-digit postal code."],
+  NL: [/^\d{4}\s?[A-Za-z]{2}$/, "Gebruik het formaat 1234 AB."],
+  BE: [/^\d{4}$/, "Gebruik een postcode van 4 cijfers."],
+  DE: [/^\d{5}$/, "Gebruik een postcode van 5 cijfers."],
+  FR: [/^\d{5}$/, "Gebruik een postcode van 5 cijfers."],
 };
 
 export const DEFAULT_DELIVERY = Object.freeze({
@@ -48,12 +48,12 @@ export function validateOrderDetails(details) {
   const errors = {};
 
   if (String(details.title ?? "").trim() === "") {
-    errors.title = "Give this order item a name.";
+    errors.title = "Geef de stempel een naam.";
   }
 
   const quantity = Number(details.quantity);
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
-    errors.quantity = `Quantity must be a whole number from 1 to ${MAX_QUANTITY}.`;
+    errors.quantity = `Het aantal moet een geheel getal van 1 tot ${MAX_QUANTITY} zijn.`;
   }
 
   return errors;
@@ -64,11 +64,11 @@ export function validateDelivery(delivery) {
   const errors = {};
   const text = (field) => String(delivery[field] ?? "").trim();
   const required = {
-    firstName: "Enter the first name.",
-    lastName: "Enter the last name.",
-    street: "Enter the street.",
-    houseNumber: "Enter the house number.",
-    city: "Enter the city.",
+    firstName: "Vul de voornaam in.",
+    lastName: "Vul de achternaam in.",
+    street: "Vul de straat in.",
+    houseNumber: "Vul het huisnummer in.",
+    city: "Vul de plaats in.",
   };
   for (const [field, message] of Object.entries(required)) {
     if (text(field) === "") errors[field] = message;
@@ -76,22 +76,22 @@ export function validateDelivery(delivery) {
 
   // The backend stores the number as an integer; letters go in the addition.
   if (!errors.houseNumber && !/^[1-9]\d{0,4}$/.test(text("houseNumber"))) {
-    errors.houseNumber = "Use digits only; put letters like A in the addition.";
+    errors.houseNumber = "Gebruik alleen cijfers; zet letters zoals A bij de toevoeging.";
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text("email"))) {
-    errors.email = "Enter a valid email address.";
+    errors.email = "Vul een geldig e-mailadres in.";
   }
   if (text("phone") !== "" && !/^[+()\d\s-]{6,20}$/.test(text("phone"))) {
-    errors.phone = "Use digits, spaces, + ( ) or - only.";
+    errors.phone = "Gebruik alleen cijfers, spaties, + ( ) of -.";
   }
 
   if (!COUNTRY_OPTIONS.some(({ code }) => code === delivery.country)) {
-    errors.country = "Choose a country.";
+    errors.country = "Kies een land.";
   }
   const postal = text("postalCode");
   const [pattern, hint] = POSTAL_CODE_PATTERNS[delivery.country] ?? [];
-  if (postal === "") errors.postalCode = "Enter the postal code.";
+  if (postal === "") errors.postalCode = "Vul de postcode in.";
   else if (pattern && !pattern.test(postal)) errors.postalCode = hint;
 
   return errors;

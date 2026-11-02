@@ -118,11 +118,11 @@ class PricingTests(SimpleTestCase):
         for info in ({"width": 200.02, "depth": 100}, {"width": 100, "depth": 200.02},
                      {"width": 250, "depth": 250}):
             with self.subTest(info=info), self.assertRaisesMessage(
-                PricingError, "at most 200 x 200 mm"
+                PricingError, "hoogstens 200 × 200 mm"
             ):
                 estimate_price(stamp, info, 1, "NL")
         # Without measurements the face size setting stands in for both.
-        with self.assertRaisesMessage(PricingError, "at most 200 x 200 mm"):
+        with self.assertRaisesMessage(PricingError, "hoogstens 200 × 200 mm"):
             estimate_price({**stamp, "faceSize": 201}, None, 1, "NL")
 
     def test_bad_input_cannot_be_priced(self):
@@ -262,7 +262,7 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
         self.assertEqual(order.customer.email, "jan@example.nl")
         self.assertEqual(str(order.address), "Kerkstraat 12B")
         self.assertEqual(order.address.postal_code, "1234 AB")
-        self.assertEqual(order.address.country, "Netherlands")
+        self.assertEqual(order.address.country, "Nederland")
 
         item = order.items.get()
         self.assertEqual(item.display_name, "Bakery logo")
@@ -314,9 +314,9 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
             set(errors["delivery"]),
             {"firstName", "lastName", "email", "postalCode", "houseNumber", "phone"},
         )
-        self.assertEqual(errors["delivery"]["postalCode"], "Use the format 1234 AB.")
+        self.assertEqual(errors["delivery"]["postalCode"], "Gebruik het formaat 1234 AB.")
         self.assertEqual(
-            errors["delivery"]["houseNumber"], "Use digits only; put letters like A in the addition."
+            errors["delivery"]["houseNumber"], "Gebruik alleen cijfers; zet letters zoals A bij de toevoeging."
         )
         self.assertEqual((Order.objects.count(), Customer.objects.count()), (0, 0))
 
@@ -337,7 +337,7 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
         response = self.post_order(payload)
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("does not match", response.json()["errors"]["general"])
+        self.assertIn("komt niet overeen", response.json()["errors"]["general"])
         self.assertEqual(Order.objects.count(), 0)
 
     def test_a_stamp_larger_than_200_by_200_mm_is_refused(self):
@@ -350,7 +350,7 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
                 response = self.post_order(payload)
 
                 self.assertEqual(response.status_code, 400)
-                self.assertIn("at most 200 x 200 mm", response.json()["errors"]["general"])
+                self.assertIn("hoogstens 200 × 200 mm", response.json()["errors"]["general"])
         self.assertEqual(Order.objects.count(), 0)
 
     def test_measurements_are_required(self):
@@ -363,7 +363,7 @@ class CreateOrderTests(OrderMixin, MediaTestCase):
     def test_a_file_that_is_not_a_stl_is_rejected(self):
         response = self.post_order(stl=b"solid stamp\nendsolid stamp\n")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("binary STL", response.json()["errors"]["general"])
+        self.assertIn("binaire STL", response.json()["errors"]["general"])
         self.assertEqual(Order.objects.count(), 0)
 
     def test_a_too_large_file_is_rejected(self):
@@ -421,8 +421,8 @@ class PaymentFlowTests(OrderMixin, MediaTestCase):
         response = self.client.get(pay_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Bakery logo")
-        self.assertContains(response, f"€{money('24.95')}")
-        self.assertContains(response, "Demo payment")
+        self.assertContains(response, f"€&nbsp;{money('24.95')}")
+        self.assertContains(response, "Demobetaling")
 
     def test_paying_accepts_the_order_sends_the_email_and_shows_the_order(self):
         order, pay_url = self.place_order()
@@ -446,7 +446,7 @@ class PaymentFlowTests(OrderMixin, MediaTestCase):
         self.assertIn(f"#{order.pk}", message.subject)
         self.assertIn(f"http://testserver/order/{order.public_id}/", message.body)
         self.assertIn("Bakery logo", message.body)
-        self.assertIn(f"EUR {money('24.95')}", message.body)
+        self.assertIn(f"€ {money('24.95')}", message.body)
 
     def test_paying_twice_changes_nothing(self):
         order, pay_url = self.place_order()
@@ -496,11 +496,11 @@ class CustomerOrderPageTests(OrderMixin, MediaTestCase):
         response = self.client.get(f"/order/{order.public_id}/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f"Your order #{order.pk}")
+        self.assertContains(response, f"Je bestelling #{order.pk}")
         self.assertContains(response, "Bakery logo")
-        self.assertContains(response, "Awaiting payment")
+        self.assertContains(response, "Wacht op betaling")
         self.assertContains(response, f"http://testserver/order/{order.public_id}/")
-        self.assertContains(response, "Jan, Utrecht, Netherlands")
+        self.assertContains(response, "Jan, Utrecht, Nederland")
         self.assertContains(response, "j***@example.nl")
         for private in ("jan@example.nl", "Kerkstraat", "12B", "+31 6 12345678", "1234 AB", "de Vries"):
             self.assertNotContains(response, private)
@@ -512,7 +512,7 @@ class CustomerOrderPageTests(OrderMixin, MediaTestCase):
         self.client.post(pay_url)
         page = self.client.get(f"/order/{order.public_id}/")
 
-        self.assertContains(page, "Payment received")
+        self.assertContains(page, "Betaling ontvangen")
         self.assertNotContains(page, pay_url)
 
     def test_a_quantity_discount_is_shown_as_its_own_line(self):
@@ -523,12 +523,12 @@ class CustomerOrderPageTests(OrderMixin, MediaTestCase):
         for url in (pay_url, f"/order/{order.public_id}/"):
             with self.subTest(url):
                 page = self.client.get(url)
-                self.assertContains(page, "Quantity discount")
-                self.assertContains(page, f"−€{money('12.00')}")
+                self.assertContains(page, "Staffelkorting")
+                self.assertContains(page, f"−€&nbsp;{money('12.00')}")
 
     def test_no_discount_line_when_there_is_no_discount(self):
         order, pay_url = self.place_order()
-        self.assertNotContains(self.client.get(pay_url), "Quantity discount")
+        self.assertNotContains(self.client.get(pay_url), "Staffelkorting")
 
     def test_the_page_is_kept_out_of_caches_search_results_and_referrers(self):
         order, pay_url = self.place_order()

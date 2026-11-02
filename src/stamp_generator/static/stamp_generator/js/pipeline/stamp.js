@@ -46,7 +46,7 @@ export function assertFaceSize(value) {
     value > FACE_SIZE_LIMITS.max
   ) {
     throw new RangeError(
-      `Face size must be between ${FACE_SIZE_LIMITS.min} and ${FACE_SIZE_LIMITS.max} mm.`,
+      `De breedte en hoogte van het stempelvlak moeten tussen ${FACE_SIZE_LIMITS.min} en ${FACE_SIZE_LIMITS.max} mm liggen.`,
     );
   }
   return value;
@@ -59,7 +59,7 @@ export function assertFaceThickness(value) {
     value > FACE_THICKNESS_LIMITS.max
   ) {
     throw new RangeError(
-      `Base thickness must be between ${FACE_THICKNESS_LIMITS.min} and ${FACE_THICKNESS_LIMITS.max} mm.`,
+      `De basisdikte moet tussen ${FACE_THICKNESS_LIMITS.min} en ${FACE_THICKNESS_LIMITS.max} mm liggen.`,
     );
   }
   return value;
@@ -89,7 +89,7 @@ export function buildStamp(artwork, params, handleGeometry = null, {
     settings.mode === "deboss" &&
     settings.reliefDepth >= settings.faceThickness
   ) {
-    throw new Error("Recess depth must be smaller than the backing thickness.");
+    throw new Error("De reliëfdiepte moet kleiner zijn dan de basisdikte.");
   }
   const notes = [];
 
@@ -115,7 +115,7 @@ export function buildStamp(artwork, params, handleGeometry = null, {
 
   if (offTheMug(bounds(art))) {
     notes.push(
-      "The artwork is bigger than the wall of a mug, so the preview presses in as much of it as fits.",
+      "Het ontwerp is groter dan de wand van een mok, dus in het voorbeeld wordt zoveel mogelijk ervan ingedrukt.",
     );
   }
 
@@ -126,12 +126,12 @@ export function buildStamp(artwork, params, handleGeometry = null, {
   const face =
     settings.mode === "emboss"
       ? booleanGeometry(base, relief, UNION, {
-          firstLabel: "stamp base",
-          secondLabel: "relief mesh",
+          firstLabel: "stempelplaat",
+          secondLabel: "reliëf",
         })
       : booleanGeometry(base, relief, SUBTRACT, {
-          firstLabel: "stamp base",
-          secondLabel: "relief mesh",
+          firstLabel: "stempelplaat",
+          secondLabel: "reliëf",
         });
 
   base.dispose();
@@ -236,8 +236,8 @@ function attachHandle(face, handleGeometry, footprint) {
   ); // Overlap, not butt.
 
   const stamp = booleanGeometry(face, handle, UNION, {
-    firstLabel: "stamp face",
-    secondLabel: "handle",
+    firstLabel: "stempelvlak",
+    secondLabel: "handvat",
   });
   handle.dispose();
 

@@ -18,11 +18,11 @@ const MAX_QUADRATIC_CURVATURE = 512;
 const MAX_MODEL_CONDITION = 1e8;
 const PREDICTION_MARGIN = 8;
 const SEGMENTATION_REVIEW_MESSAGE =
-  "Auto background detection failed — review the traced result.";
+  "Automatische achtergronddetectie is mislukt — controleer of de omtrek van de afbeelding klopt.";
 const PICK_SAMPLE_MESSAGE =
-  "Pick background needs at least one trusted background sample.";
+  "Achtergrond kiezen heeft minstens één betrouwbaar achtergrondpunt nodig.";
 const PICK_DISTRIBUTION_MESSAGE =
-  "Add more background samples across bright and dark regions of the image.";
+  "Voeg meer achtergrondpunten toe, verspreid over lichte en donkere delen van de afbeelding.";
 
 export const MIN_PNG_BACKGROUND_TOLERANCE = SETTINGS.images.png.backgroundTolerance.min;
 export const MAX_PNG_BACKGROUND_TOLERANCE = SETTINGS.images.png.backgroundTolerance.max;
@@ -50,22 +50,22 @@ export async function tracePNGToSVGDetails(
   } = {},
 ) {
   if (!(file instanceof File) || !isPNG(file)) {
-    throw new Error("Please choose a PNG image.");
+    throw new Error("Kies een PNG-afbeelding.");
   }
 
   let bitmap;
   try {
     bitmap = await createImageBitmap(file);
   } catch {
-    throw new Error("That PNG image could not be read.");
+    throw new Error("Die PNG-afbeelding kon niet worden gelezen.");
   }
 
   try {
     const { width, height } = bitmap;
-    if (width === 0 || height === 0) throw new Error("The PNG image is empty.");
+    if (width === 0 || height === 0) throw new Error("De PNG-afbeelding is leeg.");
     if (width * height > MAX_PIXELS) {
       throw new Error(
-        `The PNG is too large to trace. Use an image under ${MAX_PIXELS / 1_000_000} megapixels.`,
+        `De PNG is te groot om te verwerken. Gebruik een afbeelding van minder dan ${MAX_PIXELS / 1_000_000} megapixels.`,
       );
     }
 
@@ -74,7 +74,7 @@ export async function tracePNGToSVGDetails(
     canvas.height = height;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (context === null) {
-      throw new Error("PNG tracing is not available in this browser.");
+      throw new Error("PNG-afbeeldingen kunnen in deze browser niet worden omgezet.");
     }
 
     context.drawImage(bitmap, 0, 0);
@@ -1142,7 +1142,7 @@ export function traceMaskToSVG(mask, width, height) {
   const add = (sx, sy, ex, ey, direction) => {
     if (edges.length >= MAX_EDGES) {
       throw new Error(
-        "The PNG is too detailed to trace. Simplify or reduce the image first.",
+        "De PNG is te gedetailleerd om te verwerken. Vereenvoudig de afbeelding of verklein hem eerst.",
       );
     }
     const edge = { sx, sy, ex, ey, direction, used: false };
@@ -1167,7 +1167,7 @@ export function traceMaskToSVG(mask, width, height) {
 
   if (edges.length === 0) {
     throw new Error(
-      "The PNG has no high-contrast artwork to turn into a stamp.",
+      "De PNG bevat geen contrastrijke tekening die in een stempel kan worden omgezet.",
     );
   }
 
@@ -1186,7 +1186,7 @@ export function traceMaskToSVG(mask, width, height) {
         (candidate) => !candidate.used,
       );
       if (candidates.length === 0) {
-        throw new Error("Could not trace a closed PNG outline.");
+        throw new Error("Er kon geen gesloten omtrek uit de PNG worden gehaald.");
       }
       edge = chooseTurn(edge.direction, candidates);
     }
@@ -1198,7 +1198,7 @@ export function traceMaskToSVG(mask, width, height) {
   }
 
   if (paths.length === 0) {
-    throw new Error("The PNG has no usable closed outlines.");
+    throw new Error("De PNG heeft geen bruikbare gesloten omtrekken.");
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><path fill="#000" fill-rule="evenodd" d="${paths.join("")}"/></svg>`;

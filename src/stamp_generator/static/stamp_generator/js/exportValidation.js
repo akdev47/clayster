@@ -10,7 +10,7 @@ export function prepareClosedStamp(source) {
   const position = source?.getAttribute("position");
   const count = source?.index?.count ?? position?.count ?? 0;
   if (!position || count === 0 || count % 3 !== 0) {
-    throw new Error("Export blocked: no valid triangles to export.");
+    throw new Error("Exporteren geblokkeerd: er zijn geen geldige driehoeken om te exporteren.");
   }
   const vertices = [];
   const vertexIds = new Map();
@@ -31,7 +31,7 @@ export function prepareClosedStamp(source) {
   for (let i = 0; i < count; i++) {
     const index = source.index ? source.index.getX(i) : i;
     if (!Number.isInteger(index) || index < 0 || index >= position.count) {
-      throw new Error("Export blocked: invalid triangle index.");
+      throw new Error("Exporteren geblokkeerd: ongeldige driehoeksindex.");
     }
     // Check at STL's float32 precision. Never round away or fill actual holes.
     const point = [
@@ -40,7 +40,7 @@ export function prepareClosedStamp(source) {
       position.getZ(index),
     ].map(Math.fround);
     if (!point.every(Number.isFinite))
-      throw new Error("Export blocked: invalid coordinates.");
+      throw new Error("Exporteren geblokkeerd: ongeldige coördinaten.");
     const key = point.join(",");
     if (!vertexIds.has(key)) {
       const id = vertices.length / 3;
@@ -68,13 +68,13 @@ export function prepareClosedStamp(source) {
     b.fromArray(vertices, ids[1] * 3).sub(centre);
     c.fromArray(vertices, ids[2] * 3).sub(centre);
     if (cross.subVectors(b, a).cross(edge.subVectors(c, a)).lengthSq() === 0) {
-      throw new Error("Export blocked: collapsed triangle detected.");
+      throw new Error("Exporteren geblokkeerd: gedegenereerde driehoek (zonder oppervlak) gevonden.");
     }
     // Signed volume also tells us whether the surface faces outward or inward.
     volume += a.dot(cross.copy(b).cross(c)) / 6;
     const face = [...ids].sort((x, y) => x - y).join(",");
     if (faces.has(face))
-      throw new Error("Export blocked: duplicate triangle detected.");
+      throw new Error("Exporteren geblokkeerd: dubbele driehoek gevonden.");
     faces.add(face);
     for (const [x, y] of [
       [ids[0], ids[1]],
@@ -100,7 +100,7 @@ export function prepareClosedStamp(source) {
   ).length;
   if (invalid)
     throw new Error(
-      `Export blocked: ${open} open edges and ${invalid - open} inconsistent or non-manifold edges. Rebuild or repair the stamp.`,
+      `Exporteren geblokkeerd: ${open} open randen en ${invalid - open} inconsistente of niet-manifold randen. Bouw de stempel opnieuw op of repareer hem.`,
     );
 
   for (const edgeInfo of edges.values()) {
@@ -138,14 +138,14 @@ export function prepareClosedStamp(source) {
 
   if (vertexShells.some((memberships) => memberships.size > 1)) {
     throw new Error(
-      "Export blocked: closed shells touch only at a vertex, creating a non-manifold connection.",
+      "Exporteren geblokkeerd: gesloten schalen raken elkaar maar in één punt, waardoor een niet-manifold verbinding ontstaat.",
     );
   }
 
   const outward = [...shells.values()].filter((shell) => shell.volume > 0);
   if (outward.length !== 1) {
     throw new Error(
-      "Export blocked: the stamp has disconnected pieces. Adjust the backing or handle.",
+      "Exporteren geblokkeerd: de stempel bestaat uit losse delen. Pas de plaat of het handvat aan.",
     );
   }
 
@@ -155,7 +155,7 @@ export function prepareClosedStamp(source) {
   )) {
     if (!containsShell(outer, cavity, vertices, triangles)) {
       throw new Error(
-        "Export blocked: an inward-facing shell is not a contained cavity.",
+        "Exporteren geblokkeerd: een naar binnen gerichte schaal is geen omsloten holte.",
       );
     }
   }
@@ -167,7 +167,7 @@ export function prepareClosedStamp(source) {
     Math.min(size.x, size.y, size.z) <= 0
   ) {
     throw new Error(
-      "Export blocked: the stamp has no positive enclosed volume.",
+      "Exporteren geblokkeerd: de stempel heeft geen positief ingesloten volume.",
     );
   }
   // Return a new indexed mesh; leave the original preview geometry untouched.
@@ -259,7 +259,7 @@ export function verifiedSTL(source) {
       geometry.index.count !== checked.index.count
     ) {
       throw new Error(
-        "Export blocked: STL dimensions or triangle count changed.",
+        "Exporteren geblokkeerd: de afmetingen of het aantal driehoeken van de STL is veranderd.",
       );
     }
     return new Blob([data], { type: "model/stl" });

@@ -8,19 +8,19 @@ from .pricing import COUNTRIES, MAX_QUANTITY
 # errors returned by the API can be shown next to the right input as they are.
 
 POSTAL_CODE_PATTERNS = {
-    "NL": (r"^\d{4}\s?[A-Za-z]{2}$", "Use the format 1234 AB."),
-    "BE": (r"^\d{4}$", "Use a 4-digit postal code."),
-    "DE": (r"^\d{5}$", "Use a 5-digit postal code."),
-    "FR": (r"^\d{5}$", "Use a 5-digit postal code."),
+    "NL": (r"^\d{4}\s?[A-Za-z]{2}$", "Gebruik het formaat 1234 AB."),
+    "BE": (r"^\d{4}$", "Gebruik een postcode van 4 cijfers."),
+    "DE": (r"^\d{5}$", "Gebruik een postcode van 5 cijfers."),
+    "FR": (r"^\d{5}$", "Gebruik een postcode van 5 cijfers."),
 }
 
-QUANTITY_ERROR = f"Quantity must be a whole number from 1 to {MAX_QUANTITY}."
+QUANTITY_ERROR = f"Het aantal moet een geheel getal van 1 tot {MAX_QUANTITY} zijn."
 
 
 class OrderDetailsForm(forms.Form):
     title = forms.CharField(
         max_length=80,
-        error_messages={"required": "Give this order item a name."},
+        error_messages={"required": "Geef de stempel een naam."},
     )
     description = forms.CharField(max_length=500, required=False)
     quantity = forms.IntegerField(
@@ -39,50 +39,50 @@ class OrderDetailsForm(forms.Form):
 class DeliveryForm(forms.Form):
     firstName = forms.CharField(
         max_length=50,
-        error_messages={"required": "Enter the first name."},
+        error_messages={"required": "Vul de voornaam in."},
     )
     lastName = forms.CharField(
         max_length=100,
-        error_messages={"required": "Enter the last name."},
+        error_messages={"required": "Vul de achternaam in."},
     )
     email = forms.EmailField(
         max_length=254,
         error_messages={
-            "required": "Enter a valid email address.",
-            "invalid": "Enter a valid email address.",
+            "required": "Vul een geldig e-mailadres in.",
+            "invalid": "Vul een geldig e-mailadres in.",
         },
     )
     phone = forms.CharField(max_length=20, required=False)
-    street = forms.CharField(max_length=100, error_messages={"required": "Enter the street."})
+    street = forms.CharField(max_length=100, error_messages={"required": "Vul de straat in."})
     # The number is an integer in the database; letters go in the addition.
     houseNumber = forms.CharField(
         max_length=5,
-        error_messages={"required": "Enter the house number."},
+        error_messages={"required": "Vul het huisnummer in."},
     )
     houseNumberAddition = forms.CharField(max_length=20, required=False)
     postalCode = forms.CharField(
         max_length=10,
-        error_messages={"required": "Enter the postal code."},
+        error_messages={"required": "Vul de postcode in."},
     )
-    city = forms.CharField(max_length=100, error_messages={"required": "Enter the city."})
+    city = forms.CharField(max_length=100, error_messages={"required": "Vul de plaats in."})
     country = forms.ChoiceField(
         choices=list(COUNTRIES.items()),
         error_messages={
-            "required": "Choose a country.",
-            "invalid_choice": "Choose a country.",
+            "required": "Kies een land.",
+            "invalid_choice": "Kies een land.",
         },
     )
 
     def clean_phone(self):
         phone = self.cleaned_data["phone"]
         if phone and not re.fullmatch(r"[+()\d\s-]{6,20}", phone):
-            raise forms.ValidationError("Use digits, spaces, + ( ) or - only.")
+            raise forms.ValidationError("Gebruik alleen cijfers, spaties, + ( ) of -.")
         return phone
 
     def clean_houseNumber(self):
         number = self.cleaned_data["houseNumber"]
         if not re.fullmatch(r"[1-9]\d{0,4}", number):
-            raise forms.ValidationError("Use digits only; put letters like A in the addition.")
+            raise forms.ValidationError("Gebruik alleen cijfers; zet letters zoals A bij de toevoeging.")
         return number
 
     def clean(self):

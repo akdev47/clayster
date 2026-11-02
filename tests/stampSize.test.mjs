@@ -43,11 +43,11 @@ test("a stamp up to the maximum is fine, one over it is an error that names both
       issue.message.includes(`${maxWidthMm} × ${maxLengthMm} mm`),
       "names the largest stamp",
     );
-    assert.match(issue.message, /would be \d/, "names the size it would have");
+    assert.match(issue.message, /zou \d/, "names the size it would have");
   }
   assert.match(
     stampSizeIssue(230.46, 60.04).message,
-    /would be 230\.5 × 60 mm/,
+    /zou 230,5 × 60 mm/,
     "sizes are shown with one decimal",
   );
 });
@@ -74,7 +74,7 @@ test("a Minimal stamp that grows past the maximum reports the error and cannot b
 
     // Errors block export and ordering, the same as for overflowing artwork.
     const pipeline = { busy: false, result: { stamp: built.stamp, issues: built.thinIssues } };
-    assert.throws(() => exportable({}, pipeline), /Fix the design errors/);
+    assert.throws(() => exportable({}, pipeline), /Los de fouten in het ontwerp op/);
   } finally {
     dispose(built);
   }
@@ -96,7 +96,7 @@ test("making the design smaller clears the error", () => {
 test("the diagnostics panel shows the size error as it is written, first in the list", () => {
   const issue = stampSizeIssue(230.5, 60);
   const rows = presentDiagnosticRows([
-    { level: "warning", message: "Some artwork details may be too thin to print." },
+    { level: "warning", message: "Sommige details van het ontwerp zijn mogelijk te dun om te printen." },
     issue,
   ]);
   assert.equal(rows[0].level, "error", "errors come first");

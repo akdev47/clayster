@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { formatNumber } from "../src/stamp_generator/static/stamp_generator/js/locale.js";
 import assert from "node:assert/strict";
 import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
@@ -41,8 +42,8 @@ const circle = (radius, segments = 128) =>
 
 const ring = (outerRadius, holeRadius) => [[circle(outerRadius), circle(holeRadius)]];
 
-const generic = (issues) => issues.find(({ message }) => /may fill in when stamped in clay/.test(message));
-const named = (issues) => issues.find(({ message }) => /space between line/.test(message));
+const generic = (issues) => issues.find(({ message }) => /dichtlopen bij het stempelen in klei/.test(message));
+const named = (issues) => issues.find(({ message }) => /ruimte tussen regel/.test(message));
 
 const laidOut = (lineSpacing) => {
   const glyphOutlines = [];
@@ -63,13 +64,13 @@ test("bars clearly wider apart than the clear gap do not warn", () => {
 test("bars well inside the clear gap warn", () => {
   const issues = narrowGapIssues(bars(GAP / 2));
   assert.equal(issues.length, 1);
-  assert.ok(issues[0].message.includes(`narrower than about ${GAP} mm`));
+  assert.ok(issues[0].message.includes(`smaller dan ongeveer ${formatNumber(GAP)} mm`));
 });
 
 test("a hole well inside the clear gap warns and a wide hole does not", () => {
   const tight = narrowGapIssues(ring(2, GAP / 6));
   assert.equal(tight.length, 1);
-  assert.ok(tight[0].message.includes(`narrower than about ${GAP} mm`));
+  assert.ok(tight[0].message.includes(`smaller dan ongeveer ${formatNumber(GAP)} mm`));
 
   assert.deepEqual(narrowGapIssues(ring(GAP + 2, (GAP + 0.8) / 2)), []);
 });
@@ -94,7 +95,7 @@ test("close text lines name the lines, and ordinary line spacing does not", () =
 
   const tight = laidOut(0.72);
   const issues = narrowGapIssues(tight.canonical, { textGlyphs: tight.glyphOutlines });
-  assert.ok(named(issues).message.includes(`space between line 1 and line 2 is under about ${GAP} mm`));
+  assert.ok(named(issues).message.includes(`ruimte tussen regel 1 en regel 2 is kleiner dan ongeveer ${formatNumber(GAP)} mm`));
   assert.equal(named(issues).elementId, "text");
   assert.equal(named(issues).elementKind, "text");
   assert.equal(generic(issues), undefined);

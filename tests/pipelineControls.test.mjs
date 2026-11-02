@@ -16,7 +16,7 @@ test("blocking pipeline issues prevent STL export even when geometry exists", ()
 
   assert.throws(
     () => exportable(viewer, pipeline),
-    /Fix the design errors before exporting/,
+    /Los de fouten in het ontwerp op voordat je exporteert/,
   );
 
   pipeline.result.issues = [];

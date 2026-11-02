@@ -11,6 +11,7 @@ import {
 } from "./canonical.js";
 import { gapClosure, groupsCloserThan, hasThinCrossSection } from "../solidGeometry.js";
 import { SETTINGS } from "../settings.js";
+import { formatNumber } from "../locale.js";
 
 // Slivers below this area in mm² carry no printable detail and only upset the
 // boolean stage.
@@ -37,7 +38,7 @@ export function validate(artwork, { tolerance = SIMPLIFY_MM } = {}) {
     issues.push({
       level: "error",
       message:
-        "No closed outlines found. Strokes and open paths cannot be extruded.",
+        "Geen gesloten omtrekken gevonden. Lijnen en open paden kunnen niet worden omgezet in een stempel.",
     });
     return { artwork: [], issues };
   }
@@ -51,14 +52,14 @@ export function validate(artwork, { tolerance = SIMPLIFY_MM } = {}) {
   if (droppedRings > 0) {
     issues.push({
       level: "fixed",
-      message: `Removed ${droppedRings} empty or sliver outline${droppedRings === 1 ? "" : "s"}.`,
+      message: `${droppedRings} ${droppedRings === 1 ? "lege of splinterdunne omtrek" : "lege of splinterdunne omtrekken"} verwijderd.`,
     });
   }
 
   if (cleaned.length === 0) {
     issues.push({
       level: "error",
-      message: "Every outline was too small to print. Try a larger size.",
+      message: "Alle omtrekken waren te klein om te printen. Probeer een groter formaat.",
     });
     return { artwork: [], issues };
   }
@@ -72,7 +73,7 @@ export function validate(artwork, { tolerance = SIMPLIFY_MM } = {}) {
   if (repaired.length === 0) {
     issues.push({
       level: "error",
-      message: "Repairing the artwork left nothing behind.",
+      message: "Na het repareren van het ontwerp bleef er niets over.",
     });
     return { artwork: [], issues };
   }
@@ -88,7 +89,7 @@ export function validate(artwork, { tolerance = SIMPLIFY_MM } = {}) {
   if (issues.length === 0) {
     issues.push({
       level: "ok",
-      message: "Artwork is clean and ready to mesh.",
+      message: "Het ontwerp is schoon en klaar voor de 3D-opbouw.",
     });
   }
 
@@ -170,9 +171,7 @@ function separateIsolatedPointContacts(artwork, issues) {
   ]);
   issues.push({
     level: "fixed",
-    message: `Separated ${contacts.length} isolated point ${
-      contacts.length === 1 ? "contact" : "contacts"
-    } with a ${POINT_CONTACT_CHAMFER_MM} mm local chamfer.`,
+    message: `Losse puntcontacten gescheiden: ${contacts.length} (lokale afschuining van ${formatNumber(POINT_CONTACT_CHAMFER_MM, 4)} mm).`,
   });
   return separated;
 }
@@ -181,7 +180,7 @@ function ambiguousPointContact(issues) {
   issues.push({
     level: "error",
     message:
-      "Separate outlines meet at an ambiguous point contact that cannot be repaired safely. Separate or merge those outlines and try again.",
+      "Losse omtrekken raken elkaar in een onduidelijk puntcontact dat niet veilig te repareren is. Scheid of voeg die omtrekken samen en probeer het opnieuw.",
   });
   return null;
 }
@@ -221,7 +220,7 @@ function repair(artwork, issues) {
   } catch (error) {
     issues.push({
       level: "error",
-      message: `The artwork geometry could not be repaired safely (${error.message}). Simplify the SVG paths and try again.`,
+      message: `De geometrie van het ontwerp kon niet veilig worden gerepareerd (${error.message}). Vereenvoudig de SVG-paden en probeer het opnieuw.`,
     });
     return null;
   }
@@ -237,7 +236,7 @@ function repair(artwork, issues) {
     issues.push({
       level: "fixed",
       message:
-        "Merged overlapping and self-intersecting outlines into clean shapes.",
+        "Overlappende en zichzelf snijdende omtrekken zijn samengevoegd tot nette vormen.",
     });
   }
 
@@ -272,7 +271,7 @@ export function overflowIssue(layout) {
   return {
     level: "error",
     code: "artwork-overflow",
-    message: `Some artwork extends beyond the ${layout.widthMm} × ${layout.heightMm} mm face (or into its margin). It is shown in red; move or shrink it, or enlarge the face.`,
+    message: `Een deel van het ontwerp valt buiten het stempelvlak van ${formatNumber(layout.widthMm, 1)} × ${formatNumber(layout.heightMm, 1)} mm (of in de marge). Het is rood weergegeven; verplaats of verklein het, of maak het vlak groter.`,
   };
 }
 
@@ -321,7 +320,7 @@ export function thinFeatureIssues(
   }
   if (unattributed > 0) issues.push({
     level: "warning",
-    message: `${unattributed} shape${unattributed === 1 ? " looks" : "s look"} thinner than about ${minFeature} mm and may not survive printing or show up in clay. This is an estimate.`,
+    message: `${unattributed} ${unattributed === 1 ? "vorm lijkt" : "vormen lijken"} dunner dan ongeveer ${formatNumber(minFeature)} mm en ${unattributed === 1 ? "overleeft" : "overleven"} het printen mogelijk niet of ${unattributed === 1 ? "komt" : "komen"} niet goed uit in de klei. Dit is een schatting.`,
   });
   for (const [elementId, group] of letters) {
     const glyphs = [...group.values()].sort((a, b) => a.line - b.line || a.column - b.column);
@@ -330,9 +329,9 @@ export function thinFeatureIssues(
       elementId,
       elementKind: "text",
       thinGlyphs: glyphs,
-      message: `Potentially thin letters: ${[...new Set(glyphs.map(({ character }) => character))].join(", ")} (below approximately ${minFeature} mm).`,
+      message: `Mogelijk te dunne letters: ${[...new Set(glyphs.map(({ character }) => character))].join(", ")} (onder ongeveer ${formatNumber(minFeature)} mm).`,
       details: glyphs.map(({ character, line, column }) =>
-        `“${character}” — line ${line}, character ${column} in the laid-out text.`),
+        `“${character}” — regel ${line}, teken ${column} in de opgemaakte tekst.`),
     });
   }
   return issues;
@@ -355,14 +354,14 @@ export function narrowGapIssues(artwork, { minGap = MIN_CLEAR_GAP_MM, textGlyphs
     level: "warning",
     code: "narrow-gap",
     ...(elementId === undefined ? {} : { elementId, elementKind: "text" }),
-    message: `The space between line ${lineA} and line ${lineB} is under about ${minGap} mm.`,
+    message: `De ruimte tussen regel ${lineA} en regel ${lineB} is kleiner dan ongeveer ${formatNumber(minGap)} mm.`,
   }));
 
   if (closure.filledHoles || (closure.merged && linePairs.length === 0)) {
     issues.push({
       level: "warning",
       code: "narrow-gap",
-      message: `A gap looks narrower than about ${minGap} mm and may fill in when stamped in clay. This is an estimate.`,
+      message: `Een opening lijkt smaller dan ongeveer ${formatNumber(minGap)} mm en kan dichtlopen bij het stempelen in klei. Dit is een schatting.`,
     });
   }
   return issues;

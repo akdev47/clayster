@@ -23,7 +23,7 @@ export async function initializeSolids(wasmUrl) {
 // millimetres on every side, so strokes get 2 * delta thicker or thinner.
 // Needs initializeSolids() to have finished.
 export function offsetOutline(multiPolygon, delta) {
-  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!engine) throw new Error("De 3D-rekenmodule is nog niet klaar.");
   if (delta === 0 || multiPolygon.length === 0) return multiPolygon;
 
   const temporary = [];
@@ -69,7 +69,7 @@ export function hasThinCrossSection(
   minFeature,
   { simplifyTolerance = 1e-6, meaningfulArea = 0.01 } = {},
 ) {
-  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!engine) throw new Error("De 3D-rekenmodule is nog niet klaar.");
 
   const temporary = [];
   const keep = (object) => {
@@ -146,7 +146,7 @@ export function groupsCloserThan(first, second, minGap) {
 }
 
 function withCrossSections(action) {
-  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!engine) throw new Error("De 3D-rekenmodule is nog niet klaar.");
   const temporary = [];
   const keep = (object) => {
     temporary.push(object);
@@ -184,9 +184,9 @@ export function solidBoolean(
   first,
   second,
   operation,
-  { firstLabel = "first stamp part", secondLabel = "second stamp part" } = {},
+  { firstLabel = "eerste stempeldeel", secondLabel = "tweede stempeldeel" } = {},
 ) {
-  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!engine) throw new Error("De 3D-rekenmodule is nog niet klaar.");
   const temporary = [];
   const keep = (object) => {
     temporary.push(object);
@@ -217,13 +217,13 @@ export function solidBoolean(
       result = keep(new engine.Manifold(mesh));
     } catch (error) {
       throw new Error(
-        `${capitalize(label)} is not a closed manifold solid: ${errorMessage(error)}`,
+        `${capitalize(label)} is geen gesloten (manifold) volume: ${errorMessage(error)}`,
         { cause: error },
       );
     }
     if (result.status() !== "NoError") {
       throw new Error(
-        `${capitalize(label)} is not a closed manifold solid: ${result.status()}`,
+        `${capitalize(label)} is geen gesloten (manifold) volume: ${result.status()}`,
       );
     }
     return result;
@@ -245,7 +245,7 @@ export function solidBoolean(
       result.isEmpty() ||
       result.volume() <= 0
     ) {
-      throw new Error("The stamp operation did not produce a valid solid.");
+      throw new Error("De stempelbewerking leverde geen geldig volume op.");
     }
     return toGeometry(result);
   } finally {
@@ -284,7 +284,7 @@ function toGeometry(solid) {
  * finished.
  */
 export function extrudeOutline(multiPolygon, depth) {
-  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!engine) throw new Error("De 3D-rekenmodule is nog niet klaar.");
   if (!(depth > 0)) throw new RangeError("The extrusion depth must be above 0.");
   if (multiPolygon.length === 0) return new THREE.BufferGeometry();
 
@@ -304,7 +304,7 @@ export function extrudeOutline(multiPolygon, depth) {
 
     const solid = keep(engine.Manifold.extrude(section, depth));
     if (solid.status() !== "NoError" || solid.isEmpty()) {
-      throw new Error("The artwork could not be raised into a closed solid.");
+      throw new Error("Het ontwerp kon niet tot een gesloten volume worden opgetrokken.");
     }
     return toGeometry(solid);
   } finally {
@@ -341,7 +341,7 @@ export function extrudeRoundedPlate(
   topRounding,
   bottomRounding = topRounding,
 ) {
-  if (!engine) throw new Error("The solid geometry engine is not ready.");
+  if (!engine) throw new Error("De 3D-rekenmodule is nog niet klaar.");
   if (!(thickness > 0)) throw new RangeError("The plate thickness must be above 0.");
   if (!(topRounding >= 0) || !(bottomRounding >= 0)) {
     throw new RangeError("The edge rounding cannot be negative.");
@@ -362,7 +362,7 @@ export function extrudeRoundedPlate(
       keep(new engine.CrossSection(polygon, "EvenOdd")),
     );
     const section = keep(engine.CrossSection.union(outlines));
-    if (section.isEmpty()) throw new Error("The plate has no outline.");
+    if (section.isEmpty()) throw new Error("De plaat heeft geen omtrek.");
 
     // The plain plate, and proof that the outline is convex: the hull of its
     // top and bottom rings only has the same volume when nothing is hollow.
@@ -371,7 +371,7 @@ export function extrudeRoundedPlate(
       engine.Manifold.hull([...ringsAt(section, 0), ...ringsAt(section, thickness)]),
     );
     if (hull.volume() > plain.volume() * (1 + 1e-6)) {
-      throw new Error("A plate with rounded edges needs a convex outline.");
+      throw new Error("Een plaat met afgeronde randen heeft een convexe omtrek nodig.");
     }
 
     const { min, max } = section.bounds();
@@ -405,7 +405,7 @@ export function extrudeRoundedPlate(
 
     const plate = keep(engine.Manifold.hull(points));
     if (plate.status() !== "NoError" || plate.isEmpty()) {
-      throw new Error("The plate could not be built as a closed solid.");
+      throw new Error("De plaat kon niet als gesloten volume worden opgebouwd.");
     }
     return toGeometry(plate);
   } finally {
@@ -418,5 +418,5 @@ function capitalize(value) {
 }
 
 function errorMessage(error) {
-  return String(error?.message ?? "invalid mesh").split("\n", 1)[0];
+  return String(error?.message ?? "ongeldig oppervlak").split("\n", 1)[0];
 }

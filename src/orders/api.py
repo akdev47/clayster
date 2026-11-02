@@ -34,7 +34,7 @@ def _field_errors(form):
 def _claimed_extents(measurements):
     """The size the browser says the stamp has, as three plain numbers."""
     if not isinstance(measurements, dict):
-        raise PricingError("The stamp measurements are missing.")
+        raise PricingError("De afmetingen van de stempel ontbreken.")
     values = [measurements.get(key) for key in ("width", "depth", "height")]
     for value in values:
         if (
@@ -43,7 +43,7 @@ def _claimed_extents(measurements):
             or not math.isfinite(value)
             or value <= 0
         ):
-            raise PricingError("The stamp measurements are invalid.")
+            raise PricingError("De afmetingen van de stempel zijn ongeldig.")
     return values
 
 
@@ -62,15 +62,15 @@ def create_order(request):
     raw = request.POST.get("payload", "")
     upload = request.FILES.get("stl")
     if not raw or upload is None:
-        return _failure({"general": "The order is incomplete. Please try again."})
+        return _failure({"general": "De bestelling is niet compleet. Probeer het opnieuw."})
     if len(raw) > MAX_PAYLOAD_CHARS:
-        return _failure({"general": "The order is too large."})
+        return _failure({"general": "De bestelling is te groot."})
     try:
         payload = json.loads(raw, parse_constant=_reject_constant)
     except ValueError:
-        return _failure({"general": "The order could not be read. Please try again."})
+        return _failure({"general": "De bestelling kon niet worden gelezen. Probeer het opnieuw."})
     if not isinstance(payload, dict):
-        return _failure({"general": "The order could not be read. Please try again."})
+        return _failure({"general": "De bestelling kon niet worden gelezen. Probeer het opnieuw."})
 
     details = payload.get("order")
     delivery = payload.get("delivery")
@@ -85,7 +85,7 @@ def create_order(request):
 
     stl_data = stl_info = None
     if upload.size > MAX_STL_BYTES:
-        errors["general"] = "The stamp file is too large."
+        errors["general"] = "Het stempelbestand is te groot."
     else:
         stl_data = upload.read()
         try:
@@ -105,7 +105,7 @@ def create_order(request):
                 delivery_form.cleaned_data["country"],
             )
             if not extents_match(stl_info.extents_mm, _claimed_extents(measurements)):
-                raise PricingError("The stamp file does not match the stamp settings.")
+                raise PricingError("Het stempelbestand komt niet overeen met de stempelinstellingen.")
         except PricingError as error:
             errors["general"] = str(error)
 

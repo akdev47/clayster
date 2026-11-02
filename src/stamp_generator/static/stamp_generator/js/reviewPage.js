@@ -46,15 +46,15 @@ export function createReviewPage({ designModel, pipeline, diagnostics, renderPre
     const state = diagnostics.state;
     const status = byId("review-check-status");
     const badge = byId("review-check-badge");
-    status.textContent = state?.overall.message ?? "Waiting for build…";
+    status.textContent = state?.overall.message ?? "Wachten op berekening…";
     status.className = `overall-status pipeline-overall-${state?.overall.level ?? "working"}`;
     badge.textContent = state?.overall.level === "warning"
-      ? "Warnings"
+      ? "Waarschuwingen"
       : state?.export.ready
-        ? "Ready"
+        ? "Klaar"
         : state?.overall.level === "error"
-          ? "Blocked"
-          : "Checking…";
+          ? "Geblokkeerd"
+          : "Controleren…";
     badge.dataset.level = state?.overall.level ?? "working";
     byId("review-check-list").replaceChildren(
       ...[...byId("pipeline-diagnostic-list").children].map((row) => row.cloneNode(true)),
@@ -63,10 +63,10 @@ export function createReviewPage({ designModel, pipeline, diagnostics, renderPre
     const ready = Boolean(state?.export.ready) && !pipeline.busy;
     confirm.disabled = !ready;
     byId("review-continue-hint").textContent = ready
-      ? "Your design is ready for order details."
+      ? "Je ontwerp is klaar; vul nu je bestelgegevens in."
       : pipeline.busy
-        ? "Wait for the stamp to finish building."
-        : "Return to the editor and resolve the printability errors before continuing.";
+        ? "Wacht tot de stempel klaar is met berekenen."
+        : "Ga terug naar de editor en los de printbaarheidsfouten op voordat je verdergaat.";
   };
 
   const renderSummary = () => {
@@ -84,8 +84,8 @@ export function createReviewPage({ designModel, pipeline, diagnostics, renderPre
       }),
     );
     byId("review-handle").textContent = pipeline.stamp.handle === "none"
-      ? "No handle — face only"
-      : "Small handle · included with the stamp";
+      ? "Geen handvat — alleen het stempelvlak"
+      : "Klein handvat · bij de stempel inbegrepen";
   };
 
   const refresh = () => {
@@ -123,8 +123,8 @@ export function createReviewPage({ designModel, pipeline, diagnostics, renderPre
     details.hidden = !details.hidden;
     toggle.setAttribute("aria-expanded", String(!details.hidden));
     byId("review-summary-toggle-label").textContent = details.hidden
-      ? "Show details"
-      : "Hide details";
+      ? "Details tonen"
+      : "Details verbergen";
     byId("review-summary-toggle-icon").textContent = details.hidden ? "⌄" : "⌃";
   });
   byId("review-back").addEventListener("click", onBack);

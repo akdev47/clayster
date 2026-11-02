@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { formatNumber } from "../src/stamp_generator/static/stamp_generator/js/locale.js";
 import assert from "node:assert/strict";
 import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
@@ -112,7 +113,7 @@ test("only the thin polygon in multiple artwork polygons is counted", () => {
   ]);
 
   assert.equal(issues.length, 1);
-  assert.match(issues[0].message, /^1 shape looks thinner/i);
+  assert.match(issues[0].message, /^1 vorm lijkt dunner/i);
 });
 
 test("sharp valid corners are accepted", () => {
@@ -203,7 +204,7 @@ test("artwork that becomes too thin after element scaling is warned in final lay
   }).art;
   const issues = thinFeatureIssues(final);
   assert.equal(issues.length, 1);
-  assert.ok(issues[0].message.includes(`thinner than about ${MIN} mm`));
+  assert.ok(issues[0].message.includes(`dunner dan ongeveer ${formatNumber(MIN)} mm`));
 });
 
 test("automatic backing preserves safe widths, including legacy fixed-face settings", () => {
@@ -223,8 +224,8 @@ test("thin glyph attribution uses geometry and retains generic warnings for ambi
   const polygon = [rectangle(0, 0, 5, THIN)];
   const glyph = { elementId: "text", character: "a", line: 2, column: 3, canonical: [polygon] };
   const named = thinFeatureIssues([polygon], { textGlyphs: [glyph] });
-  assert.equal(named[0].message, `Potentially thin letters: a (below approximately ${MIN} mm).`);
-  assert.match(named[0].details[0], /line 2, character 3/);
+  assert.equal(named[0].message, `Mogelijk te dunne letters: a (onder ongeveer ${formatNumber(MIN)} mm).`);
+  assert.match(named[0].details[0], /regel 2, teken 3/);
   assert.equal(named[0].thinGlyphs[0], glyph);
 
   for (const other of [
@@ -232,10 +233,10 @@ test("thin glyph attribution uses geometry and retains generic warnings for ambi
     { character: null, canonical: [polygon] },
   ]) {
     const issues = thinFeatureIssues([polygon], { textGlyphs: [glyph, other] });
-    assert.match(issues[0].message, /^1 shape looks thinner/);
+    assert.match(issues[0].message, /^1 vorm lijkt dunner/);
     assert.equal(issues.length, 1);
   }
   const elsewhere = { ...glyph, canonical: [[rectangle(10, 10, 15, 10 + THIN)]] };
   assert.match(thinFeatureIssues([polygon], { textGlyphs: [elsewhere] })[0].message,
-    /^1 shape looks thinner/);
+    /^1 vorm lijkt dunner/);
 });

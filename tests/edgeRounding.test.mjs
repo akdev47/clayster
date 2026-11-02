@@ -185,7 +185,7 @@ test("an outline that is not convex is refused, and bad numbers are too", () => 
     assert.throws(() => extrudeRoundedPlate(square, thickness, 1), RangeError, String(thickness));
   }
   assert.throws(() => extrudeRoundedPlate(square, THICKNESS, -0.5), RangeError);
-  assert.throws(() => extrudeRoundedPlate([], THICKNESS, 1), /no outline/);
+  assert.throws(() => extrudeRoundedPlate([], THICKNESS, 1), /geen omtrek/);
 });
 
 // ---- the whole stamp ----------------------------------------------------
@@ -298,7 +298,7 @@ test("the page has the Rounded edges switch, not hidden", () => {
     "utf8",
   );
   assert.match(html, /<input[^>]*id="pipeline-rounded-edges"[^>]*type="checkbox"[^>]*role="switch"/s);
-  assert.match(html, /Rounded edges/);
+  assert.match(html, /Afgeronde randen/);
   assert.doesNotMatch(html, /<div id="pipeline-rounded-edges[^>]*\bhidden\b/);
 });
 

@@ -31,14 +31,14 @@ class StlInfo:
 def read_stl(data):
     """Returns the triangle count and size of a binary STL, or raises StlError."""
     if len(data) > MAX_STL_BYTES:
-        raise StlError("The stamp file is too large.")
+        raise StlError("Het stempelbestand is te groot.")
     start = _HEADER_BYTES + _COUNT_BYTES
     if len(data) < start:
-        raise StlError("The stamp file is not a binary STL.")
+        raise StlError("Het stempelbestand is geen binaire STL.")
 
     (count,) = struct.unpack_from("<I", data, _HEADER_BYTES)
     if count == 0 or len(data) != start + count * _TRIANGLE_BYTES:
-        raise StlError("The stamp file is not a binary STL.")
+        raise StlError("Het stempelbestand is geen binaire STL.")
 
     low = [math.inf] * 3
     high = [-math.inf] * 3
@@ -46,7 +46,7 @@ def read_stl(data):
         for vertex in (values[3:6], values[6:9], values[9:12]):
             for axis, value in enumerate(vertex):
                 if not -MAX_COORDINATE_MM < value < MAX_COORDINATE_MM:  # also rejects NaN
-                    raise StlError("The stamp file has invalid coordinates.")
+                    raise StlError("Het stempelbestand bevat ongeldige coördinaten.")
                 if value < low[axis]:
                     low[axis] = value
                 if value > high[axis]:

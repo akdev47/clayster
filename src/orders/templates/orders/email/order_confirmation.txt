@@ -1,15 +1,15 @@
-{% autoescape off %}Hi {{ order.customer.first_name }},
+{% autoescape off %}Hoi {{ order.customer.first_name }},
 
-Thank you for your order. We received your payment and will start making your stamp.
+Bedankt voor je bestelling. We hebben je betaling ontvangen en gaan je stempel maken.
 
-Order #{{ order.pk }}
+Bestelling #{{ order.pk }}
 {% for item in items %}- {{ item.quantity }} x {{ item.display_name }}
 {% endfor %}
-Subtotal: EUR {{ order.subtotal_price }}
-Shipping: EUR {{ order.shipping_costs }}
-Total:    EUR {{ order.total_price }}
+Subtotaal:      € {{ order.subtotal_price }}
+Verzendkosten:  {% if order.shipping_costs == 0 %}gratis{% else %}€ {{ order.shipping_costs }}{% endif %}
+Totaal:         € {{ order.total_price }}
 
-You can follow your order at any time with this link. Keep it safe: anyone who has it can see your order.
+Je kunt je bestelling op elk moment volgen via deze link. Bewaar hem goed: iedereen die de link heeft, kan je bestelling zien.
 
 {{ order_url }}
 

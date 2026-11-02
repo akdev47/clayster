@@ -34,11 +34,11 @@ PRICING = {
 
 # Countries the shop delivers to; the keys are the shipping zones above.
 COUNTRIES = {
-    "NL": "Netherlands",
-    "BE": "Belgium",
-    "DE": "Germany",
-    "FR": "France",
-    "OTHER": "Other country",
+    "NL": "Nederland",
+    "BE": "België",
+    "DE": "Duitsland",
+    "FR": "Frankrijk",
+    "OTHER": "Ander land",
 }
 
 MAX_QUANTITY = 999
@@ -67,10 +67,10 @@ def _size_mm(value, name, maximum):
         or not math.isfinite(value)
         or value <= 0
     ):
-        raise PricingError(f"{name} must be a size in millimetres.")
+        raise PricingError(f"De {name} van de stempel moet een maat in millimeters zijn.")
     if round(value, 2) > maximum:
         raise PricingError(
-            f"The stamp may be at most {MAX_STAMP_WIDTH_MM} x {MAX_STAMP_LENGTH_MM} mm."
+            f"De stempel mag hoogstens {MAX_STAMP_WIDTH_MM} × {MAX_STAMP_LENGTH_MM} mm zijn."
         )
     return value
 
@@ -81,10 +81,10 @@ def face_area_cm2(stamp, info):
     width = info.get("width")
     depth = info.get("depth")
     width = _size_mm(
-        stamp.get("faceSize") if width is None else width, "width", MAX_STAMP_WIDTH_MM
+        stamp.get("faceSize") if width is None else width, "breedte", MAX_STAMP_WIDTH_MM
     )
     depth = _size_mm(
-        stamp.get("faceSize") if depth is None else depth, "depth", MAX_STAMP_LENGTH_MM
+        stamp.get("faceSize") if depth is None else depth, "lengte", MAX_STAMP_LENGTH_MM
     )
     box = (width * depth) / 100
     return box * math.pi / 4 if stamp.get("faceShape") == "round" else box
@@ -93,13 +93,13 @@ def face_area_cm2(stamp, info):
 def estimate_price(stamp, info, quantity, country):
     """Returns the price in cents as a dict; raises PricingError if it cannot be priced."""
     if not isinstance(stamp, dict) or not isinstance(info, (dict, type(None))):
-        raise PricingError("The stamp settings are missing or invalid.")
+        raise PricingError("De stempelinstellingen ontbreken of zijn ongeldig.")
     if (
         not isinstance(quantity, int)
         or isinstance(quantity, bool)
         or not 1 <= quantity <= MAX_QUANTITY
     ):
-        raise PricingError("The quantity is invalid.")
+        raise PricingError("Het aantal is ongeldig.")
 
     area = face_area_cm2(stamp, info)
     unit_cents = PRICING["base_cents"] + js_round(area * PRICING["per_cm2_cents"])

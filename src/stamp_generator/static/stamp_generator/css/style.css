@@ -59,6 +59,8 @@ button, input, select, textarea { font: inherit; }
 .clay-outline-button, .subtle-button, .save-button, .delete-button, .primary-button, .clay-input { border-radius: var(--radius-sm); }
 .clay-outline-button, .subtle-button, .save-button { color: var(--ink); background: var(--white); border: 1px solid var(--border); font-weight: 600; }
 .clay-outline-button { display: flex; gap: .45rem; align-items: center; justify-content: center; padding: .65rem .5rem; }
+/* The three add buttons sit side by side, so the icon goes above the label. */
+.add-element-button { flex-direction: column; gap: .3rem; padding-block: .55rem; font-size: .8rem; line-height: 1.15; text-align: center; }
 .clay-outline-button:hover { color: var(--ink); background: rgb(139 223 221 / 20%); border-color: var(--aqua); }
 .clay-outline-button:disabled { color: #98928b; background: #f4f1ec; border-color: var(--border); opacity: 1; }
 .button-icon, .print-heading-icon, .status-icon { display: grid; flex: 0 0 auto; place-items: center; }

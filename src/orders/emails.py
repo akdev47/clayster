@@ -22,7 +22,7 @@ def send_order_confirmation(order, order_url):
         {"order": order, "order_url": order_url, "items": order.items.all()},
     )
     message = EmailMessage(
-        subject=f"Your Clayster order #{order.pk}",
+        subject=f"Je Clayster-bestelling #{order.pk}",
         body=body,
         to=[order.customer.email],
     )

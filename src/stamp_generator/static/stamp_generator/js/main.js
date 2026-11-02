@@ -41,6 +41,7 @@ import { readableStampDisplay } from "./stamp2dDisplay.js";
 import { ArtworkComposer } from "./pipeline/artworkComposition.js";
 import { createTextSizeControls, uniformSizeChange } from "./sizing.js";
 import { SETTINGS, applyInputLimits } from "./settings.js";
+import { formatFixed, formatNumber } from "./locale.js";
 import { layoutText, loadFont } from "./pipeline/text.js";
 import { printableTextAdjustment } from "./pipeline/fixThinText.js";
 
@@ -155,7 +156,7 @@ pipeline.addEventListener("running", () => {
   }
   if (pipeline.buildSolids || pipeline.forceSolids) {
     previewStatus.hidden = false;
-    previewStatus.textContent = "Building 3D preview…";
+    previewStatus.textContent = "3D-voorbeeld wordt opgebouwd…";
   }
 });
 
@@ -174,7 +175,7 @@ pipeline.addEventListener("result", () => {
     previewStatus.hidden = Boolean(result.stamp);
     previewStatus.textContent = result.stamp
       ? ""
-      : "Add artwork to build the 3D preview.";
+      : "Voeg een ontwerp toe om het 3D-voorbeeld te maken.";
   }
 
   if (!hasFramedPreview && result.stamp) {
@@ -194,7 +195,7 @@ pipeline.addEventListener("failed", () => {
   if (!interactionActive) renderArtboard();
   viewer.show({ stamp: null, clay: null });
   previewStatus.hidden = false;
-  previewStatus.textContent = `Could not build 3D preview: ${pipeline.error?.message ?? "unknown error"}`;
+  previewStatus.textContent = `Het 3D-voorbeeld kon niet worden opgebouwd: ${pipeline.error?.message ?? "onbekende fout"}`;
 });
 
 const pipelineDiagnostics = createPipelineDiagnostics(pipeline, {
@@ -293,8 +294,8 @@ function setTransformControlsExpanded(expanded) {
   transformControlsExpanded = expanded;
   const toggle = $("#transform-controls-toggle");
   const label = expanded
-    ? "Collapse position and transform controls"
-    : "Expand position and transform controls";
+    ? "Positie- en transformatieopties inklappen"
+    : "Positie- en transformatieopties uitklappen";
 
   $("#transform-controls-content").hidden = !expanded;
   toggle.setAttribute("aria-expanded", String(expanded));
@@ -369,18 +370,18 @@ function showImageUploadToast(message = "") {
 }
 
 function readableImageUploadError(kind) {
-  return `${kind.toUpperCase()} upload failed. Try a different image.`;
+  return `Uploaden van de ${kind.toUpperCase()} is mislukt. Probeer een andere afbeelding.`;
 }
 
 function logoPlaceholder(kind) {
   return `
-    <span class="design-logo-placeholder" aria-label="${kind.toUpperCase()} artwork">${kind.toUpperCase()}</span>
+    <span class="design-logo-placeholder" aria-label="${kind.toUpperCase()}-afbeelding">${kind.toUpperCase()}</span>
   `;
 }
 
 function formatElementSizeMm(size) {
   if (size === null) return null;
-  return `${size.width.toFixed(1)} × ${size.height.toFixed(1)} mm`;
+  return `${formatFixed(size.width)} × ${formatFixed(size.height)} mm`;
 }
 
 // The corners resize the whole element and keep its proportions. The sides
@@ -585,7 +586,7 @@ function escapeHtml(text) {
 
 function fontPreviewText(text) {
   const preview = text.replace(/\s+/g, " ").trim();
-  return preview.slice(0, 24) || "Your text";
+  return preview.slice(0, 24) || "Jouw tekst";
 }
 
 function fontLabel(font) {
@@ -593,7 +594,7 @@ function fontLabel(font) {
     font.label ??
     BUILT_IN_FONTS.find(({ id }) => id === font.id)?.label ??
     font.id ??
-    "Choose a font"
+    "Kies een lettertype"
   );
 }
 
@@ -629,11 +630,11 @@ function addFontOption(fontName, fontId = fontName) {
   option.dataset.fontLabel = fontName;
 
   name.className = "font-option-name";
-  name.textContent = `${fontName} · Custom`;
+  name.textContent = `${fontName} · Eigen`;
 
   preview.className = "font-option-preview";
   preview.textContent = fontPreviewText(
-    selectedElement()?.source.text ?? "Your text",
+    selectedElement()?.source.text ?? "Jouw tekst",
   );
   preview.style.fontFamily = fontName;
 
@@ -671,13 +672,13 @@ function updateControls() {
 
   if (isImage) {
     $("#artwork-base-size").value = element.source.baseSizeMm;
-    $("#image-message").textContent = `${element.kind.toUpperCase()} source: ${sourceName(element.source.reference)}`;
+    $("#image-message").textContent = `${element.kind.toUpperCase()}-bestand: ${sourceName(element.source.reference)}`;
     if (element.kind === "png") {
       const smoothing = element.source.tracing.smoothing;
       $("#png-background").value = element.source.tracing.backgroundMode;
       $("#png-smoothing").value = smoothing;
       $("#png-smoothing-value").textContent =
-        smoothing === 0 ? "Off" : `${smoothing}×`;
+        smoothing === 0 ? "Uit" : `${formatNumber(smoothing)}×`;
     }
   }
 
@@ -696,8 +697,8 @@ function updateControls() {
   $("#line-spacing").value = element.source.lineSpacing;
   $("#font-weight").value = element.source.thicknessMm;
 
-  $("#letter-spacing-value").textContent = `${letterSpacingPercent}%`;
-  $("#line-spacing-value").textContent = `${element.source.lineSpacing}×`;
+  $("#letter-spacing-value").textContent = `${formatNumber(letterSpacingPercent)}%`;
+  $("#line-spacing-value").textContent = `${formatNumber(element.source.lineSpacing)}×`;
   $("#font-weight-value").textContent = thicknessLabel(
     element.source.thicknessMm,
   );
@@ -837,9 +838,9 @@ function updatePNGSampleControls(element) {
   setPNGSamplePreview(element.source.reference);
   const { backgroundSamples, backgroundTolerance } = element.source.tracing;
   $("#png-background-tolerance").value = backgroundTolerance;
-  $("#png-background-tolerance-value").textContent = `${backgroundTolerance}×`;
+  $("#png-background-tolerance-value").textContent = `${formatNumber(backgroundTolerance)}×`;
   $("#png-sample-count").textContent = `${backgroundSamples.length} ${
-    backgroundSamples.length === 1 ? "sample" : "samples"
+    backgroundSamples.length === 1 ? "punt" : "punten"
   }`;
   $("#png-clear-samples").disabled = backgroundSamples.length === 0;
 
@@ -854,7 +855,7 @@ function updatePNGSampleControls(element) {
       marker.textContent = "×";
       marker.setAttribute(
         "aria-label",
-        `Remove background sample ${index + 1}`,
+        `Achtergrondpunt ${index + 1} verwijderen`,
       );
       marker.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -900,7 +901,7 @@ function updatePNGTracing(tracingPatch) {
 
 function sourceName(reference) {
   if (typeof reference === "string") return reference.split("/").at(-1);
-  return reference?.name ?? "No source selected";
+  return reference?.name ?? "Geen bestand geselecteerd";
 }
 
 function round2(value) {
@@ -908,15 +909,15 @@ function round2(value) {
 }
 
 function thicknessLabel(thicknessMm) {
-  if (thicknessMm === 0) return "Normal";
-  return `${thicknessMm > 0 ? "+" : "−"}${Math.abs(round2(thicknessMm))} mm`;
+  if (thicknessMm === 0) return "Normaal";
+  return `${thicknessMm > 0 ? "+" : "−"}${formatNumber(Math.abs(thicknessMm))} mm`;
 }
 
 function updateDimensions(dimensions) {
   artboard.style.aspectRatio = `${state.width} / ${state.height}`;
-  $("#dimension-text").textContent = `${round2(dimensions.widthMm)} × ${round2(dimensions.heightMm)} mm`;
+  $("#dimension-text").textContent = `${formatNumber(dimensions.widthMm)} × ${formatNumber(dimensions.heightMm)} mm`;
   $("#pipeline-face-dimensions").textContent = lastScene.artwork.length
-    ? `${dimensions.widthMm.toFixed(1)} × ${dimensions.heightMm.toFixed(1)} mm`
+    ? `${formatFixed(dimensions.widthMm)} × ${formatFixed(dimensions.heightMm)} mm`
     : "—";
 }
 
@@ -1248,7 +1249,7 @@ function newTextSpot(extent) {
 }
 
 const NEW_TEXT = Object.freeze({
-  text: "TEXT",
+  text: "TEKST",
   font: Object.freeze({ id: "sans-bold", reference: null }),
   fontSizeMm: NEW_TEXT_SIZE_MM,
   letterSpacingRatio: 1 / NEW_TEXT_SIZE_MM,
@@ -1323,7 +1324,7 @@ $("#image-upload").addEventListener("change", async (event) => {
   pendingImageUpload = null;
   if (kind === null || request === null || kind !== request.kind) {
     showImageUploadToast(
-      `Please choose a ${request?.kind?.toUpperCase() ?? "SVG or PNG"} file.`,
+      `Kies een ${request?.kind ? `${request.kind.toUpperCase()}-` : "SVG- of PNG-"}bestand.`,
     );
     event.target.value = "";
     return;
@@ -1331,7 +1332,7 @@ $("#image-upload").addEventListener("change", async (event) => {
 
   const selected = request.action === "replace" ? selectedElement() : null;
   if (request.action === "replace" && selected?.kind !== kind) {
-    showImageUploadToast("Could not replace the image. Please try again.");
+    showImageUploadToast("De afbeelding kon niet worden vervangen. Probeer het opnieuw.");
     event.target.value = "";
     return;
   }
@@ -1375,7 +1376,7 @@ $("#image-upload").addEventListener("change", async (event) => {
       designModel.updateElement(selected.id, { source });
       editor.select(selected.id);
     } else {
-      showImageUploadToast("Could not replace the image. Please try again.");
+      showImageUploadToast("De afbeelding kon niet worden vervangen. Probeer het opnieuw.");
       event.target.value = "";
       return;
     }
@@ -1407,7 +1408,7 @@ $("#font-upload").addEventListener("change", async (event) => {
 
     const fontReference = /\.(ttf|otf)$/i.test(file.name) ? file : null;
     if (fontReference === null) {
-      throw new Error("The 3D text pipeline requires a TTF or OTF font.");
+      throw new Error("De 3D-tekstverwerking heeft een TTF- of OTF-lettertype nodig.");
     }
     uploadedFonts.set(fontName, fontReference);
     addFontOption(fontName);
@@ -1415,7 +1416,7 @@ $("#font-upload").addEventListener("change", async (event) => {
       font: { id: fontName, label: fontName, reference: fontReference },
     });
   } catch {
-    alert("That font could not be loaded. Try a TTF or OTF file.");
+    alert("Dat lettertype kon niet worden geladen. Probeer een TTF- of OTF-bestand.");
   }
 
   event.target.value = "";
@@ -1578,7 +1579,7 @@ $("#png-smoothing").addEventListener("input", (event) => {
     tracing: { ...selected.source.tracing, smoothing },
   }) !== null) {
     $("#png-smoothing-value").textContent =
-      smoothing === 0 ? "Off" : `${smoothing}×`;
+      smoothing === 0 ? "Uit" : `${formatNumber(smoothing)}×`;
   }
 });
 
@@ -1759,7 +1760,7 @@ $$("[data-view]").forEach((button) => {
         viewer.frame(activePreviewMode());
       } else {
         previewStatus.hidden = false;
-        previewStatus.textContent = "Building 3D preview…";
+        previewStatus.textContent = "3D-voorbeeld wordt opgebouwd…";
         void pipeline.ensureSolids().then((built) => {
           if (built && editor.view === "3d") viewer.frame(activePreviewMode());
         });
@@ -1773,8 +1774,8 @@ $("#print-panel-toggle").addEventListener("click", () => {
   const toggle = $("#print-panel-toggle");
   const collapsed = workspace.classList.toggle("print-panel-collapsed");
   const label = collapsed
-    ? "Show printability check"
-    : "Hide printability check";
+    ? "Printbaarheidscontrole tonen"
+    : "Printbaarheidscontrole verbergen";
 
   toggle.setAttribute("aria-expanded", String(!collapsed));
   toggle.title = label;
@@ -1866,14 +1867,14 @@ function updateFinalizeButton() {
   const ready = hasDesign && !pipeline.busy && !blocked;
   $("#continue-button").disabled = !ready;
   $("#finalize-hint").textContent = designModel.elements.length === 0
-    ? "Add text or artwork to continue."
+    ? "Voeg tekst of een afbeelding toe om verder te gaan."
     : pipeline.busy
-      ? "Wait for the stamp to finish building."
+      ? "Wacht tot de stempel klaar is met berekenen."
       : pipeline.error
-        ? "The stamp could not be built. Adjust the design and try again."
+        ? "De stempel kon niet worden opgebouwd. Pas het ontwerp aan en probeer het opnieuw."
         : blocked
-          ? "Fix the errors above before reviewing."
-          : "Next: review your design.";
+          ? "Los de fouten hierboven op voordat je naar de controle gaat."
+          : "Volgende stap: controleer je ontwerp.";
 }
 for (const type of ["running", "result", "failed"]) {
   pipeline.addEventListener(type, updateFinalizeButton);
