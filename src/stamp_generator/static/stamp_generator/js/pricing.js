@@ -4,6 +4,7 @@
 // price list, load it into an object of the same shape and pass it as the
 // `pricing` argument of estimatePrice(); nothing else needs to change. The
 // backend must recompute the real price on order: this is only a preview.
+import { formatEuros, formatFixed } from "./locale.js";
 
 export const PRICING = Object.freeze({
   currency: "EUR",
@@ -44,10 +45,10 @@ export function estimatePrice(
 
   const area = faceAreaCm2(stamp, info);
   const unitLines = [
-    { id: "base", label: "Clay stamp", cents: pricing.baseCents },
+    { id: "base", label: "Kleistempel", cents: pricing.baseCents },
     {
       id: "size",
-      label: `Size (${area.toFixed(1)} cm²)`,
+      label: `Formaat (${formatFixed(area, 1)} cm²)`,
       cents: Math.round(area * pricing.perCm2Cents),
     },
   ];
@@ -82,7 +83,5 @@ export function estimatePrice(
 }
 
 export function formatMoney(cents, currency = PRICING.currency) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(
-    cents / 100,
-  );
+  return formatEuros(cents, currency);
 }

@@ -150,13 +150,13 @@ test("the centre buttons sit in the visible element panel, not in the collapsed 
 
   const group = html.match(/<div id="center-controls"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/)?.[0] ?? "";
   for (const [id, label] of [
-    ["center-element-x", "Left–right"],
-    ["center-element-y", "Up–down"],
-    ["center-element", "Both"],
+    ["center-element-x", "Horizontaal"],
+    ["center-element-y", "Verticaal"],
+    ["center-element", "Beide"],
   ]) {
     assert.match(group, new RegExp(`<button id="${id}" type="button" class="btn subtle-button" disabled>${label}</button>`));
   }
-  assert.match(group, /aria-label="Center the selected element on the stamp"/);
+  assert.match(group, /aria-label="Centreer het geselecteerde element op de stempel"/);
   assert.match(group, /data-help="help-center"/);
   assert.match(html, /<div id="help-center" class="help-text" hidden>/);
   const collapsed = html.match(/id="transform-controls-content" hidden>[\s\S]*?<button id="duplicate-element"/)?.[0] ?? "";

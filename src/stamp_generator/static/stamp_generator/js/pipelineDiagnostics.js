@@ -1,40 +1,42 @@
 // Renders authoritative pipeline results inside the shared diagnostics sidebar.
 import { format } from "./dimensions.js";
+import { ELEMENT_KIND_LABELS, LOCALE } from "./locale.js";
+import { stageLabel } from "./pipeline/stages.js";
 
 const LEVELS = {
   ok: {
     mark: "✓",
-    badge: "Pass",
+    badge: "In orde",
     iconClass: "pass-icon",
     badgeClass: "pass-badge",
   },
   fixed: {
     mark: "✓",
-    badge: "Repaired",
+    badge: "Hersteld",
     iconClass: "pass-icon",
     badgeClass: "pass-badge",
   },
   info: {
     mark: "i",
-    badge: "Note",
+    badge: "Opmerking",
     iconClass: "pass-icon",
     badgeClass: "pass-badge",
   },
   warning: {
     mark: "!",
-    badge: "Warning",
+    badge: "Waarschuwing",
     iconClass: "warning-icon",
     badgeClass: "warning-badge",
   },
   error: {
     mark: "×",
-    badge: "Error",
+    badge: "Fout",
     iconClass: "error-icon",
     badgeClass: "error-badge",
   },
   working: {
     mark: "…",
-    badge: "Building",
+    badge: "Bezig",
     iconClass: "warning-icon",
     badgeClass: "warning-badge",
   },
@@ -75,7 +77,7 @@ export function createPipelineDiagnostics(
       state.rows.push({
         level: "error",
         code: "artwork-overflow",
-        message: "Some artwork extends beyond the usable stamp area.",
+        message: "Een deel van het ontwerp valt buiten het bruikbare stempelvlak.",
       });
     }
     renderState(state);
@@ -96,17 +98,17 @@ export function createPipelineDiagnostics(
 export function createPipelineDiagnosticState(pipeline, phase) {
   if (phase === "running") {
     return {
-      overall: { message: "Building stamp…", level: "working" },
+      overall: { message: "Stempel wordt berekend…", level: "working" },
       rows: [
         {
           level: "working",
           message:
             pipeline.diagnostics?.message ??
-            "Processing artwork and rebuilding geometry…",
+            "Ontwerp verwerken en geometrie opnieuw opbouwen…",
         },
       ],
       info: null,
-      export: { label: "Building", level: "working", ready: false },
+      export: { label: "Bezig", level: "working", ready: false },
     };
   }
 
@@ -122,14 +124,14 @@ export function createPipelineDiagnosticState(pipeline, phase) {
     } else if (!errorRow) {
       rows.push({
         level: "error",
-        message: `Could not build the stamp: ${pipeline.error?.message ?? "unknown error"}`,
+        message: `De stempel kon niet worden opgebouwd: ${pipeline.error?.message ?? "onbekende fout"}`,
       });
     }
     return {
-      overall: { message: "Build failed", level: "error" },
+      overall: { message: "Opbouwen mislukt", level: "error" },
       rows,
       info: null,
-      export: { label: "Unavailable", level: "error", ready: false },
+      export: { label: "Niet beschikbaar", level: "error", ready: false },
     };
   }
 
@@ -140,10 +142,10 @@ export function createPipelineDiagnosticState(pipeline, phase) {
 
   if (result.artwork?.length === 0 && result.issues?.length === 0) {
     return {
-      overall: { message: "Add artwork to begin", level: "idle" },
-      rows: [{ level: "idle", message: "Add text, SVG, or PNG to start your design." }],
+      overall: { message: "Voeg een ontwerp toe om te beginnen", level: "idle" },
+      rows: [{ level: "idle", message: "Voeg tekst, een SVG of een PNG toe om met je ontwerp te beginnen." }],
       info: null,
-      export: { label: "No design yet", level: "idle", ready: false },
+      export: { label: "Nog geen ontwerp", level: "idle", ready: false },
     };
   }
 
@@ -163,7 +165,7 @@ export function createPipelineDiagnosticState(pipeline, phase) {
       .map(issueRow),
     ...(result.notes ?? []).map((message) => ({
       level: "ok",
-      badge: "Verified",
+      badge: "Gecontroleerd",
       message,
     })),
     ...diagnosticRows(pipeline.diagnostics),
@@ -181,42 +183,42 @@ export function createPipelineDiagnosticState(pipeline, phase) {
   if (!result.stamp && result.solidsDeferred && !hasError) {
     return {
       overall: {
-        message: hasWarning ? "Design ready with warnings" : "Design ready",
+        message: hasWarning ? "Ontwerp klaar, met waarschuwingen" : "Ontwerp klaar",
         level: hasWarning ? "warning" : "ok",
       },
       rows,
       info: result.info,
-      export: { label: "On demand", level: "info", ready: false },
+      export: { label: "Op aanvraag", level: "info", ready: false },
     };
   }
 
   if (!ready) {
     return {
-      overall: { message: "Not ready to export", level: "error" },
+      overall: { message: "Nog niet klaar om te bestellen", level: "error" },
       rows,
       info: result.info,
-      export: { label: "Unavailable", level: "error", ready: false },
+      export: { label: "Niet beschikbaar", level: "error", ready: false },
     };
   }
   if (hasWarning) {
     return {
-      overall: { message: "Ready with warnings", level: "warning" },
+      overall: { message: "Klaar, met waarschuwingen", level: "warning" },
       rows,
       info: result.info,
-      export: { label: "Ready", level: "ok", ready: true },
+      export: { label: "Klaar", level: "ok", ready: true },
     };
   }
   return {
-    overall: { message: "Ready to export", level: "ok" },
+    overall: { message: "Klaar om te bestellen", level: "ok" },
     rows,
     info: result.info,
-    export: { label: "Ready", level: "ok", ready: true },
+    export: { label: "Klaar", level: "ok", ready: true },
   };
 }
 
 function issueRow(issue) {
   if (issue.elementId === undefined) return issue;
-  const kind = issue.elementKind === undefined ? "" : ` (${issue.elementKind})`;
+  const kind = issue.elementKind === undefined ? "" : ` (${kindLabel(issue.elementKind)})`;
   return {
     ...issue,
     message: `Element "${issue.elementId}"${kind}: ${issue.message}`,
@@ -228,7 +230,7 @@ function segmentationRows(segmentations = []) {
     .filter(({ status }) => status === "needs-review")
     .map(({ elementId, elementKind, message }) => ({
       level: "info",
-      badge: "Review",
+      badge: "Controleren",
       iconClass: "warning-icon",
       badgeClass: "warning-badge",
       elementId,
@@ -237,7 +239,7 @@ function segmentationRows(segmentations = []) {
         elementId === undefined
           ? message
           : `Element "${elementId}"${
-              elementKind === undefined ? "" : ` (${elementKind})`
+              elementKind === undefined ? "" : ` (${kindLabel(elementKind)})`
             }: ${message}`,
     }));
 }
@@ -250,15 +252,17 @@ function diagnosticRows(diagnostics) {
       message: diagnostics.message,
       details: [
         ...(diagnostics.details ?? []),
-        ...(diagnostics.stage ? [`Stage: ${diagnostics.stage}`] : []),
+        ...(diagnostics.stage ? [`Fase: ${stageLabel(diagnostics.stage)}`] : []),
       ],
     },
   ];
 }
 
+const kindLabel = (kind) => ELEMENT_KIND_LABELS[kind] ?? kind;
+
 function unprefixedMessage(message) {
   return message.replace(/^Element "[^"]+"(?: \([^)]+\))?:\s*/, "")
-    .replace(/^(?:Warning|Note):\s*/, "");
+    .replace(/^(?:Waarschuwing|Opmerking):\s*/, "");
 }
 
 // Presentation only: keep authoritative severities, messages and geometry on
@@ -287,45 +291,43 @@ export function presentDiagnosticRows(rows) {
     let message = row.original;
     let suggestion;
     if (row.thinGlyphs?.length) {
-      message = `Potentially thin letters: ${[...new Set(row.thinGlyphs.map(({ character }) => character))].join(", ")}.`;
-      suggestion = "Try increasing Letter Thickness or Text Size.";
-    } else if (/^\d+ shapes? looks? thinner than about/.test(message)) {
-      message = "Some artwork details may be too thin to print.";
-      suggestion = "Try increasing the artwork size or thickness.";
-    } else if (/^The space between line \d+ and line \d+ is under about /.test(message)) {
-      suggestion = "Try increasing Line Spacing or Letter Spacing.";
+      message = `Mogelijk te dunne letters: ${[...new Set(row.thinGlyphs.map(({ character }) => character))].join(", ")}.`;
+      suggestion = "Maak de letterdikte of de tekstgrootte groter.";
+    } else if (/^\d+ vorm(?:en)? lijk(?:t|en) dunner dan ongeveer/.test(message)) {
+      message = "Sommige details van het ontwerp zijn mogelijk te dun om te printen.";
+      suggestion = "Maak het ontwerp groter of dikker.";
+    } else if (/^De ruimte tussen regel \d+ en regel \d+ is kleiner dan ongeveer /.test(message)) {
+      suggestion = "Vergroot de regelafstand of de letterafstand.";
     } else if (row.code === "artwork-overflow") {
-      message = "Artwork extends beyond the usable stamp area.";
-    } else if (/^Wrapped onto (\d+) rows/.test(message)) {
-      message = `Text wrapped onto ${message.match(/^Wrapped onto (\d+)/)[1]} lines.`;
-    } else if (/^Merged overlapping and self-intersecting outlines/.test(message)) {
-      message = "Overlapping outlines were cleaned up.";
-    } else if (/^Separated \d+ isolated point/.test(message)) {
-      message = "Touching outlines were separated for printing.";
-    } else if (/Stamp surface checks passed:/.test(message)) {
-      message = "Stamp surface checks passed.";
-    } else if (/^(?:Artwork is clean|Design processed successfully|SVG processed successfully)/.test(message)) {
-      message = "Artwork checks passed.";
+      message = "Het ontwerp valt buiten het bruikbare stempelvlak.";
+    } else if (/^Overlappende en zichzelf snijdende omtrekken/.test(message)) {
+      message = "Overlappende omtrekken zijn opgeschoond.";
+    } else if (/^Losse puntcontacten gescheiden/.test(message)) {
+      message = "Rakende omtrekken zijn gescheiden voor het printen.";
+    } else if (/^Stempeloppervlak gecontroleerd:/.test(message)) {
+      message = "Stempeloppervlak gecontroleerd.";
+    } else if (/^(?:Het ontwerp is schoon|Ontwerp succesvol verwerkt|SVG succesvol verwerkt)/.test(message)) {
+      message = "Controles van het ontwerp geslaagd.";
     } else if (row.level === "working") {
-      message = "Checking your design…";
+      message = "Je ontwerp wordt gecontroleerd…";
     } else if (row.level === "error") {
-      message = message.replace(/^(?:Artwork conversion failed|SVG loading failed|Stamp preparation failed|Geometry generation failed|Stamp mesh validation failed|Design processing failed|SVG processing failed|Could not build the stamp):\s*/, "")
-        .replace(/^Element "[^"]+" \([^)]+\) could not be converted:\s*/, "");
-      if (/Recess depth must be smaller than the backing thickness/.test(message)) {
-        message = "Recess depth must be smaller than the backing thickness.";
-      } else if (/no (?:usable filled|closed) outlines|produced no closed outlines/i.test(message)) {
-        message = "No filled artwork found. Use closed, filled shapes.";
-      } else if (/non-manifold|open edges|inconsistent.*edges|mesh validation failed/i.test(message)) {
-        message = "The stamp surface could not be built safely.";
-      } else if (/could not be repaired safely|ambiguous point contact/i.test(message)) {
-        message = "Some outlines need editing before they can be printed.";
+      message = message.replace(/^(?:Omzetten van het ontwerp mislukt|Laden van de SVG mislukt|Voorbereiden van de stempel mislukt|Opbouwen van de geometrie mislukt|Controle van het stempeloppervlak mislukt|Verwerken van het ontwerp mislukt|Verwerken van de SVG mislukt|De stempel kon niet worden opgebouwd):\s*/, "")
+        .replace(/^Element "[^"]+" \([^)]+\) kon niet worden omgezet:\s*/, "");
+      if (/De reliëfdiepte moet kleiner zijn dan de basisdikte/.test(message)) {
+        message = "De reliëfdiepte moet kleiner zijn dan de basisdikte.";
+      } else if (/geen (?:bruikbare )?(?:gevulde|gesloten) omtrekken|leverde geen gesloten omtrekken op/i.test(message)) {
+        message = "Geen gevuld ontwerp gevonden. Gebruik gesloten, gevulde vormen.";
+      } else if (/manifold|open randen|inconsistent.*randen/i.test(message)) {
+        message = "Het stempeloppervlak kon niet veilig worden opgebouwd.";
+      } else if (/niet veilig (?:te repareren|worden gerepareerd)|onduidelijk puntcontact/i.test(message)) {
+        message = "Sommige omtrekken moeten worden aangepast voordat ze geprint kunnen worden.";
       }
     }
     if (message.length > 160) message = `${message.slice(0, 157)}…`;
     const details = row.details.filter((detail) =>
       !reported.has(unprefixedMessage(detail)));
     if (message !== row.original) details.unshift(row.original);
-    if (row.elementId) details.unshift(`Element "${row.elementId}"${row.elementKind ? ` (${row.elementKind})` : ""}`);
+    if (row.elementId) details.unshift(`Element "${row.elementId}"${row.elementKind ? ` (${kindLabel(row.elementKind)})` : ""}`);
     return { ...row, message, suggestion, details: [...new Set(details)] };
   }).sort((a, b) => (priority[a.level] ?? 1) - (priority[b.level] ?? 1));
 }
@@ -334,7 +336,7 @@ function renderRows(dom, rows, actions) {
   const shown = presentDiagnosticRows(
     rows.length > 0
       ? rows
-      : [{ level: "ok", message: "No validation issues reported." }]);
+      : [{ level: "ok", message: "Geen meldingen." }]);
   const visible = shown.filter(({ level }) => level !== "ok");
   const passed = shown.filter(({ level }) => level === "ok");
   const nodes = visible.map((row) => createRow(row, actions));
@@ -342,7 +344,7 @@ function renderRows(dom, rows, actions) {
     const checks = document.createElement("details");
     checks.className = "diagnostic-checks";
     const summary = document.createElement("summary");
-    summary.textContent = `Checks passed (${passed.length})`;
+    summary.textContent = `Geslaagde controles (${passed.length})`;
     const content = document.createElement("div");
     content.append(...passed.map((row) => createRow(row, actions)));
     checks.append(summary, content);
@@ -414,12 +416,12 @@ function createRow(row, { getOverflowElementIds, onFitToStamp, onHighlightThinGl
       action.type = "button";
       action.className = "suggestion-button";
       action.dataset.elementId = elementId;
-      action.textContent = "Fit to stamp";
+      action.textContent = "Op stempel laten passen";
       action.setAttribute(
         "aria-label",
-        "Fix this issue by fitting the artwork inside the stamp",
+        "Los dit op door het ontwerp binnen de stempel te laten passen",
       );
-      action.title = "Automatically resize this artwork to fit inside the stamp";
+      action.title = "Verklein dit ontwerp automatisch zodat het binnen de stempel past";
       action.addEventListener("click", () => onFitToStamp(elementId));
       content.append(action);
     }
@@ -464,7 +466,7 @@ function showSummary(dom, info) {
   dom.totalZ.textContent = `${format(info.height)} mm`;
   const faceHeight = info.faceHeight ?? info.faceSize;
   dom.faceSize.textContent = `${format(info.faceSize)} × ${format(faceHeight)} mm`;
-  dom.triangleCount.textContent = info.triangles.toLocaleString();
+  dom.triangleCount.textContent = info.triangles.toLocaleString(LOCALE);
 }
 
 function collectDOM() {

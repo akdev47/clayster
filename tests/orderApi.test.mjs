@@ -46,7 +46,7 @@ test("a reply that is not the expected JSON becomes a general error", async () =
   for (const [status, body] of [[500, undefined], [403, undefined], [201, { nothing: true }]]) {
     const result = await submitOrder({ endpoint: "/x", csrfToken: "t", payload, stl, fetchImpl: respond(status, body) });
     assert.equal(result.ok, false, `status ${status}`);
-    assert.match(result.errors.general, /try again/i);
+    assert.match(result.errors.general, /probeer het opnieuw/i);
   }
 });
 
@@ -61,7 +61,7 @@ test("an unreachable server becomes a general error instead of throwing", async 
     },
   });
   assert.equal(result.ok, false);
-  assert.match(result.errors.general, /Could not reach the server/);
+  assert.match(result.errors.general, /server is niet bereikbaar/);
 });
 
 const fakeDocument = ({ config, token }) => ({

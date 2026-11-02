@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import { formatFixed } from "./locale.js";
 
 // Draws a measurement box with HTML labels. The viewer supplies the stamp's bounds.
 export class DimensionBox {
@@ -61,5 +62,5 @@ export class DimensionBox {
 }
 
 export function format(millimetres) {
-  return millimetres >= 100 ? millimetres.toFixed(0) : millimetres.toFixed(1);
+  return millimetres >= 100 ? formatFixed(millimetres, 0) : formatFixed(millimetres, 1);
 }

@@ -20,6 +20,8 @@ import {
 import { createStampLayout, stampFaceShape, stampMargin, stampSizeIssue } from "./stampLayout.js";
 import { createSmallHandle } from "./handle.js";
 import { SETTINGS } from "../settings.js";
+import { ELEMENT_KIND_LABELS } from "../locale.js";
+import { stageLabel } from "./stages.js";
 import { BUILT_IN_FONTS, DEFAULT_FONT_ID } from "./fonts.js";
 import { initializeSolids, offsetOutline } from "../solidGeometry.js";
 import { prepareClosedStamp } from "../exportValidation.js";
@@ -270,7 +272,7 @@ export class Pipeline extends EventTarget {
         this.setSVGStage("final mesh validation");
         prepareClosedStamp(stamp).dispose();
         notes.push(
-          "Stamp surface checks passed: closed, consistently oriented edges. Review in your slicer before printing.",
+          "Stempeloppervlak gecontroleerd: gesloten, consistent georiënteerde randen.",
         );
       } catch (error) {
         stamp.dispose();
@@ -396,11 +398,11 @@ export class Pipeline extends EventTarget {
     this.diagnostics.level = "ok";
     this.diagnostics.message =
       this.designModel === null
-        ? "SVG processed successfully."
-        : "Design processed successfully.";
+        ? "SVG succesvol verwerkt."
+        : "Ontwerp succesvol verwerkt.";
     this.diagnostics.stage = "artwork";
     this.diagnostics.details.push(
-      "The 3D stamp is built when you open 3D, review, or export.",
+      "De 3D-stempel wordt pas opgebouwd als je de 3D-weergave opent, naar de controle gaat of exporteert.",
     );
   }
 
@@ -594,7 +596,7 @@ export class Pipeline extends EventTarget {
     if (this.designModel !== null) {
       this.diagnostics = {
         level: "working",
-        message: "Processing design elements…",
+        message: "Ontwerpelementen worden verwerkt…",
         details: [],
         stage: "element conversion",
         geometryProduced: false,
@@ -607,7 +609,7 @@ export class Pipeline extends EventTarget {
       this.source.kind === "svg" && this.source.svgFile !== null
         ? {
             level: "working",
-            message: "Processing SVG…",
+            message: "SVG wordt verwerkt…",
             details: [],
             stage: "SVG loading",
             geometryProduced: false,
@@ -638,22 +640,24 @@ export class Pipeline extends EventTarget {
     this.diagnostics.details = [
       ...elementStats.map(
         ({ elementId, elementKind, shapeCount, polygonCount }) =>
-          `Element "${elementId}" (${elementKind}): ${shapeCount} ${plural(
+          `Element "${elementId}" (${ELEMENT_KIND_LABELS[elementKind] ?? elementKind}): ${shapeCount} ${plural(
             shapeCount,
-            "shape",
-          )} produced · ${polygonCount} canonical ${plural(
+            "vorm",
+            "vormen",
+          )} gemaakt · ${polygonCount} ${plural(
             polygonCount,
-            "polygon",
+            "veelhoek",
+            "veelhoeken",
           )}.`,
       ),
       ...warnings.map(({ message, elementId }) =>
         elementId === undefined
-          ? `Warning: ${message}`
+          ? `Waarschuwing: ${message}`
           : `Element "${elementId}": ${message}`,
       ),
       ...information.map(({ message, elementId }) =>
         elementId === undefined
-          ? `Note: ${message}`
+          ? `Opmerking: ${message}`
           : `Element "${elementId}": ${message}`,
       ),
     ];
@@ -663,7 +667,7 @@ export class Pipeline extends EventTarget {
       this.diagnostics.message = errors[0].message;
       this.diagnostics.details.push(
         ...errors.slice(1).map(({ message }) => message),
-        "Rejected before preview/export.",
+        "Afgewezen voordat er een voorbeeld of export is gemaakt.",
       );
       this.diagnostics.rejected = true;
     }
@@ -679,24 +683,24 @@ export class Pipeline extends EventTarget {
     const errors = issues.filter(({ level }) => level === "error");
     const warnings = issues.filter(({ level }) => level === "warning");
     this.diagnostics.details = [
-      `${sourceStats.shapeCount} ${plural(sourceStats.shapeCount, "shape")} produced · ${sourceStats.polygonCount} canonical ${plural(sourceStats.polygonCount, "polygon")}.`,
-      ...warnings.map(({ message }) => `Warning: ${message}`),
+      `${sourceStats.shapeCount} ${plural(sourceStats.shapeCount, "vorm", "vormen")} gemaakt · ${sourceStats.polygonCount} ${plural(sourceStats.polygonCount, "veelhoek", "veelhoeken")}.`,
+      ...warnings.map(({ message }) => `Waarschuwing: ${message}`),
     ];
 
     if (sourceStats.shapeCount === 0) {
       this.diagnostics.level = "error";
-      this.diagnostics.message = "SVG contains no usable filled outlines.";
-      this.diagnostics.details.push("Stage: SVG shape conversion");
-      this.diagnostics.details.push("Rejected before preview/export.");
+      this.diagnostics.message = "De SVG bevat geen bruikbare gevulde omtrekken.";
+      this.diagnostics.details.push(`Fase: ${stageLabel("SVG shape conversion")}`);
+      this.diagnostics.details.push("Afgewezen voordat er een voorbeeld of export is gemaakt.");
       this.diagnostics.rejected = true;
     } else if (errors.length > 0) {
       this.diagnostics.level = "error";
       this.diagnostics.message = errors[0].message;
       this.diagnostics.details.push(
         ...errors.slice(1).map(({ message }) => message),
-        "Stage: geometry validation",
+        `Fase: ${stageLabel("geometry validation")}`,
       );
-      this.diagnostics.details.push("Rejected before preview/export.");
+      this.diagnostics.details.push("Afgewezen voordat er een voorbeeld of export is gemaakt.");
       this.diagnostics.rejected = true;
     }
   }
@@ -707,10 +711,10 @@ export class Pipeline extends EventTarget {
     this.diagnostics.level = "ok";
     this.diagnostics.message =
       this.designModel === null
-        ? "SVG processed successfully."
-        : "Design processed successfully.";
+        ? "SVG succesvol verwerkt."
+        : "Ontwerp succesvol verwerkt.";
     this.diagnostics.details.push(
-      "Stamp geometry produced and accepted for preview/export.",
+      "Stempelgeometrie gemaakt en goedgekeurd voor het voorbeeld en de export.",
     );
     this.diagnostics.stage = "complete";
   }
@@ -720,11 +724,11 @@ export class Pipeline extends EventTarget {
 
     const stage = this.diagnostics.stage;
     const labels = {
-      "element conversion": "Artwork conversion failed",
-      "SVG loading": "SVG loading failed",
-      "stamp preparation": "Stamp preparation failed",
-      "stamp generation": "Geometry generation failed",
-      "final mesh validation": "Stamp mesh validation failed",
+      "element conversion": "Omzetten van het ontwerp mislukt",
+      "SVG loading": "Laden van de SVG mislukt",
+      "stamp preparation": "Voorbereiden van de stempel mislukt",
+      "stamp generation": "Opbouwen van de geometrie mislukt",
+      "final mesh validation": "Controle van het stempeloppervlak mislukt",
     };
 
     const diagnosedStage = error?.svgStage ?? stage;
@@ -735,13 +739,13 @@ export class Pipeline extends EventTarget {
       : `${
           labels[stage] ??
           (this.designModel === null
-            ? "SVG processing failed"
-            : "Design processing failed")
+            ? "Verwerken van de SVG mislukt"
+            : "Verwerken van het ontwerp mislukt")
         }: ${conciseError(error)}`;
     this.diagnostics.details.push(
       ...additional,
-      `Stage: ${diagnosedStage}`,
-      "Rejected before preview/export.",
+      `Fase: ${stageLabel(diagnosedStage)}`,
+      "Afgewezen voordat er een voorbeeld of export is gemaakt.",
     );
     this.diagnostics.rejected = true;
   }
@@ -765,11 +769,11 @@ function fontURL(id) {
   return font.url;
 }
 
-function plural(count, word) {
-  return count === 1 ? word : `${word}s`;
+function plural(count, one, many) {
+  return count === 1 ? one : many;
 }
 
 function conciseError(error) {
-  const message = String(error?.message ?? "Unknown error").split("\n", 1)[0];
+  const message = String(error?.message ?? "Onbekende fout").split("\n", 1)[0];
   return message.length > 180 ? `${message.slice(0, 177)}…` : message;
 }

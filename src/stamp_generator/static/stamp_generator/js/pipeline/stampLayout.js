@@ -1,5 +1,6 @@
 import { bounds, transform } from "./canonical.js";
 import { SETTINGS } from "../settings.js";
+import { formatNumber } from "../locale.js";
 
 const FACE_SEGMENTS = 96;
 const CORNER_SEGMENTS = 8; // Per quarter circle of a rounded corner.
@@ -25,11 +26,11 @@ export function stampFaceShape(shape = "round") {
   // Designs made before Artwork was removed retain their artwork unchanged.
   if (shape === "outline") return "square";
   if (shape === "round" || shape === "square" || shape === "minimal") return shape;
-  throw new Error("Unsupported stamp shape. Choose Round, Square, or Minimal.");
+  throw new Error("Niet-ondersteunde stempelvorm. Kies Rond, Vierkant of Minimaal.");
 }
 
 const roundToHundredth = (value) => Math.round(value * 100) / 100;
-const oneDecimal = (value) => (Math.round(value * 10) / 10).toString();
+const oneDecimal = (value) => formatNumber(value, 1);
 
 /**
  * The error to show when the finished plate is larger than the largest stamp
@@ -50,9 +51,9 @@ export function stampSizeIssue(widthMm, lengthMm) {
     level: "error",
     code: "stamp-too-large",
     message:
-      `The stamp would be ${oneDecimal(widthMm)} × ${oneDecimal(lengthMm)} mm, ` +
-      `but the largest stamp is ${maxWidthMm} × ${maxLengthMm} mm. ` +
-      "Make the design smaller.",
+      `De stempel zou ${oneDecimal(widthMm)} × ${oneDecimal(lengthMm)} mm worden, ` +
+      `maar de grootste stempel is ${formatNumber(maxWidthMm)} × ${formatNumber(maxLengthMm)} mm. ` +
+      "Maak het ontwerp kleiner.",
   };
 }
 

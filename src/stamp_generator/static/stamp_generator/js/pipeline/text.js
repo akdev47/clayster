@@ -21,7 +21,7 @@ export async function loadFont(source) {
   const pending = fetch(source)
     .then((response) => {
       if (!response.ok)
-        throw new Error(`Could not fetch the font (${response.status}).`);
+        throw new Error(`Het lettertype kon niet worden opgehaald (${response.status}).`);
       return response.arrayBuffer();
     })
     .then((buffer) => opentype.parse(buffer));
@@ -33,7 +33,7 @@ export async function loadFont(source) {
 
 export function fontName(font) {
   const names = font.names.windows ?? font.names.macintosh ?? {};
-  return names.fontFamily?.en ?? "Uploaded font";
+  return names.fontFamily?.en ?? "Geüpload lettertype";
 }
 
 /**
@@ -54,8 +54,8 @@ export function fitText(
     issues.push({
       level: "warning",
       message:
-        `This has ${lines.length} user-entered rows and only ${limits.rows} are allowed. ` +
-        "Remove a line break or shorten the text.",
+        `Deze tekst heeft ${lines.length} regels, maar er zijn er maximaal ${limits.rows} toegestaan. ` +
+        "Haal een regeleinde weg of kort de tekst in.",
     });
   }
 

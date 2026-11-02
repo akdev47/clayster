@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -33,7 +33,7 @@
     {# The order page posts to Django; this is the token it sends back in the X-CSRFToken header. #}
     <meta name="csrf-token" content="{{ csrf_token }}" />
 
-    <title>Clayster — Design Your Stamp</title>
+    <title>Clayster — Ontwerp je stempel</title>
   </head>
 
   <body>
@@ -60,11 +60,11 @@
     </nav>
 
     <div class="workflow-progress-wrap container-fluid px-3 px-lg-5">
-      <ol class="workflow-progress" aria-label="Order progress">
-        <li data-workflow-step="design" class="current" aria-current="step"><span class="workflow-step-number">1</span>Design</li>
-        <li data-workflow-step="review"><span class="workflow-step-number">2</span>Review</li>
-        <li data-workflow-step="order"><span class="workflow-step-number">3</span>Order &amp; payment</li>
-        <li data-workflow-step="confirmation"><span class="workflow-step-number">4</span>Confirmation</li>
+      <ol class="workflow-progress" aria-label="Voortgang van de bestelling">
+        <li data-workflow-step="design" class="current" aria-current="step"><span class="workflow-step-number">1</span>Ontwerp</li>
+        <li data-workflow-step="review"><span class="workflow-step-number">2</span>Controle</li>
+        <li data-workflow-step="order"><span class="workflow-step-number">3</span>Bestellen &amp; betalen</li>
+        <li data-workflow-step="confirmation"><span class="workflow-step-number">4</span>Bevestiging</li>
       </ol>
     </div>
 
@@ -77,10 +77,10 @@
             type="button"
             aria-controls="printability-panel"
             aria-expanded="true"
-            title="Hide printability check"
+            title="Printbaarheidscontrole verbergen"
           >
             <span class="panel-toggle-icon" aria-hidden="true">›</span>
-            <span class="visually-hidden">Hide printability check</span>
+            <span class="visually-hidden">Printbaarheidscontrole verbergen</span>
           </button>
         </div>
 
@@ -91,66 +91,66 @@
             <section class="sidebar-section">
               <div class="section-heading">
                 <div class="heading-with-help">
-                  <h2>Design Elements</h2>
-                  <button type="button" class="help-button" data-help="help-elements" aria-expanded="false" aria-controls="help-elements" aria-label="More information">?</button>
+                  <h2>Ontwerpelementen</h2>
+                  <button type="button" class="help-button" data-help="help-elements" aria-expanded="false" aria-controls="help-elements" aria-label="Meer informatie">?</button>
                 </div>
-                <div class="history-buttons" role="group" aria-label="Undo and redo">
-                  <button id="undo-button" class="history-button" type="button" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
-                  <button id="redo-button" class="history-button" type="button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>↷</button>
+                <div class="history-buttons" role="group" aria-label="Ongedaan maken en opnieuw uitvoeren">
+                  <button id="undo-button" class="history-button" type="button" title="Ongedaan maken (Ctrl+Z)" aria-label="Ongedaan maken" disabled>↶</button>
+                  <button id="redo-button" class="history-button" type="button" title="Opnieuw uitvoeren (Ctrl+Shift+Z)" aria-label="Opnieuw uitvoeren" disabled>↷</button>
                 </div>
               </div>
               <div id="help-elements" class="help-text" hidden>
-                <p><strong>Text</strong> is anything you type yourself.</p>
-                <p><strong>SVG</strong> is a vector drawing, such as a logo or icon. It stays sharp at any size, so it is the best choice for logos.</p>
-                <p><strong>PNG</strong> is a picture made of pixels. Auto works best for simple backgrounds; use Pick background to mark trusted background areas when a gradient or vignette needs help.</p>
-                <p>A stamp has one colour, so only the shape of an image is used. Its colours are ignored.</p>
+                <p><strong>Tekst</strong> is alles wat je zelf typt.</p>
+                <p><strong>SVG</strong> is een vectortekening, zoals een logo of icoon. Een SVG blijft op elk formaat scherp en is daarom de beste keuze voor logo's.</p>
+                <p><strong>PNG</strong> is een afbeelding van pixels. <strong>Automatisch</strong> werkt het best bij eenvoudige achtergronden. Heeft de afbeelding een kleurverloop of vignet? Gebruik dan <strong>Achtergrond kiezen</strong> en wijs plekken aan die zeker achtergrond zijn.</p>
+                <p>Een stempel heeft één kleur, dus alleen de vorm van een afbeelding wordt gebruikt. De kleuren worden genegeerd.</p>
               </div>
 
               <div class="row g-2">
                 <div class="col-4">
-                  <button id="add-text" class="btn clay-outline-button w-100">
+                  <button id="add-text" class="btn clay-outline-button add-element-button w-100">
                     <span class="button-icon">T</span>
-                    Add Text
+                    Tekst toevoegen
                   </button>
                 </div>
 
                 <div class="col-4">
-                  <button id="add-svg" class="btn clay-outline-button w-100">
+                  <button id="add-svg" class="btn clay-outline-button add-element-button w-100">
                     <span class="button-icon">▧</span>
-                    Add SVG
+                    SVG toevoegen
                   </button>
                 </div>
 
                 <div class="col-4">
-                  <button id="add-png" class="btn clay-outline-button w-100">
+                  <button id="add-png" class="btn clay-outline-button add-element-button w-100">
                     <span class="button-icon">▧</span>
-                    Add PNG
+                    PNG toevoegen
                   </button>
                 </div>
               </div>
               {# Shown by main.js once there are two or more elements to line up. #}
-              <button id="center-all-elements" type="button" class="btn subtle-button w-100 mt-2" title="Put every element on the same vertical center line" hidden>
-                Center all left–right
+              <button id="center-all-elements" type="button" class="btn subtle-button w-100 mt-2" title="Zet elk element op dezelfde verticale middenlijn" hidden>
+                Alles horizontaal centreren
               </button>
             </section>
 
             <section id="selected-element-section" class="sidebar-section" hidden>
               <div class="section-heading">
                 <div>
-                  <h2>Selected Element</h2>
+                  <h2>Geselecteerd element</h2>
                 </div>
               </div>
 
               <div id="element-dimensions" class="pipeline-field-grid">
                 <label class="control-label" for="element-width">
-                  Width
+                  Breedte
                   <span class="pipeline-input-unit">
                     <input id="element-width" class="form-control clay-input" type="number" min="0.1" step="0.1" />
                     <span>mm</span>
                   </span>
                 </label>
                 <label class="control-label" for="element-height">
-                  Height
+                  Hoogte
                   <span class="pipeline-input-unit">
                     <input id="element-height" class="form-control clay-input" type="number" min="0.1" step="0.1" />
                     <span>mm</span>
@@ -159,33 +159,33 @@
               </div>
               <div class="setting-row mt-2">
                 <div>
-                  <span class="setting-label">Keep proportions</span>
-                  <small>On: typing a width or height changes both. Off: only the one you type. The side handles always change one side.</small>
+                  <span class="setting-label">Verhoudingen behouden</span>
+                  <small>Aan: als je de breedte of hoogte invult, verandert de andere afmeting mee. Uit: alleen wat je invult verandert. Met de sleeppunten aan de zijkanten verander je altijd maar één afmeting.</small>
                 </div>
                 <div class="form-check form-switch mb-0">
-                  <input id="element-keep-proportions" class="form-check-input clay-switch" type="checkbox" role="switch" aria-label="Keep proportions" checked />
+                  <input id="element-keep-proportions" class="form-check-input clay-switch" type="checkbox" role="switch" aria-label="Verhoudingen behouden" checked />
                 </div>
               </div>
 
               <div id="center-controls" class="mt-3">
                 <div class="label-with-help">
-                  <span class="control-label">Center on stamp</span>
-                  <button type="button" class="help-button" data-help="help-center" aria-expanded="false" aria-controls="help-center" aria-label="More information">?</button>
+                  <span class="control-label">Centreren op de stempel</span>
+                  <button type="button" class="help-button" data-help="help-center" aria-expanded="false" aria-controls="help-center" aria-label="Meer informatie">?</button>
                 </div>
                 <div id="help-center" class="help-text" hidden>
-                  <p>Moves the selected element to the middle without changing its size. <strong>Left–right</strong> only moves it sideways and <strong>Up–down</strong> only up or down, so you can line up several texts without stacking them.</p>
-                  <p>A Minimal stamp has no middle of its own, because it wraps the design. There the element is centered on all the other elements.</p>
-                  <p><strong>Center all left–right</strong>, under Add Text, does this for every element at once.</p>
+                  <p>Verplaatst het geselecteerde element naar het midden zonder de grootte te wijzigen. <strong>Horizontaal</strong> verplaatst alleen zijwaarts en <strong>Verticaal</strong> alleen omhoog of omlaag, zodat je meerdere teksten kunt uitlijnen zonder ze op elkaar te zetten.</p>
+                  <p>Een minimale stempel heeft geen eigen midden, omdat hij om het ontwerp heen sluit. Daar wordt het element gecentreerd op alle andere elementen.</p>
+                  <p><strong>Alles horizontaal centreren</strong>, onder Tekst toevoegen, doet dit voor alle elementen tegelijk.</p>
                 </div>
-                <div class="btn-group w-100 mt-1" role="group" aria-label="Center the selected element on the stamp">
-                  <button id="center-element-x" type="button" class="btn subtle-button" disabled>Left–right</button>
-                  <button id="center-element-y" type="button" class="btn subtle-button" disabled>Up–down</button>
-                  <button id="center-element" type="button" class="btn subtle-button" disabled>Both</button>
+                <div class="btn-group w-100 mt-1" role="group" aria-label="Centreer het geselecteerde element op de stempel">
+                  <button id="center-element-x" type="button" class="btn subtle-button" disabled>Horizontaal</button>
+                  <button id="center-element-y" type="button" class="btn subtle-button" disabled>Verticaal</button>
+                  <button id="center-element" type="button" class="btn subtle-button" disabled>Beide</button>
                 </div>
               </div>
 
               <div id="text-controls">
-                <label class="control-label" for="text-input">Text</label>
+                <label class="control-label" for="text-input">Tekst</label>
                 <textarea
                   id="text-input"
                   class="form-control clay-input"
@@ -193,7 +193,7 @@
                   maxlength="80"
                 ></textarea>
 
-                <label id="font-label" class="control-label mt-3">Font</label>
+                <label id="font-label" class="control-label mt-3">Lettertype</label>
                 <div class="dropdown font-picker">
                   <button
                     id="font-picker-button"
@@ -237,34 +237,34 @@
 
                 <div class="d-flex gap-2 align-items-center mt-2">
                   <button id="upload-font" class="btn subtle-button flex-grow-1">
-                    Upload custom font
+                    Eigen lettertype uploaden
                   </button>
-                  <button type="button" class="help-button" data-help="help-font" aria-expanded="false" aria-controls="help-font" aria-label="More information">?</button>
+                  <button type="button" class="help-button" data-help="help-font" aria-expanded="false" aria-controls="help-font" aria-label="Meer informatie">?</button>
                 </div>
                 <div id="help-font" class="help-text" hidden>
-                  <p>Use your own font by choosing a <strong>.ttf</strong> or <strong>.otf</strong> file from your computer.</p>
-                  <p>Only use fonts you have the right to use. Thick, simple fonts print best; very thin fonts and fine details may not survive in clay.</p>
+                  <p>Gebruik je eigen lettertype door een <strong>.ttf</strong>- of <strong>.otf</strong>-bestand van je computer te kiezen.</p>
+                  <p>Gebruik alleen lettertypen waarvan je het gebruiksrecht hebt. Dikke, eenvoudige lettertypen printen het best; zeer dunne lettertypen en fijne details overleven de klei mogelijk niet.</p>
                 </div>
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="font-size-input">Text size (pt)</label>
-                    <output id="font-size-value" for="font-size font-size-input">21.26 pt</output>
+                    <label for="font-size-input">Tekstgrootte (pt)</label>
+                    <output id="font-size-value" for="font-size font-size-input">21,26 pt</output>
                   </div>
                   <input id="font-size-input" class="form-control clay-input" type="number" step="any" />
                   <input
                     id="font-size"
                     class="form-range clay-range"
                     type="range"
-                    aria-label="Text size in points"
+                    aria-label="Tekstgrootte in punten"
                     step="any"
                   />
                 </div>
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="letter-spacing">Letter spacing</label>
-                    <output id="letter-spacing-value">13.33%</output>
+                    <label for="letter-spacing">Letterafstand</label>
+                    <output id="letter-spacing-value">13,33%</output>
                   </div>
                   <input
                     id="letter-spacing"
@@ -276,8 +276,8 @@
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="line-spacing">Line spacing</label>
-                    <output id="line-spacing-value">1.25×</output>
+                    <label for="line-spacing">Regelafstand</label>
+                    <output id="line-spacing-value">1,25×</output>
                   </div>
                   <input
                     id="line-spacing"
@@ -289,8 +289,8 @@
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="font-weight">Letter thickness</label>
-                    <output id="font-weight-value">Normal</output>
+                    <label for="font-weight">Letterdikte</label>
+                    <output id="font-weight-value">Normaal</output>
                   </div>
                   <input
                     id="font-weight"
@@ -301,18 +301,18 @@
                 </div>
 
                 <button id="fix-thin-letters" type="button" class="btn subtle-button w-100 mt-3">
-                  Fix thin letters
+                  Dunne letters herstellen
                 </button>
 
-                <label class="control-label mt-3">Alignment</label>
+                <label class="control-label mt-3">Uitlijning</label>
 
                 <div class="alignment-control">
                   <button
                     type="button"
                     class="alignment-button"
                     data-align="left"
-                    title="Align left"
-                    aria-label="Align text left"
+                    title="Links uitlijnen"
+                    aria-label="Tekst links uitlijnen"
                     aria-pressed="false"
                   >
                     <svg
@@ -334,8 +334,8 @@
                     type="button"
                     class="alignment-button active"
                     data-align="center"
-                    title="Align center"
-                    aria-label="Align text center"
+                    title="Midden uitlijnen"
+                    aria-label="Tekst in het midden uitlijnen"
                     aria-pressed="true"
                   >
                     ≡
@@ -344,8 +344,8 @@
                     type="button"
                     class="alignment-button align-right"
                     data-align="right"
-                    title="Align right"
-                    aria-label="Align text right"
+                    title="Rechts uitlijnen"
+                    aria-label="Tekst rechts uitlijnen"
                     aria-pressed="false"
                   >
                     ≡
@@ -355,15 +355,15 @@
 
               <div id="image-controls" class="d-none">
                 <p id="image-message" class="image-message">
-                  Replace the selected source without changing its position or scale.
+                  Vervang het geselecteerde bestand zonder de positie of schaal te wijzigen.
                 </p>
 
                 <button id="replace-image" class="btn subtle-button w-100 mt-2">
-                  Replace source
+                  Bestand vervangen
                 </button>
 
                 <label class="control-label mt-3" for="artwork-base-size">
-                  Source size
+                  Afbeeldingsgrootte
                   <span class="pipeline-input-unit">
                     <input
                       id="artwork-base-size"
@@ -376,24 +376,24 @@
                 </label>
 
                 <div id="png-options" class="range-control d-none">
-                  <label class="control-label" for="png-background">Background</label>
+                  <label class="control-label" for="png-background">Achtergrond</label>
                   <select id="png-background" class="form-select clay-input">
-                    <option value="auto">Auto</option>
-                    <option value="light">Light background</option>
-                    <option value="dark">Dark background</option>
-                    <option value="pick">Pick background</option>
-                    <option value="original">Original processing</option>
+                    <option value="auto">Automatisch</option>
+                    <option value="light">Lichte achtergrond</option>
+                    <option value="dark">Donkere achtergrond</option>
+                    <option value="pick">Achtergrond kiezen</option>
+                    <option value="original">Alleen op helderheid</option>
                   </select>
                   <div id="png-sample-controls" class="png-sample-controls" hidden>
                     <p class="pipeline-note">
-                      Click trusted background areas in the original image. Spread samples across bright and dark regions.
+                      Klik op plekken in de originele afbeelding die zeker achtergrond zijn. Verspreid de punten over lichte en donkere delen.
                     </p>
                     <div id="png-sample-editor" class="png-sample-editor">
-                      <img id="png-sample-image" alt="Original PNG for choosing background samples" />
+                      <img id="png-sample-image" alt="Originele PNG om achtergrondpunten te kiezen" />
                       <div id="png-sample-markers" class="png-sample-markers"></div>
                     </div>
                     <div class="range-heading mt-2">
-                      <label for="png-background-tolerance">Background tolerance</label>
+                      <label for="png-background-tolerance">Achtergrondtolerantie</label>
                       <output id="png-background-tolerance-value">1×</output>
                     </div>
                     <input
@@ -403,19 +403,19 @@
                       type="range"
                     />
                     <div class="png-sample-actions">
-                      <span id="png-sample-count">0 samples</span>
+                      <span id="png-sample-count">0 punten</span>
                       <button id="png-clear-samples" type="button" class="btn subtle-button">
-                        Clear samples
+                        Punten wissen
                       </button>
                     </div>
                   </div>
                   <div class="range-heading">
-                    <label for="png-smoothing">PNG smoothing</label>
-                    <button type="button" class="help-button" data-help="help-smoothing" aria-expanded="false" aria-controls="help-smoothing" aria-label="More information">?</button>
+                    <label for="png-smoothing">PNG-afvlakking</label>
+                    <button type="button" class="help-button" data-help="help-smoothing" aria-expanded="false" aria-controls="help-smoothing" aria-label="Meer informatie">?</button>
                     <output id="png-smoothing-value">2×</output>
                   </div>
                   <div id="help-smoothing" class="help-text" hidden>
-                    <p>Higher values smooth jagged edges but lose fine details. Lower values keep more detail.</p>
+                    <p>Hogere waarden maken hoekige randen gladder, maar verliezen fijne details. Lagere waarden behouden meer detail.</p>
                   </div>
                   <input
                     id="png-smoothing"
@@ -428,42 +428,42 @@
 
               <div id="transform-controls" class="mt-3">
                 <div class="transform-controls-heading">
-                  <span class="control-label">Position and transform</span>
+                  <span class="control-label">Positie en transformatie</span>
                   <button
                     id="transform-controls-toggle"
                     class="history-button transform-controls-toggle"
                     type="button"
                     aria-expanded="false"
                     aria-controls="transform-controls-content"
-                    aria-label="Expand position and transform controls"
-                    title="Expand position and transform controls"
+                    aria-label="Positie- en transformatieopties uitklappen"
+                    title="Positie- en transformatieopties uitklappen"
                   ><span aria-hidden="true">⌄</span></button>
                 </div>
                 <div id="transform-controls-content" hidden>
                   <div class="pipeline-field-grid mt-1">
                     <label class="control-label" for="element-x">
-                      X position
+                      X-positie
                       <span class="pipeline-input-unit">
                         <input id="element-x" class="form-control clay-input" type="number" step="0.5" />
                         <span>mm</span>
                       </span>
                     </label>
                     <label class="control-label" for="element-y">
-                      Y position
+                      Y-positie
                       <span class="pipeline-input-unit">
                         <input id="element-y" class="form-control clay-input" type="number" step="0.5" />
                         <span>mm</span>
                       </span>
                     </label>
                     <label id="element-scale-control" class="control-label" for="element-scale">
-                      Scale
+                      Schaal
                       <span class="pipeline-input-unit">
                         <input id="element-scale" data-limits="elements.scale" class="form-control clay-input" type="number" />
                         <span>×</span>
                       </span>
                     </label>
                     <label class="control-label" for="element-rotation">
-                      Rotation
+                      Rotatie
                       <span class="pipeline-input-unit">
                         <input id="element-rotation" class="form-control clay-input" type="number" step="1" />
                         <span>°</span>
@@ -472,13 +472,13 @@
                   </div>
 
                   <div class="setting-row">
-                    <span class="setting-label">Mirror element horizontally</span>
+                    <span class="setting-label">Element horizontaal spiegelen</span>
                     <div class="form-check form-switch mb-0">
                       <input id="element-mirror-x" class="form-check-input clay-switch" type="checkbox" role="switch" />
                     </div>
                   </div>
                   <div class="setting-row">
-                    <span class="setting-label">Mirror element vertically</span>
+                    <span class="setting-label">Element verticaal spiegelen</span>
                     <div class="form-check form-switch mb-0">
                       <input id="element-mirror-y" class="form-check-input clay-switch" type="checkbox" role="switch" />
                     </div>
@@ -487,10 +487,10 @@
               </div>
 
               <button id="duplicate-element" type="button" class="btn subtle-button w-100 mt-3">
-                Duplicate Element
+                Element dupliceren
               </button>
               <button id="delete-element" type="button" class="btn delete-button w-100 mt-2">
-                Delete Element
+                Element verwijderen
               </button>
             </section>
 
@@ -500,29 +500,29 @@
               <section class="sidebar-section border-bottom-0">
                 <div class="section-heading">
                   <div>
-                    <h2>Stamp Settings</h2>
-                    <p class="pipeline-section-note">Physical dimensions are in millimetres.</p>
+                    <h2>Stempelinstellingen</h2>
+                    <p class="pipeline-section-note">Fysieke afmetingen zijn in millimeters.</p>
                   </div>
                 </div>
 
                 <div class="label-with-help">
-                  <label class="control-label">Face shape</label>
-                  <button type="button" class="help-button" data-help="help-shape" aria-expanded="false" aria-controls="help-shape" aria-label="More information">?</button>
+                  <label class="control-label">Vorm van het stempelvlak</label>
+                  <button type="button" class="help-button" data-help="help-shape" aria-expanded="false" aria-controls="help-shape" aria-label="Meer informatie">?</button>
                 </div>
                 <div id="help-shape" class="help-text" hidden>
-                  <p><strong>Minimal</strong> is the starting shape. It wraps every visible element in a tight rectangle, with the margin above, below, and on both sides. Width and height follow the artwork. The plate grows when the design itself grows, and it stays the same size when you only slide an element.</p>
-                  <p><strong>Round</strong> and <strong>Square</strong> use the width and height below and stay centered. Width and height can differ, so Round can be a circle or an ellipse and Square can be a square or a rectangle. Sliding an element keeps that size. Artwork past the margin is shown in red.</p>
+                  <p><strong>Minimaal</strong> is de standaardvorm. Hij sluit strak om elk zichtbaar element, met de marge erboven, eronder en aan beide zijden. Breedte en hoogte volgen het ontwerp. De plaat groeit mee als het ontwerp groter wordt en blijft even groot als je een element alleen verschuift.</p>
+                  <p><strong>Rond</strong> en <strong>Vierkant</strong> gebruiken de breedte en hoogte hieronder en blijven gecentreerd. Breedte en hoogte kunnen verschillen: Rond kan een cirkel of een ellips zijn en Vierkant een vierkant of een rechthoek. Een element verschuiven verandert die grootte niet. Delen van het ontwerp buiten de marge worden rood weergegeven.</p>
                 </div>
                 <div id="pipeline-face-shape" class="segmented-control pipeline-tabs">
-                  <button class="segment active" type="button" data-shape="minimal">Minimal</button>
-                  <button class="segment" type="button" data-shape="round">Round</button>
-                  <button class="segment" type="button" data-shape="square">Square</button>
+                  <button class="segment active" type="button" data-shape="minimal">Minimaal</button>
+                  <button class="segment" type="button" data-shape="round">Rond</button>
+                  <button class="segment" type="button" data-shape="square">Vierkant</button>
                 </div>
 
                 <div class="setting-row mt-3">
                   <div>
-                    <span class="setting-label">Rounded edges</span>
-                    <small>Soften the top and bottom edge of the plate</small>
+                    <span class="setting-label">Afgeronde randen</span>
+                    <small>Rondt de boven- en onderrand van de plaat af</small>
                   </div>
                   <div class="form-check form-switch mb-0">
                     <input
@@ -530,15 +530,15 @@
                       class="form-check-input clay-switch"
                       type="checkbox"
                       role="switch"
-                      aria-label="Rounded edges"
+                      aria-label="Afgeronde randen"
                     />
                   </div>
                 </div>
 
                 <div id="pipeline-rounded-corners-field" class="setting-row mt-3" hidden>
                   <div>
-                    <span class="setting-label">Rounded corners</span>
-                    <small>Soften the corners of the plate</small>
+                    <span class="setting-label">Afgeronde hoeken</span>
+                    <small>Rondt de hoeken van de plaat af</small>
                   </div>
                   <div class="form-check form-switch mb-0">
                     <input
@@ -546,16 +546,16 @@
                       class="form-check-input clay-switch"
                       type="checkbox"
                       role="switch"
-                      aria-label="Rounded corners"
+                      aria-label="Afgeronde hoeken"
                     />
                   </div>
                 </div>
 
-                <p class="control-label mt-3">Stamp width × height: <output id="pipeline-face-dimensions">—</output></p>
+                <p class="control-label mt-3">Breedte × hoogte van de stempel: <output id="pipeline-face-dimensions">—</output></p>
 
                 <div class="pipeline-field-grid mt-3">
                   <label id="pipeline-face-size-field" class="control-label" for="pipeline-face-size" hidden>
-                    Width
+                    Breedte
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-face-size"
@@ -567,7 +567,7 @@
                     </span>
                   </label>
                   <label id="pipeline-face-height-field" class="control-label" for="pipeline-face-height" hidden>
-                    Height
+                    Hoogte
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-face-height"
@@ -581,7 +581,7 @@
                     </span>
                   </label>
                   <label class="control-label" for="pipeline-face-thickness">
-                    Base thickness
+                    Basisdikte
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-face-thickness"
@@ -593,7 +593,7 @@
                     </span>
                   </label>
                   <label class="control-label" for="pipeline-margin">
-                    Margin
+                    Marge
                     <span class="pipeline-input-unit">
                       <input
                         id="pipeline-margin"
@@ -607,21 +607,21 @@
                 </div>
 
                 <div class="label-with-help mt-3">
-                  <label class="control-label">Relief</label>
-                  <button type="button" class="help-button" data-help="help-relief" aria-expanded="false" aria-controls="help-relief" aria-label="More information">?</button>
+                  <label class="control-label">Reliëf</label>
+                  <button type="button" class="help-button" data-help="help-relief" aria-expanded="false" aria-controls="help-relief" aria-label="Meer informatie">?</button>
                 </div>
                 <div id="help-relief" class="help-text" hidden>
-                  <p><strong>Raised</strong>: the letters stick out of the stamp, like a normal stamp.</p>
-                  <p><strong>Recessed</strong>: the letters are cut into the surface instead.</p>
+                  <p><strong>Verhoogd</strong>: de letters steken boven de plaat uit, zoals bij een gewone stempel.</p>
+                  <p><strong>Verdiept</strong>: de letters zijn in plaats daarvan in het oppervlak uitgesneden.</p>
                 </div>
                 <div id="pipeline-relief-mode" class="segmented-control pipeline-tabs">
-                  <button class="segment active" type="button" data-mode="emboss">Raised</button>
-                  <button class="segment" type="button" data-mode="deboss">Recessed</button>
+                  <button class="segment active" type="button" data-mode="emboss">Verhoogd</button>
+                  <button class="segment" type="button" data-mode="deboss">Verdiept</button>
                 </div>
 
                 <div class="range-control">
                   <div class="range-heading">
-                    <label for="pipeline-relief-depth">Relief depth</label>
+                    <label for="pipeline-relief-depth">Reliëfdiepte</label>
                     <output id="pipeline-relief-readout">2 mm</output>
                   </div>
                   <input
@@ -634,9 +634,9 @@
 
                 <div class="setting-row">
                   <div>
-                    <span class="setting-label">Mirror design</span> <button type="button" class="help-button" data-help="help-mirror" aria-expanded="false" aria-controls="help-mirror" aria-label="More information">?</button>
-                    <small>Make the clay impression readable</small>
-                    <span id="help-mirror" class="help-text help-inline" hidden>A stamp prints the mirror image of what you see on it. Keep this on so the text reads correctly on the clay. The 2D view shows your design the right way round; the 3D view shows the real, mirrored stamp.</span>
+                    <span class="setting-label">Ontwerp spiegelen</span> <button type="button" class="help-button" data-help="help-mirror" aria-expanded="false" aria-controls="help-mirror" aria-label="Meer informatie">?</button>
+                    <small>Zodat de afdruk in de klei leesbaar is</small>
+                    <span id="help-mirror" class="help-text help-inline" hidden>Een stempel drukt het spiegelbeeld af van wat erop staat. Laat dit aan staan, zodat de tekst in de klei goed leesbaar is. De 2D-weergave toont je ontwerp zoals je het leest; de 3D-weergave toont de echte, gespiegelde stempel.</span>
                   </div>
                   <div class="form-check form-switch mb-0">
                     <input
@@ -656,7 +656,7 @@
                       class="btn subtle-button w-100"
                       type="button"
                     >
-                      Export STL
+                      STL exporteren
                     </button>
                   </div>
                 </div>
@@ -669,12 +669,12 @@
           <!-- Main editor -->
           <section class="col-12 col-xl-6 order-1 order-xl-2 canvas-column">
             <div class="canvas-toolbar">
-              <div id="preview-surface-toggle" class="segmented-control" aria-label="Preview surface" hidden>
-                <button class="segment active" data-mode="stamp">Stamp</button>
-                <button class="segment" data-mode="clay">On Clay</button>
+              <div id="preview-surface-toggle" class="segmented-control" aria-label="Voorbeeld op" hidden>
+                <button class="segment active" data-mode="stamp">Stempel</button>
+                <button class="segment" data-mode="clay">Op klei</button>
               </div>
 
-              <div class="segmented-control" aria-label="Preview dimension">
+              <div class="segmented-control" aria-label="Weergave">
                 <button class="segment active" data-view="2d">2D</button>
                 <button class="segment" data-view="3d">3D</button>
               </div>
@@ -705,7 +705,7 @@
               <div id="three-preview" class="three-preview d-none">
                 <p id="three-preview-status" class="three-preview-status" hidden></p>
                 <p id="three-preview-note" class="three-preview-note">
-                  Drag to turn the stamp, scroll to zoom. To change the size, go back to 2D.
+                  Sleep om de stempel te draaien en scroll om te zoomen. Ga terug naar 2D om de grootte te wijzigen.
                 </p>
               </div>
             </div>
@@ -713,11 +713,11 @@
             <div class="canvas-footer">
               <p class="drag-instruction mb-0">
                 <span>✥</span>
-                Drag elements to reposition
+                Sleep elementen om ze te verplaatsen
               </p>
 
               <div class="dimension-pill">
-                <span>Current Stamp Dimensions</span>
+                <span>Huidige afmetingen van de stempel</span>
                 <strong id="dimension-text">60 × 45 mm</strong>
               </div>
             </div>
@@ -728,51 +728,51 @@
             <div id="print-controls-shared" class="print-panel-content">
               <section class="sidebar-section">
                 <div id="pipeline-overall-icon" class="print-heading-icon warning-icon">…</div>
-                <h2 class="print-title">Printability Check</h2>
+                <h2 class="print-title">Printbaarheidscontrole</h2>
                 <p class="print-subtitle">
-                  Results come from the current design and geometry pipeline.
+                  De resultaten horen bij je huidige ontwerp.
                 </p>
                 <p
                   id="pipeline-overall-status"
                   class="overall-status pipeline-overall-working"
                 >
-                  Waiting for build…
+                  Wachten op berekening…
                 </p>
               </section>
 
               <details class="pipeline-diagnostics-section" open>
-                <summary>Diagnostic messages</summary>
+                <summary>Meldingen</summary>
                 <section
                   id="pipeline-diagnostic-list"
                   class="validation-list"
                   aria-live="polite"
-                  aria-label="Validation results"
+                  aria-label="Controleresultaten"
                 ></section>
               </details>
 
               <section class="sidebar-section pipeline-summary-section">
                 <div class="section-heading">
-                  <h2>Generated stamp</h2>
+                  <h2>Gegenereerde stempel</h2>
                 </div>
                 <dl class="pipeline-summary">
                   <div>
-                    <dt>Width</dt>
+                    <dt>Breedte</dt>
                     <dd id="pipeline-total-x">—</dd>
                   </div>
                   <div>
-                    <dt>Depth</dt>
+                    <dt>Diepte</dt>
                     <dd id="pipeline-total-y">—</dd>
                   </div>
                   <div>
-                    <dt>Height</dt>
+                    <dt>Hoogte</dt>
                     <dd id="pipeline-total-z">—</dd>
                   </div>
                   <div>
-                    <dt>Face</dt>
+                    <dt>Vlak</dt>
                     <dd id="pipeline-summary-face-size">—</dd>
                   </div>
                   <div>
-                    <dt>Triangles</dt>
+                    <dt>Driehoeken</dt>
                     <dd id="pipeline-triangle-count">—</dd>
                   </div>
                 </dl>
@@ -782,19 +782,19 @@
                 <div class="validation-row pipeline-export-readiness" hidden>
                   <span id="pipeline-export-icon" class="status-icon warning-icon">…</span>
                   <div class="validation-content">
-                    <span>STL export</span>
-                    <small>The STL file can be downloaded from the stamp settings.</small>
+                    <span>STL-export</span>
+                    <small>Het STL-bestand kun je downloaden bij de stempelinstellingen.</small>
                   </div>
                   <span id="pipeline-export-status" class="status-badge warning-badge">
-                    Building
+                    Bezig
                   </span>
                 </div>
 
                 <p id="finalize-hint" class="pipeline-note">
-                  Wait for the stamp to finish building.
+                  Wacht tot de stempel klaar is met berekenen.
                 </p>
                 <button id="continue-button" class="btn primary-button w-100" type="button" disabled>
-                  Continue to review
+                  Doorgaan naar controle
                   <span>→</span>
                 </button>
               </div>
@@ -808,35 +808,35 @@
       <div class="workspace-shell review-shell">
         <header class="review-heading">
           <div>
-            <h1>Review your stamp</h1>
-            <p>Check your design, dimensions and printability before continuing.</p>
+            <h1>Controleer je stempel</h1>
+            <p>Controleer je ontwerp, de afmetingen en de printbaarheid voordat je verdergaat.</p>
           </div>
         </header>
 
         <div class="review-grid">
-          <section class="review-preview-column" aria-label="Final design preview">
+          <section class="review-preview-column" aria-label="Eindvoorbeeld van het ontwerp">
             <div class="review-preview-toolbar">
-              <p class="review-preview-label">Final preview</p>
+              <p class="review-preview-label">Eindvoorbeeld</p>
               <div class="review-preview-switches">
-                <div id="review-surface-toggle" class="segmented-control" aria-label="Preview surface" hidden>
-                  <button class="segment active" type="button" data-review-surface="stamp">Stamp</button>
-                  <button class="segment" type="button" data-review-surface="clay">On Clay</button>
+                <div id="review-surface-toggle" class="segmented-control" aria-label="Voorbeeld op" hidden>
+                  <button class="segment active" type="button" data-review-surface="stamp">Stempel</button>
+                  <button class="segment" type="button" data-review-surface="clay">Op klei</button>
                 </div>
-                <div id="review-view-toggle" class="segmented-control" aria-label="Preview dimension">
+                <div id="review-view-toggle" class="segmented-control" aria-label="Weergave">
                   <button class="segment active" type="button" data-review-view="2d">2D</button>
                   <button class="segment" type="button" data-review-view="3d">3D</button>
                 </div>
               </div>
             </div>
             <div id="review-preview-frame" class="review-preview-frame" data-view="2d">
-              <svg id="review-stamp-preview" class="review-stamp-preview" role="img" aria-label="Read-only 2D preview of your stamp"></svg>
+              <svg id="review-stamp-preview" class="review-stamp-preview" role="img" aria-label="2D-voorbeeld van je stempel (alleen bekijken)"></svg>
               <div id="review-stamp-3d" class="review-stamp-3d" hidden></div>
-              <p id="review-stamp-empty" class="review-empty" hidden>No preview is available yet. Return to the editor to check your design.</p>
+              <p id="review-stamp-empty" class="review-empty" hidden>Er is nog geen voorbeeld beschikbaar. Ga terug naar de editor om je ontwerp te bekijken.</p>
             </div>
             <div class="review-preview-footer">
-              <span>Final preview only — return to the editor to make changes</span>
+              <span>Alleen een eindvoorbeeld — ga terug naar de editor om wijzigingen aan te brengen</span>
               <div class="dimension-pill">
-                <span>Stamp dimensions</span>
+                <span>Afmetingen van de stempel</span>
                 <strong id="review-dimension-text">—</strong>
               </div>
             </div>
@@ -845,30 +845,30 @@
           <aside class="review-details-column">
             <section class="review-detail-section">
               <div class="review-section-top">
-                <h2>Printability</h2>
-                <span id="review-check-badge" class="review-check-badge">Checking…</span>
+                <h2>Printbaarheid</h2>
+                <span id="review-check-badge" class="review-check-badge">Controleren…</span>
               </div>
-              <p id="review-check-status" class="overall-status pipeline-overall-working" role="status">Waiting for build…</p>
-              <div id="review-check-list" class="validation-list review-check-list" aria-label="Printability results"></div>
+              <p id="review-check-status" class="overall-status pipeline-overall-working" role="status">Wachten op berekening…</p>
+              <div id="review-check-list" class="validation-list review-check-list" aria-label="Resultaten printbaarheid"></div>
             </section>
 
             <section class="review-detail-section">
               <div class="review-section-top">
-                <h2>Design summary</h2>
+                <h2>Samenvatting van het ontwerp</h2>
                 <div class="review-summary-actions">
-                  <button id="review-summary-toggle" class="btn subtle-button" type="button" aria-expanded="true" aria-controls="review-summary-extra"><span id="review-summary-toggle-label">Hide details</span> <span id="review-summary-toggle-icon" aria-hidden="true">⌃</span></button>
-                  <button id="review-edit" class="btn subtle-button" type="button">Edit design</button>
+                  <button id="review-summary-toggle" class="btn subtle-button" type="button" aria-expanded="true" aria-controls="review-summary-extra"><span id="review-summary-toggle-label">Details verbergen</span> <span id="review-summary-toggle-icon" aria-hidden="true">⌃</span></button>
+                  <button id="review-edit" class="btn subtle-button" type="button">Ontwerp aanpassen</button>
                 </div>
               </div>
               <div id="review-summary-extra" class="review-summary-extra">
                 <dl id="review-summary" class="review-summary"></dl>
                 <div class="review-extra-block">
-                  <h3>Handle</h3>
+                  <h3>Handvat</h3>
                   <p id="review-handle" class="review-handle"></p>
                 </div>
                 <div class="review-extra-block">
-                  <h3>What happens next?</h3>
-                  <p>You’ll enter your contact and delivery details. Ordering currently saves a draft on this device; it does not submit to a server yet.</p>
+                  <h3>Wat gebeurt er hierna?</h3>
+                  <p>Je vult je contact- en bezorggegevens in en betaalt daarna. Zodra de betaling binnen is, gaan we je stempel maken.</p>
                 </div>
               </div>
             </section>
@@ -876,10 +876,10 @@
         </div>
 
         <footer class="review-actions">
-          <button id="review-back" class="btn subtle-button" type="button">← Back to editor</button>
+          <button id="review-back" class="btn subtle-button" type="button">← Terug naar de editor</button>
           <div class="review-actions-next">
             <p id="review-continue-hint" class="pipeline-note" role="status"></p>
-            <button id="review-confirm" class="btn primary-button" type="button" disabled>Confirm design &amp; continue <span>→</span></button>
+            <button id="review-confirm" class="btn primary-button" type="button" disabled>Ontwerp bevestigen &amp; doorgaan <span>→</span></button>
           </div>
         </footer>
       </div>
@@ -893,80 +893,80 @@
               <div class="sidebar-section">
                 <div class="section-heading">
                   <div>
-                    <h2>Order details</h2>
+                    <h2>Bestelgegevens</h2>
                     <p class="pipeline-note mb-0">
-                      These details are saved on this device and sent with your stamp once ordering is available.
+                      Deze gegevens worden op dit apparaat bewaard tot je bestelling is geplaatst.
                     </p>
                   </div>
                 </div>
 
-                <label class="control-label" for="order-title">Stamp name</label>
-                <input id="order-title" class="form-control clay-input" type="text" maxlength="80" placeholder="e.g. Bakery logo stamp" autocomplete="off" />
+                <label class="control-label" for="order-title">Naam van de stempel</label>
+                <input id="order-title" class="form-control clay-input" type="text" maxlength="80" placeholder="bijv. Stempel met bakkerijlogo" autocomplete="off" />
                 <p class="order-error" id="order-title-error" role="alert"></p>
 
-                <label class="control-label mt-3" for="order-description">Description</label>
-                <textarea id="order-description" class="form-control clay-input" rows="4" maxlength="500" placeholder="What is this stamp for? Anything we should know about the design (optional)."></textarea>
+                <label class="control-label mt-3" for="order-description">Omschrijving</label>
+                <textarea id="order-description" class="form-control clay-input" rows="4" maxlength="500" placeholder="Waarvoor is deze stempel? Alles wat we over het ontwerp moeten weten (optioneel)."></textarea>
                 <p class="order-error" id="order-description-error" role="alert"></p>
 
-                <label class="control-label mt-3" for="order-quantity">Quantity</label>
+                <label class="control-label mt-3" for="order-quantity">Aantal</label>
                 <input id="order-quantity" class="form-control clay-input order-quantity-input" type="number" min="1" max="999" step="1" inputmode="numeric" />
                 <p class="order-error" id="order-quantity-error" role="alert"></p>
 
-                <label class="control-label mt-3" for="order-notes">Notes <span class="order-optional">(optional)</span></label>
-                <textarea id="order-notes" class="form-control clay-input" rows="3" maxlength="500" placeholder="Delivery wishes or other remarks."></textarea>
+                <label class="control-label mt-3" for="order-notes">Opmerkingen <span class="order-optional">(optioneel)</span></label>
+                <textarea id="order-notes" class="form-control clay-input" rows="3" maxlength="500" placeholder="Bezorgwensen of andere opmerkingen."></textarea>
               </div>
 
               <div class="sidebar-section">
-                <div class="section-heading"><h2>Delivery address</h2></div>
+                <div class="section-heading"><h2>Bezorgadres</h2></div>
 
                 <div class="pipeline-field-grid">
                   <div>
-                    <label class="control-label" for="order-delivery-firstName">First name</label>
+                    <label class="control-label" for="order-delivery-firstName">Voornaam</label>
                     <input id="order-delivery-firstName" class="form-control clay-input mt-1" type="text" maxlength="50" autocomplete="given-name" />
                     <p class="order-error" id="order-delivery-firstName-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-lastName">Last name</label>
+                    <label class="control-label" for="order-delivery-lastName">Achternaam</label>
                     <input id="order-delivery-lastName" class="form-control clay-input mt-1" type="text" maxlength="100" autocomplete="family-name" />
                     <p class="order-error" id="order-delivery-lastName-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-email">Email</label>
+                    <label class="control-label" for="order-delivery-email">E-mailadres</label>
                     <input id="order-delivery-email" class="form-control clay-input mt-1" type="email" maxlength="120" autocomplete="email" inputmode="email" />
                     <p class="order-error" id="order-delivery-email-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-street">Street</label>
+                    <label class="control-label" for="order-delivery-street">Straat</label>
                     <input id="order-delivery-street" class="form-control clay-input mt-1" type="text" maxlength="80" autocomplete="address-line1" />
                     <p class="order-error" id="order-delivery-street-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-houseNumber">House number</label>
+                    <label class="control-label" for="order-delivery-houseNumber">Huisnummer</label>
                     <input id="order-delivery-houseNumber" class="form-control clay-input mt-1" type="text" maxlength="5" inputmode="numeric" />
                     <p class="order-error" id="order-delivery-houseNumber-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-houseNumberAddition">Addition <span class="order-optional">(optional)</span></label>
-                    <input id="order-delivery-houseNumberAddition" class="form-control clay-input mt-1" type="text" maxlength="10" placeholder="e.g. A, bis, 2-hoog" />
+                    <label class="control-label" for="order-delivery-houseNumberAddition">Toevoeging <span class="order-optional">(optioneel)</span></label>
+                    <input id="order-delivery-houseNumberAddition" class="form-control clay-input mt-1" type="text" maxlength="10" placeholder="bijv. A, bis, 2-hoog" />
                     <p class="order-error" id="order-delivery-houseNumberAddition-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-postalCode">Postal code</label>
+                    <label class="control-label" for="order-delivery-postalCode">Postcode</label>
                     <input id="order-delivery-postalCode" class="form-control clay-input mt-1" type="text" maxlength="10" autocomplete="postal-code" />
                     <p class="order-error" id="order-delivery-postalCode-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-city">City</label>
+                    <label class="control-label" for="order-delivery-city">Plaats</label>
                     <input id="order-delivery-city" class="form-control clay-input mt-1" type="text" maxlength="60" autocomplete="address-level2" />
                     <p class="order-error" id="order-delivery-city-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-country">Country</label>
+                    <label class="control-label" for="order-delivery-country">Land</label>
                     <select id="order-delivery-country" class="form-select clay-input mt-1" autocomplete="country"></select>
                     <p class="order-error" id="order-delivery-country-error" role="alert"></p>
                   </div>
                   <div>
-                    <label class="control-label" for="order-delivery-phone">Phone <span class="order-optional">(optional)</span></label>
+                    <label class="control-label" for="order-delivery-phone">Telefoon <span class="order-optional">(optioneel)</span></label>
                     <input id="order-delivery-phone" class="form-control clay-input mt-1" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" />
                     <p class="order-error" id="order-delivery-phone-error" role="alert"></p>
                   </div>
@@ -981,49 +981,49 @@
           <aside class="col-12 col-xl-4 print-sidebar order-summary-column">
             <section class="sidebar-section">
               <div class="section-heading">
-                <h2>Your stamp</h2>
-                <div id="order-view-toggle" class="segmented-control" aria-label="Preview type">
+                <h2>Jouw stempel</h2>
+                <div id="order-view-toggle" class="segmented-control" aria-label="Soort voorbeeld">
                   <button class="segment active" type="button" data-order-view="2d">2D</button>
                   <button class="segment" type="button" data-order-view="3d">3D</button>
                 </div>
               </div>
 
               <div class="order-stamp-frame" id="order-stamp-frame">
-                <svg id="order-stamp-preview" class="order-stamp-preview" role="img" aria-label="2D preview of the stamp"></svg>
+                <svg id="order-stamp-preview" class="order-stamp-preview" role="img" aria-label="2D-voorbeeld van de stempel"></svg>
                 <div id="order-stamp-3d" class="order-stamp-3d" hidden></div>
-                <p id="order-stamp-empty" class="pipeline-note" hidden>Nothing to show yet. Add artwork on the design page.</p>
+                <p id="order-stamp-empty" class="pipeline-note" hidden>Nog niets om te tonen. Voeg een ontwerp toe op de ontwerppagina.</p>
               </div>
 
               <div class="dimension-pill mt-3">
-                <span>Stamp dimensions</span>
+                <span>Afmetingen van de stempel</span>
                 <strong id="order-dimension-text">—</strong>
               </div>
             </section>
 
             <section class="sidebar-section">
-              <div class="section-heading"><h2>Price estimate</h2></div>
+              <div class="section-heading"><h2>Prijsindicatie</h2></div>
               <div id="order-price" class="order-price"></div>
-              <p class="pipeline-note">An estimate only. The final price is confirmed when the order is placed.</p>
+              <p class="pipeline-note">Dit is een indicatie. De definitieve prijs staat vast zodra je de bestelling plaatst.</p>
             </section>
 
             <section class="sidebar-section">
               <div class="print-heading-icon order-check-icon" id="order-check-icon" aria-hidden="true">✓</div>
-              <h2 class="print-title">Printability Check</h2>
+              <h2 class="print-title">Printbaarheidscontrole</h2>
               <p id="order-check-status" class="overall-status"></p>
-              <div id="order-check-list" class="validation-list order-check-list" aria-label="Validation results"></div>
+              <div id="order-check-list" class="validation-list order-check-list" aria-label="Controleresultaten"></div>
             </section>
 
             <section class="sidebar-section">
-              <div class="section-heading"><h2>Stamp summary</h2></div>
+              <div class="section-heading"><h2>Samenvatting van de stempel</h2></div>
               <dl id="order-summary" class="pipeline-summary"></dl>
-              <p class="pipeline-note">The stamp file is sent along with your order.</p>
+              <p class="pipeline-note">Het stempelbestand wordt met je bestelling meegestuurd.</p>
             </section>
           </aside>
         </div>
 
         <footer class="order-actions">
-          <button id="order-back" class="btn subtle-button" type="button">← Back to review</button>
-          <button id="order-save" class="btn primary-button" type="submit" form="order-form">Continue to payment <span>→</span></button>
+          <button id="order-back" class="btn subtle-button" type="button">← Terug naar de controle</button>
+          <button id="order-save" class="btn primary-button" type="submit" form="order-form">Verder naar betalen <span>→</span></button>
         </footer>
       </div>
     </main>

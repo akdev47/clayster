@@ -1,15 +1,16 @@
 import { DEFAULT_STAMP } from "./pipeline/stamp.js";
+import { formatNumber } from "./locale.js";
 
-function faceShapeLabel(faceShape) {
-  if (faceShape === "outline") return "Artwork outline";
-  if (faceShape === "square") return "Square";
-  if (faceShape === "minimal") return "Minimal";
-  return "Round";
+export function faceShapeLabel(faceShape) {
+  if (faceShape === "outline") return "Omtrek van het ontwerp";
+  if (faceShape === "square") return "Vierkant";
+  if (faceShape === "minimal") return "Minimaal";
+  return "Rond";
 }
 
 function sourceName(reference) {
   if (typeof reference === "string") return reference.split("/").at(-1);
-  return reference?.name ?? "Unnamed image";
+  return reference?.name ?? "Afbeelding zonder naam";
 }
 
 /** The review page reports actual design intent, never wireframe examples. */
@@ -21,17 +22,17 @@ export function reviewSummary(designModel, stamp, dimensions) {
     .map((element) => sourceName(element.source.reference));
 
   return [
-    ["Text elements", String(textCount)],
-    ["Images / logos", images.length ? images.join(", ") : "None"],
-    ["Stamp dimensions", dimensions],
-    ["Face shape", faceShapeLabel(stamp.faceShape)],
-    ["Rounded edges", (stamp.roundedEdges ?? DEFAULT_STAMP.roundedEdges) ? "Enabled" : "Disabled"],
+    ["Tekstelementen", String(textCount)],
+    ["Afbeeldingen / logo's", images.length ? images.join(", ") : "Geen"],
+    ["Afmetingen stempel", dimensions],
+    ["Vorm", faceShapeLabel(stamp.faceShape)],
+    ["Afgeronde randen", (stamp.roundedEdges ?? DEFAULT_STAMP.roundedEdges) ? "Aan" : "Uit"],
     // A round plate has no corners to round.
-    ...(faceShapeLabel(stamp.faceShape) === "Round"
+    ...(stamp.faceShape === "round"
       ? []
-      : [["Rounded corners", stamp.roundedCorners ? "Enabled" : "Disabled"]]),
-    ["Base thickness", `${stamp.faceThickness} mm`],
-    ["Relief", `${stamp.mode === "emboss" ? "Raised" : "Recessed"} · ${stamp.reliefDepth} mm`],
-    ["Mirror design", stamp.mirror ? "Enabled" : "Disabled"],
+      : [["Afgeronde hoeken", stamp.roundedCorners ? "Aan" : "Uit"]]),
+    ["Basisdikte", `${formatNumber(stamp.faceThickness)} mm`],
+    ["Reliëf", `${stamp.mode === "emboss" ? "Verhoogd" : "Verdiept"} · ${formatNumber(stamp.reliefDepth)} mm`],
+    ["Ontwerp gespiegeld", stamp.mirror ? "Aan" : "Uit"],
   ];
 }

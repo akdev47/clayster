@@ -85,7 +85,7 @@ test("diagonally touching pixels remain separate shapes", () => {
 test("PNG tracing rejects an empty image", () => {
   assert.throws(
     () => traceMaskToSVG(new Uint8Array(4), 2, 2),
-    /no high-contrast artwork/i,
+    /geen contrastrijke tekening/i,
   );
 });
 
@@ -307,7 +307,7 @@ test("ambiguous Auto borders fall back to original processing with a note", () =
   assert.deepEqual(automatic.issues, [
     {
       level: "info",
-      message: "Auto background detection failed — review the traced result.",
+      message: "Automatische achtergronddetectie is mislukt — controleer of de omtrek van de afbeelding klopt.",
     },
   ]);
   assert.equal(automatic.segmentation.status, "needs-review");
@@ -317,7 +317,7 @@ test("an all-background image produces the existing empty-trace failure", () => 
   const result = createPNGTraceMask(rgba(5, 5, [255, 255, 255, 255]), 5, 5);
 
   assert.equal(result.mask.some(Boolean), false);
-  assert.throws(() => traceMaskToSVG(result.mask, 5, 5), /no high-contrast artwork/i);
+  assert.throws(() => traceMaskToSVG(result.mask, 5, 5), /geen contrastrijke tekening/i);
 });
 
 test("explicit polarity never restores pixels excluded as background", () => {
@@ -532,7 +532,7 @@ test("irregular multicolour backgrounds fall back to Original processing", () =>
   assert.deepEqual(automatic.issues, [
     {
       level: "info",
-      message: "Auto background detection failed — review the traced result.",
+      message: "Automatische achtergronddetectie is mislukt — controleer of de omtrek van de afbeelding klopt.",
     },
   ]);
   assert.equal(automatic.segmentation.status, "needs-review");
@@ -616,7 +616,7 @@ test("similar border colors with an inconsistent interior require review", () =>
 
   assert.equal(result.segmentation.status, "needs-review");
   assert.equal(result.segmentation.method, "original-fallback");
-  assert.match(result.segmentation.message, /review the traced result/i);
+  assert.match(result.segmentation.message, /controleer of de omtrek van de afbeelding klopt/i);
 });
 
 test("an underdetermined quadratic fit falls back for review", () => {
@@ -821,7 +821,7 @@ test("poorly distributed trusted samples request more background samples", () =>
 
   assert.equal(result.segmentation.status, "needs-review");
   assert.equal(result.segmentation.method, "pick-fallback");
-  assert.match(result.segmentation.message, /more background samples/i);
+  assert.match(result.segmentation.message, /meer achtergrondpunten/i);
   assert.equal(result.issues[0].level, "info");
 });
 
@@ -834,7 +834,7 @@ test("Pick background asks for a sample without creating a geometry error", () =
   );
 
   assert.equal(result.segmentation.status, "needs-review");
-  assert.match(result.segmentation.message, /at least one trusted/i);
+  assert.match(result.segmentation.message, /minstens één betrouwbaar/i);
   assert.deepEqual(result.issues.map(({ level }) => level), ["info"]);
 });
 

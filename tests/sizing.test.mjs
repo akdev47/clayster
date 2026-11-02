@@ -105,7 +105,7 @@ test("point field, slider and transient handle preview share one undoable physic
   await composer.compose(model.elements);
   controls.update(initial.source.fontSizeMm);
   assert.equal(input.value, "21.26");
-  assert.equal(output.textContent, "21.26 pt");
+  assert.equal(output.textContent, "21,26 pt");
   assert.equal(model.getElement("text"), initial, "displaying an existing design must not migrate its size");
   assert.equal(history.canUndo, false);
   input.value = "24";
@@ -176,7 +176,7 @@ test("legacy Artwork settings become Square without resizing or moving artwork",
   Pipeline.prototype.setStamp.call(pipeline, { faceShape: "outline" });
   assert.equal(pipeline.stamp.faceShape, "square");
   assert.equal(pipeline.scheduled, true);
-  assert.throws(() => Pipeline.prototype.setStamp.call(pipeline, { faceShape: "triangle" }), /Unsupported stamp shape/);
+  assert.throws(() => Pipeline.prototype.setStamp.call(pipeline, { faceShape: "triangle" }), /Niet-ondersteunde stempelvorm/);
   assert.equal(pipeline.stamp.faceShape, "square");
 
   for (const mode of ["emboss", "deboss"]) {

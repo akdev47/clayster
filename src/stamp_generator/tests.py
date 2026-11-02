@@ -2,6 +2,7 @@ import json
 import re
 
 from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
 from django.test import TestCase, override_settings, tag
 
 
@@ -86,3 +87,24 @@ class StlExportAccessTests(TestCase):
         staff = get_user_model().objects.create_user("shop-staff", password="pw", is_staff=True)
         self.client.force_login(staff)
         self.assertIs(self.can_export(), True)
+
+
+@tag("normal")
+class ErrorPageTests(TestCase):
+    # Test category: normal. The 404 and 500 pages a customer sees, in Dutch.
+    """A customer who follows a wrong link or meets an error reads Dutch."""
+
+    @override_settings(DEBUG=False)
+    def test_a_page_that_does_not_exist_is_explained_in_dutch(self):
+        response = self.client.get("/order/00000000-0000-0000-0000-000000000000/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "Pagina niet gevonden", status_code=404)
+        self.assertContains(response, "Naar de stempeleditor", status_code=404)
+
+    def test_the_server_error_page_is_dutch_and_stands_alone(self):
+        page = render_to_string("500.html")
+
+        self.assertIn("Er ging iets mis", page)
+        self.assertIn('lang="nl"', page)
+        self.assertNotIn("{%", page)

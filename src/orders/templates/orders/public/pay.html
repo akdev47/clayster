@@ -1,58 +1,58 @@
 {% extends "orders/public/base.html" %}
 
-{% block title %}Pay for your order — Clayster{% endblock %}
+{% block title %}Je bestelling betalen — Clayster{% endblock %}
 
 {% block progress %}
   <div class="workflow-progress-wrap container-fluid px-3 px-lg-5">
-    <ol class="workflow-progress" aria-label="Order progress">
-      <li class="complete"><span class="workflow-step-number">1</span>Design</li>
-      <li class="complete"><span class="workflow-step-number">2</span>Review</li>
-      <li class="current" aria-current="step"><span class="workflow-step-number">3</span>Order &amp; payment</li>
-      <li><span class="workflow-step-number">4</span>Confirmation</li>
+    <ol class="workflow-progress" aria-label="Voortgang van de bestelling">
+      <li class="complete"><span class="workflow-step-number">1</span>Ontwerp</li>
+      <li class="complete"><span class="workflow-step-number">2</span>Controle</li>
+      <li class="current" aria-current="step"><span class="workflow-step-number">3</span>Bestellen &amp; betalen</li>
+      <li><span class="workflow-step-number">4</span>Bevestiging</li>
     </ol>
   </div>
 {% endblock %}
 
 {% block content %}
-  <h1 class="h3 fw-bold mb-1">Pay for your order</h1>
-  <p class="text-secondary">Order #{{ order.pk }}</p>
+  <h1 class="h3 fw-bold mb-1">Betaal je bestelling</h1>
+  <p class="text-secondary">Bestelling #{{ order.pk }}</p>
 
   <section class="public-card">
-    <h2>Your order</h2>
+    <h2>Je bestelling</h2>
     <table class="public-items">
       <thead>
-        <tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th></tr>
+        <tr><th>Artikel</th><th class="num">Aantal</th><th class="num">Prijs</th></tr>
       </thead>
       <tbody>
         {% for item in items %}
           <tr>
             <td>{{ item.display_name }}</td>
             <td class="num">{{ item.quantity }}</td>
-            <td class="num">€{{ item.line_total|floatformat:2 }}</td>
+            <td class="num">€&nbsp;{{ item.line_total|floatformat:2 }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
     <dl class="mt-3 mb-0">
       {% if discount > 0 %}
-        <div class="order-price-row discount"><dt>Quantity discount</dt><dd>−€{{ discount|floatformat:2 }}</dd></div>
+        <div class="order-price-row discount"><dt>Staffelkorting</dt><dd>−€&nbsp;{{ discount|floatformat:2 }}</dd></div>
       {% endif %}
-      <div class="order-price-row"><dt>Subtotal</dt><dd>€{{ order.subtotal_price|floatformat:2 }}</dd></div>
-      <div class="order-price-row"><dt>Shipping</dt><dd>{% if order.shipping_costs == 0 %}Free{% else %}€{{ order.shipping_costs|floatformat:2 }}{% endif %}</dd></div>
-      <div class="order-price-row total"><dt>Total</dt><dd>€{{ order.total_price|floatformat:2 }}</dd></div>
+      <div class="order-price-row"><dt>Subtotaal</dt><dd>€&nbsp;{{ order.subtotal_price|floatformat:2 }}</dd></div>
+      <div class="order-price-row"><dt>Verzendkosten</dt><dd>{% if order.shipping_costs == 0 %}Gratis{% else %}€&nbsp;{{ order.shipping_costs|floatformat:2 }}{% endif %}</dd></div>
+      <div class="order-price-row total"><dt>Totaal</dt><dd>€&nbsp;{{ order.total_price|floatformat:2 }}</dd></div>
     </dl>
   </section>
 
   <section class="public-card">
-    <h2>Payment</h2>
+    <h2>Betaling</h2>
     {# PLACEHOLDER: see orders/payments.py. Replace this notice and button with the payment provider. #}
     <p class="public-notice">
-      Demo payment: payments are not connected yet. Pressing the button accepts
-      your order as paid and no money is charged.
+      Demobetaling: betalen is nog niet gekoppeld. Als je op de knop drukt, wordt
+      je bestelling als betaald geaccepteerd en wordt er geen geld afgeschreven.
     </p>
     <form id="payment-form" method="post">
       {% csrf_token %}
-      <button id="payment-submit" class="btn primary-button w-100" type="submit">Pay €{{ order.total_price|floatformat:2 }}</button>
+      <button id="payment-submit" class="btn primary-button w-100" type="submit">Betaal €&nbsp;{{ order.total_price|floatformat:2 }}</button>
     </form>
   </section>
 
@@ -63,8 +63,8 @@
           <path d="m5 12 4 4L19 6" />
         </svg>
       </div>
-      <strong>Payment successful</strong>
-      <span>Your order is confirmed</span>
+      <strong>Betaling gelukt</strong>
+      <span>Je bestelling is bevestigd</span>
     </div>
   </div>
 
@@ -106,7 +106,7 @@
         submitting = true;
         const sound = prepareSuccessSound();
         button.disabled = true;
-        button.textContent = "Processing payment…";
+        button.textContent = "Betaling wordt verwerkt…";
 
         try {
           const response = await fetch(form.action || window.location.href, {

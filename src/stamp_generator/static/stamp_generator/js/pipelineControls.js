@@ -1,5 +1,6 @@
 // Binds shared stamp/export controls to the application's processing pipeline.
 import { exportSTL } from "./exporters.js";
+import { formatFixed, formatNumber } from "./locale.js";
 import {
   DEFAULT_STAMP,
   FACE_SIZE_LIMITS,
@@ -86,7 +87,7 @@ export function createPipelineControls(viewer, pipeline) {
   segmented(dom.reliefMode, "mode", (mode) => pipeline.setStamp({ mode }));
   dom.reliefDepth.addEventListener("input", () => {
     const reliefDepth = Number(dom.reliefDepth.value);
-    dom.reliefReadout.textContent = `${reliefDepth} mm`;
+    dom.reliefReadout.textContent = `${formatNumber(reliefDepth)} mm`;
     pipeline.setStamp({ reliefDepth });
   });
   dom.mirror.addEventListener("change", () => {
@@ -103,10 +104,10 @@ export function createPipelineControls(viewer, pipeline) {
     run(dom, async () => {
       const built = await pipeline.ensureSolids();
       if (!built) {
-        throw new Error(pipeline.error?.message ?? "There is no stamp to export yet.");
+        throw new Error(pipeline.error?.message ?? "Er is nog geen stempel om te exporteren.");
       }
       exportSTL(exportable(viewer, pipeline), "clayster-stamp.stl");
-      return "Exported the stamp as STL.";
+      return "De stempel is als STL geëxporteerd.";
     }),
   );
   dom.exportSTL.disabled = true;
@@ -119,7 +120,7 @@ export function createPipelineControls(viewer, pipeline) {
     dom.exportSTL.disabled = !canBuild || hasBlockingIssue(pipeline);
     const layout = pipeline.result?.layout;
     dom.faceDimensions.textContent = layout
-      ? `${layout.widthMm.toFixed(1)} × ${layout.heightMm.toFixed(1)} mm`
+      ? `${formatFixed(layout.widthMm)} × ${formatFixed(layout.heightMm)} mm`
       : "—";
   });
   pipeline.addEventListener("failed", () => {
@@ -138,7 +139,7 @@ function syncControls(dom, pipeline) {
   dom.faceThickness.value = stamp.faceThickness;
   syncMarginControl(dom, pipeline);
   dom.reliefDepth.value = stamp.reliefDepth;
-  dom.reliefReadout.textContent = `${stamp.reliefDepth} mm`;
+  dom.reliefReadout.textContent = `${formatNumber(stamp.reliefDepth)} mm`;
   dom.mirror.checked = stamp.mirror;
   dom.roundedEdges.checked = Boolean(stamp.roundedEdges ?? DEFAULT_STAMP.roundedEdges);
   dom.roundedCorners.checked = Boolean(stamp.roundedCorners);
@@ -218,13 +219,13 @@ function bindNumber(input, onChange, min = -Infinity, max = Infinity) {
 
 export function exportable(viewer, pipeline) {
   if (pipeline.busy) {
-    throw new Error("Wait for the updated stamp before exporting.");
+    throw new Error("Wacht op de bijgewerkte stempel voordat je exporteert.");
   }
   if (!pipeline.result?.stamp) {
-    throw new Error("There is no stamp to export yet.");
+    throw new Error("Er is nog geen stempel om te exporteren.");
   }
   if (hasBlockingIssue(pipeline)) {
-    throw new Error("Fix the design errors before exporting.");
+    throw new Error("Los de fouten in het ontwerp op voordat je exporteert.");
   }
 
   return [

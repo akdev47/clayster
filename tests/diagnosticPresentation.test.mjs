@@ -36,46 +36,48 @@ const pipelineWith = (issues) => {
 };
 
 test("presentation prioritizes problems, deduplicates copies and preserves technical details", () => {
-  const warning = "Potentially thin letters: a (below approximately 0.8 mm).";
+  const warning = "Mogelijk te dunne letters: a (onder ongeveer 0,8 mm).";
   const rows = [
-    { level: "ok", message: "Design processed successfully.", details: [`Element \"text\": ${warning}`, "Stage: complete", "3 canonical polygons."] },
-    { level: "info", message: "Wrapped onto 2 rows to keep each one inside 60 mm." },
+    { level: "ok", message: "Ontwerp succesvol verwerkt.", details: [`Element \"text\": ${warning}`, "Fase: klaar", "3 veelhoeken."] },
+    { level: "info", message: "De tekst is aangepast." },
     { level: "warning", elementId: "text", elementKind: "text", message: warning,
-      thinGlyphs: [{ character: "a", line: 1, column: 3 }], details: ["Letter a: line 1, character 3"] },
-    { level: "warning", message: warning, details: ["Additional measurement"] },
-    { level: "error", message: "The artwork geometry could not be repaired safely (boolean failure)." },
+      thinGlyphs: [{ character: "a", line: 1, column: 3 }], details: ["Letter a: regel 1, teken 3"] },
+    { level: "warning", message: warning, details: ["Extra meting"] },
+    { level: "error", message: "De geometrie van het ontwerp kon niet veilig worden gerepareerd (boolean failure)." },
   ];
   const original = structuredClone(rows);
   const shown = presentDiagnosticRows(rows);
   assert.deepEqual(shown.map(({ level }) => level), ["error", "warning", "info", "ok"]);
-  assert.equal(shown[1].message, "Potentially thin letters: a.");
-  assert.equal(shown[1].suggestion, "Try increasing Letter Thickness or Text Size.");
+  assert.equal(shown[0].message, "Sommige omtrekken moeten worden aangepast voordat ze geprint kunnen worden.");
+  assert.equal(shown[1].message, "Mogelijk te dunne letters: a.");
+  assert.equal(shown[1].suggestion, "Maak de letterdikte of de tekstgrootte groter.");
   assert.equal(shown[1].thinGlyphs, rows[2].thinGlyphs);
-  assert.ok(shown[1].details.includes("Additional measurement"));
-  assert.ok(shown[1].details.includes('Element "text" (text)'));
+  assert.ok(shown[1].details.includes("Extra meting"));
+  assert.ok(shown[1].details.includes('Element "text" (tekst)'));
   assert.ok(shown[1].details.includes(warning));
-  assert.equal(shown[2].message, "Text wrapped onto 2 lines.");
-  assert.ok(shown[3].details.includes("3 canonical polygons."));
+  assert.equal(shown[2].message, "De tekst is aangepast.");
+  assert.equal(shown[3].message, "Controles van het ontwerp geslaagd.");
+  assert.ok(shown[3].details.includes("3 veelhoeken."));
   assert.equal(shown[3].details.some((detail) => detail.includes(warning)), false);
   assert.deepEqual(rows, original);
 });
 
 test("identical warnings for different elements stay distinguishable", () => {
   const rows = presentDiagnosticRows([
-    { level: "warning", elementId: "first", message: "Thin artwork" },
-    { level: "warning", elementId: "second", message: "Thin artwork" },
+    { level: "warning", elementId: "first", message: "Dun ontwerp" },
+    { level: "warning", elementId: "second", message: "Dun ontwerp" },
   ]);
   assert.equal(rows.length, 2);
   assert.match(rows[0].details[0], /first/);
   assert.match(rows[1].details[0], /second/);
 });
 
-test("Details and Checks passed start collapsed while issues and quick fixes stay visible", () => {
+test("Details and Geslaagde controles start collapsed while issues and quick fixes stay visible", () => {
   withDOM((byId) => {
     const pipeline = pipelineWith([
-      { level: "ok", message: "Stamp surface checks passed: closed, consistently oriented edges." },
-      { level: "info", message: "Wrapped onto 2 rows to keep each one inside 60 mm." },
-      { level: "error", code: "artwork-overflow", message: "Some artwork extends beyond the 50 mm face (or into its margin)." },
+      { level: "ok", message: "Stempeloppervlak gecontroleerd: gesloten, consistent georiënteerde randen." },
+      { level: "fixed", message: "Overlappende en zichzelf snijdende omtrekken zijn samengevoegd tot nette vormen." },
+      { level: "error", code: "artwork-overflow", message: "Een deel van het ontwerp valt buiten het stempelvlak van 50 mm (of in de marge)." },
     ]);
     let fitted = null;
     createPipelineDiagnostics(pipeline, {
@@ -83,20 +85,21 @@ test("Details and Checks passed start collapsed while issues and quick fixes sta
       onFitToStamp: (id) => { fitted = id; },
     });
     pipeline.dispatchEvent(new Event("result"));
-    const [overflow, wrapping, checks] = byId("pipeline-diagnostic-list").children;
-    assert.equal(overflow.children[1].children[0].textContent, "Artwork extends beyond the usable stamp area.");
+    const [overflow, merged, checks] = byId("pipeline-diagnostic-list").children;
+    assert.equal(overflow.children[1].children[0].textContent, "Het ontwerp valt buiten het bruikbare stempelvlak.");
     const button = overflow.children[1].children.find((child) => child.tagName === "button");
+    assert.equal(button.textContent, "Op stempel laten passen");
     button.listeners.click();
     assert.equal(fitted, "svg-1");
-    const details = wrapping.children[1].children.find((child) => child.tagName === "details");
+    const details = merged.children[1].children.find((child) => child.tagName === "details");
     assert.equal(details.open, false);
     assert.equal(details.children[0].tagName, "summary");
     assert.equal(details.children[0].textContent, "Details");
-    assert.match(allText(details), /inside 60 mm/);
+    assert.match(allText(details), /zichzelf snijdende omtrekken/);
     assert.equal(checks.tagName, "details");
     assert.equal(checks.open, false);
-    assert.match(checks.children[0].textContent, /^Checks passed/);
-    assert.match(allText(checks), /closed, consistently oriented edges/);
+    assert.match(checks.children[0].textContent, /^Geslaagde controles/);
+    assert.match(allText(checks), /gesloten, consistent georiënteerde randen/);
   });
 });
 
@@ -105,10 +108,10 @@ test("a narrow gap between text lines suggests more spacing", () => {
     level: "warning",
     code: "narrow-gap",
     elementKind: "text",
-    message: "The space between line 1 and line 2 is under about 1.2 mm.",
+    message: "De ruimte tussen regel 1 en regel 2 is kleiner dan ongeveer 1,2 mm.",
   }]);
-  assert.equal(row.message, "The space between line 1 and line 2 is under about 1.2 mm.");
-  assert.equal(row.suggestion, "Try increasing Line Spacing or Letter Spacing.");
+  assert.equal(row.message, "De ruimte tussen regel 1 en regel 2 is kleiner dan ongeveer 1,2 mm.");
+  assert.equal(row.suggestion, "Vergroot de regelafstand of de letterafstand.");
 });
 
 test("a thin-letter warning keeps its thickness suggestion", () => {
@@ -116,29 +119,29 @@ test("a thin-letter warning keeps its thickness suggestion", () => {
     level: "warning",
     elementKind: "text",
     thinGlyphs: [{ character: "w" }],
-    message: "Potentially thin letters: w (below approximately 0.8 mm).",
+    message: "Mogelijk te dunne letters: w (onder ongeveer 0,8 mm).",
   }]);
-  assert.equal(row.suggestion, "Try increasing Letter Thickness or Text Size.");
+  assert.equal(row.suggestion, "Maak de letterdikte of de tekstgrootte groter.");
 });
 
 test("failed builds retain their cause, stage, earlier warnings and unavailable export", () => {
   withDOM((byId) => {
     const pipeline = pipelineWith([]);
     pipeline.result = null;
-    pipeline.error = new Error("0 open edges and 1 non-manifold edge");
+    pipeline.error = new Error("0 open randen en 1 niet-manifold rand");
     pipeline.diagnostics = {
-      level: "error", message: "Stamp mesh validation failed: 0 open edges and 1 non-manifold edge",
-      stage: "final mesh validation", details: ["14 canonical polygons", "Rejected before preview/export."],
+      level: "error", message: "Controle van het stempeloppervlak mislukt: 0 open randen en 1 niet-manifold rand",
+      stage: "final mesh validation", details: ["14 veelhoeken", "Afgewezen voordat er een voorbeeld of export is gemaakt."],
     };
-    pipeline.artworkPreview = { issues: [{ level: "warning", message: "Thin artwork" }] };
+    pipeline.artworkPreview = { issues: [{ level: "warning", message: "Dun ontwerp" }] };
     createPipelineDiagnostics(pipeline);
     pipeline.dispatchEvent(new Event("failed"));
     const [error, warning] = byId("pipeline-diagnostic-list").children;
-    assert.equal(error.children[1].children[0].textContent, "The stamp surface could not be built safely.");
-    assert.equal(warning.children[1].children[0].textContent, "Thin artwork");
-    assert.match(allText(error), /1 non-manifold edge/);
-    assert.match(allText(error), /Stage: final mesh validation/);
-    assert.match(allText(error), /14 canonical polygons/);
-    assert.equal(byId("pipeline-export-status").textContent, "Unavailable");
+    assert.equal(error.children[1].children[0].textContent, "Het stempeloppervlak kon niet veilig worden opgebouwd.");
+    assert.equal(warning.children[1].children[0].textContent, "Dun ontwerp");
+    assert.match(allText(error), /1 niet-manifold rand/);
+    assert.match(allText(error), /Fase: eindcontrole van het oppervlak/);
+    assert.match(allText(error), /14 veelhoeken/);
+    assert.equal(byId("pipeline-export-status").textContent, "Niet beschikbaar");
   });
 });

@@ -22,7 +22,7 @@ export async function loadSVGData(source) {
       text = await source.text();
     } else {
       const response = await fetch(source);
-      if (!response.ok) throw new Error("Could not load the SVG file.");
+      if (!response.ok) throw new Error("Het SVG-bestand kon niet worden geladen.");
       text = await response.text();
     }
   } catch (error) {
@@ -56,8 +56,8 @@ function withSVGStage(error, stage) {
 
   const message =
     stage === "SVG loading"
-      ? "Could not load the SVG file."
-      : "The SVG could not be parsed.";
+      ? "Het SVG-bestand kon niet worden geladen."
+      : "Het SVG-bestand kon niet worden gelezen.";
   const diagnosed = new Error(message, { cause: error });
   diagnosed.svgStage = stage;
   return diagnosed;

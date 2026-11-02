@@ -1,8 +1,8 @@
 // Sends the finished order to Django. Same origin as the page, so the session
 // cookie and the CSRF token are all the request needs.
 
-const GENERAL_ERROR = "Something went wrong placing your order. Please try again.";
-const OFFLINE_ERROR = "Could not reach the server. Check your connection and try again.";
+const GENERAL_ERROR = "Er ging iets mis bij het plaatsen van je bestelling. Probeer het opnieuw.";
+const OFFLINE_ERROR = "De server is niet bereikbaar. Controleer je verbinding en probeer het opnieuw.";
 
 /**
  * Posts the order and the stamp file. Never throws:

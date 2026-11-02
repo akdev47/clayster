@@ -96,7 +96,7 @@ test("unions overlapping elements during the one global validation pass", async 
       ({ level, message, scope }) =>
         level === "fixed" &&
         scope === "design" &&
-        /merged overlapping/i.test(message),
+        /samengevoegd tot nette vormen/i.test(message),
     ),
   );
 });

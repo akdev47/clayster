@@ -63,6 +63,34 @@ English and a Dutch comment. A nonsensical value stops the page with a message
 naming it. Three values must match the server (`src/orders/pricing.py`); a test
 checks this.
 
+## Language
+
+Everything a customer sees is in Dutch: the design tool, the order, payment and
+confirmation pages, the 404 and 500 pages, the confirmation email, and the
+messages the server sends back to the order form. The text is written straight into the templates and
+modules where it is used (there is no language switch), and amounts and sizes
+use a decimal comma (`src/stamp_generator/static/stamp_generator/js/locale.js`).
+The staff back office (`dashboard`, `products`, `orders`, `production`, `/admin/`)
+is still English, and so are messages meant for developers: the console, the
+errors a programmer can cause, and the checks in `settings.js`.
+
+Write new customer text in Dutch, addressing the customer as *je*. Terms used so far:
+
+| English | Dutch | | English | Dutch |
+|---|---|---|---|---|
+| stamp | stempel | | raised / recessed | verhoogd / verdiept |
+| clay | klei | | relief | reliëf |
+| face (of the plate) | stempelvlak | | handle | handvat |
+| base thickness | basisdikte | | margin | marge |
+| minimal / round / square | minimaal / rond / vierkant | | mirror | spiegelen |
+| printability check | printbaarheidscontrole | | review | controle |
+
+Some code finds messages by their wording (the Printability panel shortens
+what the checks say), so change a message and its pattern together;
+`tests/dutchMessages.test.mjs` runs the real checks through it and fails if they
+drift apart. `tests/dutchTexts.test.mjs` fails if English text creeps back into
+the customer's pages.
+
 ## Tests
 
     node --test tests/*.test.mjs     # JavaScript

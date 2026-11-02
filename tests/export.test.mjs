@@ -75,7 +75,7 @@ test("handle attachment gives a closed stamp", () => {
 test("unsafe recess and non-finite automatic margin are rejected", () => {
   assert.throws(
     () => buildStamp(artwork("A"), { mode: "deboss", reliefDepth: DEFAULT_STAMP.faceThickness }),
-    /Recess depth/,
+    /reliëfdiepte/,
   );
   assert.throws(
     () =>
@@ -92,24 +92,24 @@ test("open, duplicate, collapsed, reversed, disconnected, and invalid surfaces b
     "position",
     new THREE.Float32BufferAttribute(box.attributes.position.array.slice(9), 3),
   );
-  assert.throws(() => verifiedSTL(open), /open edges/);
+  assert.throws(() => verifiedSTL(open), /open randen/);
   const duplicate = mergeGeometries([box, box]);
-  assert.throws(() => verifiedSTL(duplicate), /duplicate/);
+  assert.throws(() => verifiedSTL(duplicate), /dubbele driehoek/);
   const collapsed = box.clone();
   collapsed.attributes.position.array.copyWithin(3, 0, 3);
-  assert.throws(() => verifiedSTL(collapsed), /collapsed/);
+  assert.throws(() => verifiedSTL(collapsed), /gedegenereerde/);
   const reversed = box.clone();
   const p = reversed.attributes.position.array;
   for (let j = 0; j < 3; j++) [p[3 + j], p[6 + j]] = [p[6 + j], p[3 + j]];
   assert.throws(() => verifiedSTL(reversed), /inconsistent/);
   const separate = mergeGeometries([box, box.clone().translate(50, 0, 0)]);
-  assert.throws(() => verifiedSTL(separate), /disconnected/);
+  assert.throws(() => verifiedSTL(separate), /losse delen/);
   const invalid = box.clone();
   invalid.attributes.position.array[0] = NaN;
-  assert.throws(() => verifiedSTL(invalid), /invalid coordinates/);
+  assert.throws(() => verifiedSTL(invalid), /ongeldige coördinaten/);
   assert.throws(
     () => verifiedSTL(new THREE.BufferGeometry()),
-    /no valid triangles/,
+    /geen geldige driehoeken/,
   );
   [box, open, duplicate, collapsed, reversed, separate, invalid].forEach((g) =>
     g.dispose(),
@@ -121,7 +121,7 @@ test("closed solids touching only at one vertex are non-manifold", () => {
   const second = first.clone().translate(2, 2, 2);
   const touching = mergeGeometries([first, second]);
 
-  assert.throws(() => prepareClosedStamp(touching), /touch only at a vertex/i);
+  assert.throws(() => prepareClosedStamp(touching), /maar in één punt/i);
   [first, second, touching].forEach((geometry) => geometry.dispose());
 });
 
@@ -130,7 +130,7 @@ test("separate outward-facing solids remain unsupported", () => {
   const second = first.clone().translate(10, 0, 0);
   const separate = mergeGeometries([first, second]);
 
-  assert.throws(() => prepareClosedStamp(separate), /disconnected pieces/i);
+  assert.throws(() => prepareClosedStamp(separate), /losse delen/i);
   [first, second, separate].forEach((geometry) => geometry.dispose());
 });
 
@@ -153,7 +153,7 @@ test("an external inward-facing shell is not treated as a cavity", () => {
   );
   const invalid = mergeGeometries([outer, outside]);
 
-  assert.throws(() => prepareClosedStamp(invalid), /not a contained cavity/i);
+  assert.throws(() => prepareClosedStamp(invalid), /geen omsloten holte/i);
   [outer, outside, invalid].forEach((geometry) => geometry.dispose());
 });
 
@@ -180,10 +180,10 @@ test("solid conversion identifies the non-manifold operand", () => {
   assert.throws(
     () =>
       solidBoolean(base, openRelief, "union", {
-        firstLabel: "stamp base",
-        secondLabel: "relief mesh",
+        firstLabel: "stempelplaat",
+        secondLabel: "reliëf",
       }),
-    /Relief mesh is not a closed manifold solid: Not manifold/i,
+    /Reliëf is geen gesloten \(manifold\) volume: Not manifold/i,
   );
   [base, openRelief].forEach((geometry) => geometry.dispose());
 });
@@ -224,7 +224,7 @@ test("createSTL gives the same checked binary STL the export button downloads", 
     assert.equal(blob.type, "model/stl");
     const view = new DataView(await blob.arrayBuffer());
     assert.equal(blob.size, 84 + 50 * view.getUint32(80, true), "size matches the triangle count");
-    assert.throws(() => createSTL([]), /Nothing to export/);
+    assert.throws(() => createSTL([]), /Er is niets om te exporteren/);
   } finally {
     built.stamp.dispose();
     built.clay.dispose();

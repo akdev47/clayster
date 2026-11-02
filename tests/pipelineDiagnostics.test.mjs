@@ -68,7 +68,7 @@ test("the same diagnostic state remains visible across the 2D/3D toggle", () => 
 
   assert.equal(controller.state, state);
   assert.equal(rendered.length, 1);
-  assert.equal(state.overall.message, "Ready to export");
+  assert.equal(state.overall.message, "Klaar om te bestellen");
 });
 
 test("an untouched design prompts for artwork instead of showing an error", () => {
@@ -77,7 +77,7 @@ test("an untouched design prompts for artwork instead of showing an error", () =
   pipeline.dispatchEvent(new Event("result"));
 
   assert.equal(controller.state.overall.level, "idle");
-  assert.match(controller.state.rows[0].message, /add text/i);
+  assert.match(controller.state.rows[0].message, /voeg tekst/i);
   assert.equal(controller.state.export.ready, false);
 });
 
@@ -96,7 +96,7 @@ test("a 2D design edit triggers updated authoritative diagnostics", () => {
   pipeline.complete({
     issues: [{ level: "warning", message: "A feature is thin." }],
   });
-  assert.equal(controller.state.overall.message, "Ready with warnings");
+  assert.equal(controller.state.overall.message, "Klaar, met waarschuwingen");
   assert.equal(controller.state.rows[0].message, "A feature is thin.");
 });
 
@@ -107,7 +107,7 @@ test("an invalid element blocks the design and reports its element ID", () => {
     issues: [
       {
         level: "error",
-        message: "the element produced no closed outlines",
+        message: "het element leverde geen gesloten omtrekken op",
         scope: "element",
         elementId: "logo-7",
         elementKind: "svg",
@@ -116,8 +116,8 @@ test("an invalid element blocks the design and reports its element ID", () => {
   });
 
   assert.equal(controller.state.export.ready, false);
-  assert.equal(controller.state.export.label, "Unavailable");
-  assert.match(controller.state.rows[0].message, /Element "logo-7" \(svg\)/);
+  assert.equal(controller.state.export.label, "Niet beschikbaar");
+  assert.match(controller.state.rows[0].message, /Element "logo-7" \(SVG\)/);
 });
 
 test("a valid design shows export readiness in both views", () => {
@@ -162,7 +162,7 @@ test("informational processing notes do not create warning status", () => {
     ],
   });
 
-  assert.equal(controller.state.overall.message, "Ready to export");
+  assert.equal(controller.state.overall.message, "Klaar om te bestellen");
   assert.equal(controller.state.export.ready, true);
   assert.equal(controller.state.rows[0].level, "info");
   assert.equal(controller.state.rows[0].message,
@@ -177,7 +177,7 @@ test("PNG segmentation review metadata reaches diagnostics without blocking expo
         level: "info",
         elementId: "logo-png",
         elementKind: "png",
-        message: "Auto background detection failed — review the traced result.",
+        message: "Automatische achtergronddetectie is mislukt — controleer of de omtrek van de afbeelding klopt.",
       },
     ],
     segmentations: [
@@ -186,21 +186,21 @@ test("PNG segmentation review metadata reaches diagnostics without blocking expo
         elementKind: "png",
         status: "needs-review",
         method: "original-fallback",
-        message: "Auto background detection failed — review the traced result.",
+        message: "Automatische achtergronddetectie is mislukt — controleer of de omtrek van de afbeelding klopt.",
       },
     ],
   });
 
-  assert.equal(controller.state.overall.message, "Ready to export");
+  assert.equal(controller.state.overall.message, "Klaar om te bestellen");
   assert.equal(controller.state.export.ready, true);
   assert.equal(
-    controller.state.rows.filter(({ badge }) => badge === "Review").length,
+    controller.state.rows.filter(({ badge }) => badge === "Controleren").length,
     1,
   );
   assert.equal(controller.state.rows[0].level, "info");
-  assert.equal(controller.state.rows[0].badge, "Review");
+  assert.equal(controller.state.rows[0].badge, "Controleren");
   assert.equal(controller.state.rows[0].badgeClass, "warning-badge");
-  assert.match(controller.state.rows[0].message, /logo-png.*review the traced result/i);
+  assert.match(controller.state.rows[0].message, /logo-png.*controleer of de omtrek van de afbeelding klopt/i);
 });
 
 test("Fit to stamp buttons appear only on overflow errors", () => {
@@ -258,11 +258,11 @@ test("Fit to stamp buttons appear only on overflow errors", () => {
       issues: [{
         level: "error",
         code: "artwork-overflow",
-        message: "Some artwork extends beyond the face.",
+        message: "Een deel van het ontwerp valt buiten het stempelvlak.",
       }],
     });
     assert.equal(buttons().length, 1);
-    assert.equal(buttons()[0].textContent, "Fit to stamp");
+    assert.equal(buttons()[0].textContent, "Op stempel laten passen");
     buttons()[0].click();
     assert.equal(fittedId, "wide-svg");
     assert.equal(
@@ -279,7 +279,7 @@ test("Fit to stamp buttons appear only on overflow errors", () => {
       issues: [{
         level: "error",
         code: "artwork-overflow",
-        message: "Some artwork extends beyond the face.",
+        message: "Een deel van het ontwerp valt buiten het stempelvlak.",
       }],
     });
     assert.equal(buttons().length, 0);

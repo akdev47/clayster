@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { formatNumber } from "../src/stamp_generator/static/stamp_generator/js/locale.js";
 import assert from "node:assert/strict";
 import { SETTINGS } from "../src/stamp_generator/static/stamp_generator/js/settings.js";
 import { readFileSync } from "node:fs";
@@ -171,8 +172,8 @@ for (const kind of ["text", "svg", "png"]) {
       const message = sidebar.state.rows.map((row) => row.message).join("\n");
       assert.match(message, new RegExp(`bad-${kind}`));
       if (kind === "svg") {
-        assert.match(message, /self-intersecting or zero-area filled outline/i);
-        assert.ok(sidebar.state.rows.some((row) => row.details?.some((detail) => /Stage: SVG shape conversion/.test(detail))));
+        assert.match(message, /zichzelf snijdende of oppervlakteloze gevulde omtrek/i);
+        assert.ok(sidebar.state.rows.some((row) => row.details?.some((detail) => /Fase: SVG-vormen omzetten/.test(detail))));
       }
       const before = sidebar.state;
       const count = rendered.length;
@@ -230,13 +231,13 @@ test("mixed Text/SVG/PNG reaches global repair, final mesh checks and verified S
     await pipeline.run();
     assert.equal(pipeline.error, null);
     assert.equal(pipeline.result.renderElements.length, 3);
-    assert.ok(pipeline.result.issues.some(({ scope, level, message }) => scope === "design" && level === "fixed" && /merged overlapping/i.test(message)));
+    assert.ok(pipeline.result.issues.some(({ scope, level, message }) => scope === "design" && level === "fixed" && /samengevoegd tot nette vormen/i.test(message)));
     for (const polygon of pipeline.result.artwork) {
       assert.ok(ringArea(polygon[0]) > 0);
       for (const hole of polygon.slice(1)) assert.ok(ringArea(hole) < 0);
     }
     assert.ok(pipeline.result.artwork.some((polygon) => polygon.length > 1));
-    assert.ok(pipeline.result.notes.some((note) => /closed, consistently oriented edges/i.test(note)));
+    assert.ok(pipeline.result.notes.some((note) => /gesloten, consistent georiënteerde randen/i.test(note)));
     assert.equal(sidebar.state.export.ready, true);
     assert.ok(sidebar.state.info.triangles > 0);
     const state = sidebar.state;
@@ -274,11 +275,11 @@ for (const mode of ["emboss", "deboss"]) {
       constructionError = error;
     }
     if (constructionError === null) {
-      assert.throws(() => prepareClosedStamp(unrepaired.stamp), /non-manifold/i);
+      assert.throws(() => prepareClosedStamp(unrepaired.stamp), /manifold/i);
     } else {
       assert.match(
         constructionError.message,
-        /not a closed manifold|non-manifold/i,
+        /geen gesloten \(manifold\) volume|manifold/i,
       );
     }
     unrepaired?.stamp.dispose();
@@ -304,7 +305,7 @@ for (const mode of ["emboss", "deboss"]) {
       );
       assert.ok(pipeline.result.issues.some(
         ({ level, message }) =>
-          level === "fixed" && /isolated point contact/i.test(message),
+          level === "fixed" && /Losse puntcontacten gescheiden/i.test(message),
       ));
       assert.equal(sidebar.state.export.ready, true);
 
@@ -349,7 +350,7 @@ test("transform-only 2D edits reuse conversion but rerun global validation and c
     model.updateElement("first", { transform: { scale: 0.00001 } });
     await pipeline.run();
     assert.equal(conversions, 2);
-    assert.ok(pipeline.result.issues.some(({ message }) => /sliver outline/i.test(message)));
+    assert.ok(pipeline.result.issues.some(({ message }) => /splinterdunne omtrek/i.test(message)));
   } finally {
     dispose(pipeline);
   }
@@ -367,7 +368,7 @@ test("global polygon repair fails closed before stamp generation and reaches the
     assert.deepEqual(pipeline.result.artwork, []);
     assert.equal(pipeline.result.stamp, null);
     assert.equal(sidebar.state.export.ready, false);
-    assert.ok(sidebar.state.rows.some(({ level, message }) => level === "error" && /could not be repaired safely/i.test(message)));
+    assert.ok(sidebar.state.rows.some(({ level, message }) => level === "error" && /niet veilig worden gerepareerd/i.test(message)));
   } finally {
     dispose(pipeline);
   }
@@ -404,7 +405,7 @@ test("shared pipeline checks thin features at final element scale without face r
   pipeline.stamp.margin = 2;
   try {
     await pipeline.run();
-    assert.ok(pipeline.result.issues.some(({ level, message }) => level === "warning" && /thinner than/i.test(message)));
+    assert.ok(pipeline.result.issues.some(({ level, message }) => level === "warning" && /dunner dan/i.test(message)));
     assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
     assert.ok(sidebar.state.rows.some(({ level }) => level === "warning"));
     dispose(pipeline);
@@ -437,11 +438,11 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
     await pipeline.run();
 
     assert.equal(pipeline.result.issues.some(({ message }) =>
-      /Wrapped onto/i.test(message)), false);
+      /Verdeeld over/i.test(message)), false);
     assert.equal(sidebar.state.rows.some(({ message }) =>
-      /Wrapped onto/i.test(message)), false);
+      /Verdeeld over/i.test(message)), false);
     assert.equal(pipeline.result.issues.some(({ message }) =>
-      message.includes(`thinner than about ${SETTINGS.checks.thinFeatureMm} mm`)), false);
+      message.includes(`dunner dan ongeveer ${formatNumber(SETTINGS.checks.thinFeatureMm)} mm`)), false);
     assert.equal(pipeline.result.layout.overflows, false);
     assert.ok(pipeline.result.stamp);
 
@@ -465,8 +466,8 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
     await pipeline.run();
 
     assert.ok(pipeline.result.issues.some(({ level, message }) =>
-      level === "warning" && /Potentially thin letters: w/i.test(message)));
-    const thinLetters = pipeline.result.issues.find(({ message }) => /Potentially thin letters/.test(message));
+      level === "warning" && /Mogelijk te dunne letters: w/i.test(message)));
+    const thinLetters = pipeline.result.issues.find(({ message }) => /Mogelijk te dunne letters/.test(message));
     assert.equal(thinLetters.elementId, "text-1");
     assert.equal(thinLetters.thinGlyphs.length, 1);
     assert.deepEqual(thinLetters.thinGlyphs.map(({ character, line, column }) =>
@@ -474,7 +475,7 @@ test("new Clayster Studio text is print-safe by default while genuinely thin tex
       ["w", 1, 1],
     ]);
     assert.deepEqual(thinLetters.details, [
-      "“w” — line 1, character 1 in the laid-out text.",
+      "“w” — regel 1, teken 1 in de opgemaakte tekst.",
     ]);
     assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
   } finally {
@@ -499,7 +500,7 @@ for (const mode of ["emboss", "deboss"]) {
 
       assert.equal(pipeline.error, null);
       assert.equal(pipeline.result.issues.some(({ message }) =>
-        /thinner than about 0\.8 mm|Potentially thin letters/i.test(message)), false);
+        /dunner dan ongeveer 0,8 mm|Mogelijk te dunne letters/i.test(message)), false);
       assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
     } finally {
       dispose(pipeline);
@@ -520,11 +521,11 @@ test("thin letter positions survive transforms and cached text conversion", asyn
   };
   try {
     await pipeline.run();
-    const first = pipeline.result.issues.find(({ message }) => /Potentially thin letters/.test(message));
+    const first = pipeline.result.issues.find(({ message }) => /Mogelijk te dunne letters/.test(message));
     assert.equal(first.details.length, 3);
-    assert.match(first.details[0], /line 1, character 1/);
-    assert.match(first.details[1], /line 1, character 2/);
-    assert.match(first.details[2], /line 2, character 1/);
+    assert.match(first.details[0], /regel 1, teken 1/);
+    assert.match(first.details[1], /regel 1, teken 2/);
+    assert.match(first.details[2], /regel 2, teken 1/);
     pipeline.result.stamp.dispose();
     pipeline.result.clay.dispose();
 
@@ -532,7 +533,7 @@ test("thin letter positions survive transforms and cached text conversion", asyn
       xMm: 2, yMm: 2, rotationDeg: 15, mirrorX: true,
     } });
     await pipeline.run();
-    const moved = pipeline.result.issues.find(({ message }) => /Potentially thin letters/.test(message));
+    const moved = pipeline.result.issues.find(({ message }) => /Mogelijk te dunne letters/.test(message));
     assert.deepEqual(moved.details, first.details);
     assert.equal(conversions, 1);
     assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
@@ -558,8 +559,8 @@ test("automatic face resolves former overflow without rescaling and reaches shar
     assert.equal(pipeline.result.layout.artworkTransform.scale, 1);
     assert.equal(bounds(pipeline.result.layout.artwork).width, 20);
     assert.equal(pipeline.result.layout.overflows, false);
-    assert.equal(sidebar.state.rows.some(({ message }) => /extends beyond/i.test(message)), false);
-    assert.equal(sidebar.state.overall.message, "Ready to export");
+    assert.equal(sidebar.state.rows.some(({ message }) => /valt buiten het stempelvlak/i.test(message)), false);
+    assert.equal(sidebar.state.overall.message, "Klaar om te bestellen");
     assert.equal(sidebar.state.export.ready, true);
     assert.ok(verifiedSTL(pipeline.result.stamp).size > 84);
   } finally {
@@ -621,8 +622,8 @@ test("a closed zero-volume shell blocks otherwise valid STL geometry", () => {
   flatTriangles.computeVertexNormals();
   const combined = mergeGeometries([outer, flatTriangles]);
   try {
-    assert.throws(() => prepareClosedStamp(combined), /no positive enclosed volume/i);
-    assert.throws(() => verifiedSTL(combined), /no positive enclosed volume/i);
+    assert.throws(() => prepareClosedStamp(combined), /geen positief ingesloten volume/i);
+    assert.throws(() => verifiedSTL(combined), /geen positief ingesloten volume/i);
   } finally {
     [outer, flat, flatTriangles, combined].forEach((geometry) => geometry.dispose());
   }
@@ -657,24 +658,24 @@ test("real pipeline stamp failure and recovery render into the unified sidebar",
     assert.equal(pipeline.result, null);
     assert.ok(pipeline.artworkPreview.artwork.length > 0);
     assert.ok(pipeline.artworkPreview.renderElements.length > 0);
-    assert.equal(byId("pipeline-overall-status").textContent, "Build failed");
-    assert.equal(byId("pipeline-export-status").textContent, "Unavailable");
-    assert.ok(messages().some((message) => /Recess depth must be smaller/i.test(message)));
-    assert.ok(messages().some((message) => /Stage: stamp generation/.test(message)));
+    assert.equal(byId("pipeline-overall-status").textContent, "Opbouwen mislukt");
+    assert.equal(byId("pipeline-export-status").textContent, "Niet beschikbaar");
+    assert.ok(messages().some((message) => /reliëfdiepte moet kleiner zijn/i.test(message)));
+    assert.ok(messages().some((message) => /Fase: stempel opbouwen/.test(message)));
 
     pipeline.setStamp({ mode: "emboss", reliefDepth: 2 });
-    assert.equal(byId("pipeline-export-status").textContent, "Building");
+    assert.equal(byId("pipeline-export-status").textContent, "Bezig");
     assert.equal(byId("pipeline-triangle-count").textContent, "—");
-    assert.equal(messages().some((message) => /Recess depth/i.test(message)), false);
+    assert.equal(messages().some((message) => /reliëfdiepte/i.test(message)), false);
     await pipeline.run();
     assert.equal(byId("pipeline-overall-status").textContent,
       pipeline.result.issues.some(({ level }) => level === "warning")
-        ? "Ready with warnings"
-        : "Ready to export");
-    assert.equal(byId("pipeline-export-status").textContent, "Ready");
+        ? "Klaar, met waarschuwingen"
+        : "Klaar om te bestellen");
+    assert.equal(byId("pipeline-export-status").textContent, "Klaar");
     assert.equal(byId("pipeline-triangle-count").textContent, pipeline.result.info.triangles.toLocaleString());
     assert.match(byId("pipeline-total-x").textContent, /mm$/);
-    assert.ok(messages().some((message) => /closed, consistently oriented edges/i.test(message)));
+    assert.ok(messages().some((message) => /gesloten, consistent georiënteerde randen/i.test(message)));
   } finally {
     dispose(pipeline);
     if (previousDocument === undefined) delete globalThis.document;
@@ -692,7 +693,7 @@ test("a 2D edit publishes the face and builds the stamp only when asked", async 
     assert.equal(pipeline.result.solidsDeferred, true);
     assert.ok(pipeline.result.layout.widthMm > 0);
     assert.ok(pipeline.result.artwork.length > 0);
-    assert.match(sidebar.state.overall.message, /^Design ready/);
+    assert.match(sidebar.state.overall.message, /^Ontwerp klaar/);
 
     const built = await pipeline.ensureSolids();
     assert.equal(built, true);
@@ -721,7 +722,7 @@ test("a 2D edit reports overflow before a mesh exists", async () => {
     assert.equal(sidebar.state.overall.level, "error");
     assert.match(
       sidebar.state.rows.find(({ code }) => code === "artwork-overflow").message,
-      /20 × 20 mm face/,
+      /stempelvlak van 20 × 20 mm/,
     );
   } finally {
     dispose(pipeline);
@@ -737,19 +738,19 @@ test("stroke and gap checks are reused for a face change and the 3D build", asyn
     await pipeline.run();
     assert.equal(pipeline.result.stamp, null);
     assert.equal(pipeline.printabilityComputations, 1);
-    assert.ok(pipeline.result.issues.some(({ message }) => /thinner than about 0\.8 mm/.test(message)));
+    assert.ok(pipeline.result.issues.some(({ message }) => /dunner dan ongeveer 0,8 mm/.test(message)));
 
     pipeline.stamp.faceShape = "square";
     await pipeline.run();
     assert.equal(pipeline.result.stamp, null);
     assert.equal(pipeline.printabilityComputations, 1);
-    assert.ok(pipeline.result.issues.some(({ message }) => /thinner than about 0\.8 mm/.test(message)));
+    assert.ok(pipeline.result.issues.some(({ message }) => /dunner dan ongeveer 0,8 mm/.test(message)));
 
     const built = await pipeline.ensureSolids();
     assert.equal(built, true);
     assert.ok(pipeline.result.stamp);
     assert.equal(pipeline.printabilityComputations, 1);
-    assert.ok(pipeline.result.issues.some(({ message }) => /thinner than about 0\.8 mm/.test(message)));
+    assert.ok(pipeline.result.issues.some(({ message }) => /dunner dan ongeveer 0,8 mm/.test(message)));
   } finally {
     dispose(pipeline);
   }

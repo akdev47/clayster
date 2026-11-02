@@ -13,6 +13,8 @@ import {
 import { submitOrder } from "./orderApi.js";
 import { estimatePrice, formatMoney } from "./pricing.js";
 import { createStampSpinner } from "./stampSpinner.js";
+import { faceShapeLabel } from "./reviewSummary.js";
+import { formatFixed } from "./locale.js";
 
 const ORDER_FIELDS = {
   title: "title",
@@ -132,7 +134,7 @@ export function createOrderPage({
     if (price === null) {
       const note = document.createElement("p");
       note.className = "pipeline-note";
-      note.textContent = "Enter a quantity to see the price.";
+      note.textContent = "Vul een aantal in om de prijs te zien.";
       box.replaceChildren(note);
       return;
     }
@@ -140,21 +142,21 @@ export function createOrderPage({
     const money = (cents) => formatMoney(cents, price.currency);
     const rows = [
       ...price.unitLines.map(({ label, cents }) => [label, money(cents)]),
-      ["Price per stamp", money(price.unitCents), "subtotal"],
-      [`Items × ${price.quantity}`, money(price.itemsCents)],
+      ["Prijs per stempel", money(price.unitCents), "subtotal"],
+      [`${price.quantity} ${price.quantity === 1 ? "stempel" : "stempels"}`, money(price.itemsCents)],
     ];
     if (price.discountCents > 0) {
       rows.push([
-        `Quantity discount (${Math.round(price.discountRate * 100)}%)`,
+        `Staffelkorting (${Math.round(price.discountRate * 100)}%)`,
         `−${money(price.discountCents)}`,
         "discount",
       ]);
     }
     rows.push([
-      "Shipping",
-      price.shippingCents === 0 ? "Free" : money(price.shippingCents),
+      "Verzendkosten",
+      price.shippingCents === 0 ? "Gratis" : money(price.shippingCents),
     ]);
-    rows.push(["Total", money(price.totalCents), "total"]);
+    rows.push(["Totaal", money(price.totalCents), "total"]);
 
     const list = document.createElement("dl");
     for (const [label, value, kind] of rows) {
@@ -169,7 +171,7 @@ export function createOrderPage({
     }
     const vat = document.createElement("p");
     vat.className = "pipeline-note";
-    vat.textContent = `Includes ${money(price.vatCents)} VAT.`;
+    vat.textContent = `Inclusief ${money(price.vatCents)} btw.`;
     box.replaceChildren(list, vat);
   };
 
@@ -232,10 +234,10 @@ export function createOrderPage({
     const { stamp, result } = pipeline;
     const info = result?.info ?? null;
     const rows = [
-      ["Elements", String(designModel.elements.length)],
-      ["Face", `${stamp.faceShape}, automatic size`],
-      ["Relief", stamp.mode === "emboss" ? "Raised" : "Recessed"],
-      ["Size", info === null ? "—" : `${info.width.toFixed(1)} × ${info.depth.toFixed(1)} mm`],
+      ["Elementen", String(designModel.elements.length)],
+      ["Vorm", faceShapeLabel(stamp.faceShape)],
+      ["Reliëf", stamp.mode === "emboss" ? "Verhoogd" : "Verdiept"],
+      ["Afmetingen", info === null ? "—" : `${formatFixed(info.width)} × ${formatFixed(info.depth)} mm`],
     ];
     byId("order-summary").replaceChildren(
       ...rows.map(([label, value]) => {
@@ -288,11 +290,11 @@ export function createOrderPage({
     if (
       Object.keys(orderErrors).length + Object.keys(deliveryErrors).length > 0
     ) {
-      showStatus("Please fix the highlighted fields.", false);
+      showStatus("Controleer de gemarkeerde velden.", false);
       return;
     }
     if (config.orderEndpoint === null) {
-      showStatus("Ordering is not available on this page.", false);
+      showStatus("Bestellen is op deze pagina niet beschikbaar.", false);
       return;
     }
 
@@ -318,7 +320,7 @@ export function createOrderPage({
 
     placing = true;
     saveButton.disabled = true;
-    showStatus("Placing your order…", true);
+    showStatus("Je bestelling wordt geplaatst…", true);
     const result = await submitOrder({
       endpoint: config.orderEndpoint,
       csrfToken: config.csrfToken,
@@ -337,7 +339,7 @@ export function createOrderPage({
     saveButton.disabled = false;
     showErrors(result.errors.order ?? {}, result.errors.delivery ?? {});
     showStatus(
-      result.errors.general ?? "Please fix the highlighted fields.",
+      result.errors.general ?? "Controleer de gemarkeerde velden.",
       false,
     );
   });

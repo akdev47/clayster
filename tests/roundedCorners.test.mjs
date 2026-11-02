@@ -226,5 +226,5 @@ test("the page has the switch, hidden until a shape with corners is chosen", () 
   );
   assert.match(html, /<div id="pipeline-rounded-corners-field"[^>]*\bhidden\b/);
   assert.match(html, /<input[^>]*id="pipeline-rounded-corners"[^>]*type="checkbox"[^>]*role="switch"/s);
-  assert.match(html, /Rounded corners/);
+  assert.match(html, /Afgeronde hoeken/);
 });

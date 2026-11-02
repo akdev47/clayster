@@ -20,35 +20,35 @@ test("review summary uses live visible elements and stamp settings", () => {
   };
 
   assert.deepEqual(Object.fromEntries(reviewSummary(model, stamp, "60 × 40 mm")), {
-    "Text elements": "1",
-    "Images / logos": "logo.svg",
-    "Stamp dimensions": "60 × 40 mm",
-    "Face shape": "Square",
-    "Rounded edges": DEFAULT_STAMP.roundedEdges ? "Enabled" : "Disabled",
-    "Rounded corners": "Disabled",
-    "Base thickness": "3 mm",
-    Relief: "Recessed · 1.5 mm",
-    "Mirror design": "Disabled",
+    "Tekstelementen": "1",
+    "Afbeeldingen / logo's": "logo.svg",
+    "Afmetingen stempel": "60 × 40 mm",
+    "Vorm": "Vierkant",
+    "Afgeronde randen": DEFAULT_STAMP.roundedEdges ? "Aan" : "Uit",
+    "Afgeronde hoeken": "Uit",
+    "Basisdikte": "3 mm",
+    "Reliëf": "Verdiept · 1,5 mm",
+    "Ontwerp gespiegeld": "Uit",
   });
   assert.equal(
     reviewSummary(model, { ...stamp, faceShape: "minimal" }, "60 × 40 mm")
-      .find(([label]) => label === "Face shape")[1],
-    "Minimal",
+      .find(([label]) => label === "Vorm")[1],
+    "Minimaal",
   );
   const label = (shape, roundedCorners) =>
-    Object.fromEntries(reviewSummary(model, { ...stamp, faceShape: shape, roundedCorners }, "60 × 40 mm"))["Rounded corners"];
-  assert.equal(label("square", true), "Enabled");
-  assert.equal(label("minimal", true), "Enabled");
-  assert.equal(label("minimal", false), "Disabled");
+    Object.fromEntries(reviewSummary(model, { ...stamp, faceShape: shape, roundedCorners }, "60 × 40 mm"))["Afgeronde hoeken"];
+  assert.equal(label("square", true), "Aan");
+  assert.equal(label("minimal", true), "Aan");
+  assert.equal(label("minimal", false), "Uit");
   assert.equal(label("round", true), undefined, "a round plate has no corners to round");
 
   const edges = (roundedEdges) =>
-    Object.fromEntries(reviewSummary(model, { ...stamp, faceShape: "round", roundedEdges }, "60 × 40 mm"))["Rounded edges"];
-  assert.equal(edges(true), "Enabled");
-  assert.equal(edges(false), "Disabled");
+    Object.fromEntries(reviewSummary(model, { ...stamp, faceShape: "round", roundedEdges }, "60 × 40 mm"))["Afgeronde randen"];
+  assert.equal(edges(true), "Aan");
+  assert.equal(edges(false), "Uit");
   assert.equal(
     edges(undefined),
-    DEFAULT_STAMP.roundedEdges ? "Enabled" : "Disabled",
+    DEFAULT_STAMP.roundedEdges ? "Aan" : "Uit",
     "a design saved before the option gets the same as a new one",
   );
 });

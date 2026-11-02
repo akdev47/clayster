@@ -45,7 +45,7 @@ export function booleanGeometry(first, second, operation) {
 
   if (geometry.getAttribute("position").count === 0) {
     throw new Error(
-      "That operation leaves nothing behind — the shapes do not overlap.",
+      "Die bewerking laat niets over — de vormen overlappen elkaar niet.",
     );
   }
 

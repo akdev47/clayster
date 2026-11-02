@@ -8,7 +8,7 @@ export function validateSVGDocument(text) {
     document.querySelector("parsererror") ||
     document.documentElement.localName !== "svg"
   ) {
-    throw svgError("Please choose a valid SVG file.", "SVG parsing");
+    throw svgError("Kies een geldig SVG-bestand.", "SVG parsing");
   }
 
   const unsupported = getUnsupportedSVGFeatures(document);
@@ -21,30 +21,30 @@ export function getUnsupportedSVGFeatures(document) {
   const checks = [
     [
       "text",
-      "Unsupported SVG text element. Convert text to paths before uploading.",
+      "Niet-ondersteund SVG-tekstelement. Zet tekst om naar paden voordat je uploadt.",
     ],
-    ["image", "Embedded raster images are not supported inside SVG files."],
+    ["image", "Ingesloten rasterafbeeldingen worden niet ondersteund in SVG-bestanden."],
     [
       "use",
-      "Unsupported SVG use element. Expand linked or reused shapes before uploading.",
+      "Niet-ondersteund SVG-use-element. Zet gekoppelde of hergebruikte vormen om in gewone paden voordat je uploadt.",
     ],
     [
       "clipPath",
-      "Unsupported SVG clip path. Apply the clipping to the paths before uploading.",
+      "Niet-ondersteund SVG-uitknippad. Pas het uitknippen toe op de paden voordat je uploadt.",
     ],
     [
       "mask",
-      "Unsupported SVG mask. Apply the mask to the paths before uploading.",
+      "Niet-ondersteund SVG-masker. Pas het masker toe op de paden voordat je uploadt.",
     ],
     [
       "filter",
-      "Unsupported SVG filter or effect. Remove effects before uploading.",
+      "Niet-ondersteund SVG-filter of -effect. Verwijder effecten voordat je uploadt.",
     ],
     [
       "foreignObject",
-      "Unsupported SVG foreignObject element. Convert it to filled paths before uploading.",
+      "Niet-ondersteund SVG-foreignObject-element. Zet het om naar gevulde paden voordat je uploadt.",
     ],
-    ["script", "SVG scripts are not supported."],
+    ["script", "SVG-scripts worden niet ondersteund."],
   ];
 
   return checks
@@ -79,8 +79,8 @@ export function getFilledSVGShapes(data) {
     ) {
       throw svgError(
         style.fill === "none" || Number(style.fillOpacity) === 0
-          ? "Unsupported stroke-only artwork. Convert strokes to filled outlines before uploading."
-          : "Unsupported SVG stroke. Convert strokes to filled outlines before uploading.",
+          ? "Niet-ondersteund ontwerp met alleen lijnen. Zet lijnen om naar gevulde omtrekken voordat je uploadt."
+          : "Niet-ondersteunde SVG-lijn. Zet lijnen om naar gevulde omtrekken voordat je uploadt.",
         "SVG shape conversion",
       );
     }
@@ -93,7 +93,7 @@ export function getFilledSVGShapes(data) {
       const points = subPath.getPoints();
       if (points.length >= 3 && ShapeUtils.area(points) === 0) {
         throw svgError(
-          "The SVG contains a self-intersecting or zero-area filled outline. Repair or simplify that outline before uploading.",
+          "De SVG bevat een zichzelf snijdende of oppervlakteloze gevulde omtrek. Repareer of vereenvoudig die omtrek voordat je uploadt.",
           "SVG shape conversion",
         );
       }
@@ -104,7 +104,7 @@ export function getFilledSVGShapes(data) {
 
   if (shapes.length === 0) {
     throw svgError(
-      "SVG contains no usable filled outlines.",
+      "De SVG bevat geen bruikbare gevulde omtrekken.",
       "SVG shape conversion",
     );
   }
@@ -128,7 +128,7 @@ export function getSVGViewportTransform(root) {
     values[2] <= 0 ||
     values[3] <= 0
   ) {
-    throw svgError("The SVG has an invalid viewBox.", "SVG normalization");
+    throw svgError("De SVG heeft een ongeldige viewBox.", "SVG normalization");
   }
 
   const [minX, minY, viewWidth, viewHeight] = values;
@@ -136,7 +136,7 @@ export function getSVGViewportTransform(root) {
   const height = svgLength(root.getAttribute("height")) ?? viewHeight;
   if (!(width > 0) || !(height > 0)) {
     throw svgError(
-      "The SVG viewport must have a positive width and height.",
+      "De viewport van de SVG moet een positieve breedte en hoogte hebben.",
       "SVG normalization",
     );
   }
@@ -212,7 +212,7 @@ function parseAspectRatio(value) {
   const mode = parts[1] === "slice" ? "slice" : "meet";
   if (align !== "none" && !/^x(?:Min|Mid|Max)Y(?:Min|Mid|Max)$/.test(align)) {
     throw svgError(
-      "The SVG has an invalid preserveAspectRatio value.",
+      "De SVG heeft een ongeldige preserveAspectRatio-waarde.",
       "SVG normalization",
     );
   }

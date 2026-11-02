@@ -1,5 +1,6 @@
 import { transform } from "./canonical.js";
 import { validate } from "./validate.js";
+import { ELEMENT_KIND_LABELS } from "../locale.js";
 
 export const LEGACY_ELEMENT_ID = "legacy-source";
 
@@ -8,7 +9,7 @@ export class ElementConversionError extends Error {
   constructor(element, cause) {
     const reason = conciseError(cause);
     super(
-      `Element "${element.id}" (${element.kind}) could not be converted: ${reason}`,
+      `Element "${element.id}" (${ELEMENT_KIND_LABELS[element.kind] ?? element.kind}) kon niet worden omgezet: ${reason}`,
     );
     this.name = "ElementConversionError";
     this.elementId = element.id;
@@ -171,7 +172,7 @@ export class ArtworkComposer {
       );
       if (sourceError !== undefined) throw new Error(sourceError.message);
       if (converted.canonical.length === 0) {
-        throw new Error("the element produced no closed outlines");
+        throw new Error("het element leverde geen gesloten omtrekken op");
       }
 
       entry.value = converted;
@@ -327,5 +328,5 @@ function stableValue(value) {
 }
 
 function conciseError(error) {
-  return String(error?.message ?? error ?? "unknown error").split("\n", 1)[0];
+  return String(error?.message ?? error ?? "onbekende fout").split("\n", 1)[0];
 }

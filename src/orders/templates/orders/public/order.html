@@ -1,15 +1,15 @@
 {% extends "orders/public/base.html" %}
 
-{% block title %}Your order #{{ order.pk }} — Clayster{% endblock %}
+{% block title %}Je bestelling #{{ order.pk }} — Clayster{% endblock %}
 {% block main_class %}confirmation-page{% endblock %}
 
 {% block progress %}
   <div class="workflow-progress-wrap container-fluid px-3 px-lg-5">
-    <ol class="workflow-progress" aria-label="Order progress">
-      <li class="complete"><span class="workflow-step-number">1</span>Design</li>
-      <li class="complete"><span class="workflow-step-number">2</span>Review</li>
-      <li class="complete"><span class="workflow-step-number">3</span>Order &amp; payment</li>
-      <li class="current" aria-current="step"><span class="workflow-step-number">4</span>Confirmation</li>
+    <ol class="workflow-progress" aria-label="Voortgang van de bestelling">
+      <li class="complete"><span class="workflow-step-number">1</span>Ontwerp</li>
+      <li class="complete"><span class="workflow-step-number">2</span>Controle</li>
+      <li class="complete"><span class="workflow-step-number">3</span>Bestellen &amp; betalen</li>
+      <li class="current" aria-current="step"><span class="workflow-step-number">4</span>Bevestiging</li>
     </ol>
   </div>
 {% endblock %}
@@ -24,78 +24,78 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 7v6" /><path d="M12 17h.01" /></svg>
         {% endif %}
       </div>
-      <h1>{% if is_paid %}Order confirmed{% else %}Order saved{% endif %}</h1>
-      <span class="visually-hidden">Your order #{{ order.pk }}</span>
+      <h1>{% if is_paid %}Bestelling bevestigd{% else %}Bestelling opgeslagen{% endif %}</h1>
+      <span class="visually-hidden">Je bestelling #{{ order.pk }}</span>
       <p class="confirmation-message">
         {% if is_paid %}
-          Thank you for your order. A confirmation email has been sent to {{ masked_email }}.
+          Bedankt voor je bestelling. Er is een bevestiging gemaild naar {{ masked_email }}.
         {% else %}
-          Your order is saved. Complete payment so we can start making your stamp.
+          Je bestelling is opgeslagen. Rond de betaling af, dan beginnen we met het maken van je stempel.
         {% endif %}
       </p>
       <div class="confirmation-state">
-        <span class="public-status{% if order.order_status == "AP" %} waiting{% elif order.order_status == "CA" %} cancelled{% endif %}">{{ order.get_order_status_display }}</span>
+        <span class="public-status{% if order.order_status == "AP" %} waiting{% elif order.order_status == "CA" %} cancelled{% endif %}">{{ status_label }}</span>
         <span class="text-secondary small">{{ status_message }}</span>
       </div>
 
       <dl class="confirmation-summary">
         <div>
-          <dt>Order number</dt>
+          <dt>Bestelnummer</dt>
           <dd>#{{ order.pk }}</dd>
         </div>
         <div>
-          <dt>{% if is_paid %}Total charged{% else %}Order total{% endif %}</dt>
-          <dd>€{{ order.total_price|floatformat:2 }}</dd>
+          <dt>{% if is_paid %}Betaald bedrag{% else %}Totaalbedrag{% endif %}</dt>
+          <dd>€&nbsp;{{ order.total_price|floatformat:2 }}</dd>
         </div>
       </dl>
     </header>
 
     {% if order.order_status == "AP" %}
       <section class="public-card confirmation-payment mt-3 mx-auto">
-        <h2>Payment needed</h2>
-        <p>Your order is saved but not paid yet. We start making your stamp after payment.</p>
-        <a class="btn primary-button w-100" href="{% url 'orders_public:pay' order.public_id %}">Pay €{{ order.total_price|floatformat:2 }}</a>
+        <h2>Betaling nodig</h2>
+        <p>Je bestelling is opgeslagen maar nog niet betaald. We beginnen met het maken van je stempel zodra je betaald hebt.</p>
+        <a class="btn primary-button w-100" href="{% url 'orders_public:pay' order.public_id %}">Betaal €&nbsp;{{ order.total_price|floatformat:2 }}</a>
       </section>
     {% endif %}
 
     <section class="confirmation-items">
-      <h2>Items in your order</h2>
+      <h2>Artikelen in je bestelling</h2>
       {% for item in items %}
         <article class="confirmation-item">
           <div>
             <p class="confirmation-item-name">{{ item.display_name }}</p>
             {% if item.description %}<p class="confirmation-item-description">{{ item.description }}</p>{% endif %}
-            <p class="confirmation-item-quantity">Quantity: {{ item.quantity }} · €{{ item.unit_price|floatformat:2 }} each</p>
+            <p class="confirmation-item-quantity">Aantal: {{ item.quantity }} · €&nbsp;{{ item.unit_price|floatformat:2 }} per stuk</p>
           </div>
-          <span class="confirmation-item-price">€{{ item.line_total|floatformat:2 }}</span>
+          <span class="confirmation-item-price">€&nbsp;{{ item.line_total|floatformat:2 }}</span>
         </article>
       {% endfor %}
       <dl class="confirmation-totals mb-0">
         {% if discount > 0 %}
-          <div class="order-price-row discount"><dt>Quantity discount</dt><dd>−€{{ discount|floatformat:2 }}</dd></div>
+          <div class="order-price-row discount"><dt>Staffelkorting</dt><dd>−€&nbsp;{{ discount|floatformat:2 }}</dd></div>
         {% endif %}
-        <div class="order-price-row"><dt>Subtotal</dt><dd>€{{ order.subtotal_price|floatformat:2 }}</dd></div>
-        <div class="order-price-row"><dt>Shipping</dt><dd>{% if order.shipping_costs == 0 %}Free{% else %}€{{ order.shipping_costs|floatformat:2 }}{% endif %}</dd></div>
-        <div class="order-price-row total"><dt>Total</dt><dd>€{{ order.total_price|floatformat:2 }}</dd></div>
+        <div class="order-price-row"><dt>Subtotaal</dt><dd>€&nbsp;{{ order.subtotal_price|floatformat:2 }}</dd></div>
+        <div class="order-price-row"><dt>Verzendkosten</dt><dd>{% if order.shipping_costs == 0 %}Gratis{% else %}€&nbsp;{{ order.shipping_costs|floatformat:2 }}{% endif %}</dd></div>
+        <div class="order-price-row total"><dt>Totaal</dt><dd>€&nbsp;{{ order.total_price|floatformat:2 }}</dd></div>
       </dl>
     </section>
 
     <div class="confirmation-details">
       <section class="public-card">
-        <h2>Delivery</h2>
+        <h2>Bezorging</h2>
         <p class="mb-1">{{ order.customer.first_name }}, {{ order.address.city }}, {{ order.address.country }}</p>
-        <p class="text-secondary small mb-0">Updates go to {{ masked_email }}.</p>
+        <p class="text-secondary small mb-0">Updates sturen we naar {{ masked_email }}.</p>
       </section>
 
       <section class="public-card">
-        <h2>Your order link</h2>
-        <p class="small">Keep this link to see your order at any time. Anyone who has it can see this page, so do not share it.</p>
-        <input class="public-link" type="text" readonly value="{{ order_url }}" aria-label="Link to this order" />
+        <h2>Jouw bestellink</h2>
+        <p class="small">Bewaar deze link om je bestelling op elk moment te bekijken. Iedereen met deze link kan deze pagina zien, dus deel hem niet.</p>
+        <input class="public-link" type="text" readonly value="{{ order_url }}" aria-label="Link naar deze bestelling" />
       </section>
     </div>
 
     <div class="confirmation-action">
-      <a class="btn primary-button w-100" href="/">Back to stamp editor</a>
+      <a class="btn primary-button w-100" href="/">Terug naar de stempeleditor</a>
     </div>
   </section>
 {% endblock %}

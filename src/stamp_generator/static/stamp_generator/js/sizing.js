@@ -1,3 +1,5 @@
+import { formatNumber } from "./locale.js";
+
 export const MILLIMETRES_PER_POINT = 25.4 / 72;
 export const pointsToMillimetres = (points) => points * MILLIMETRES_PER_POINT;
 export const millimetresToPoints = (millimetres) => millimetres / MILLIMETRES_PER_POINT;
@@ -53,7 +55,7 @@ export function createTextSizeControls({ range, input, output, minMm, maxMm, onC
       if (input !== input.ownerDocument?.activeElement) {
         input.value = String(Math.round(points * 100) / 100);
       }
-      output.textContent = `${Math.round(points * 100) / 100} pt`;
+      output.textContent = `${formatNumber(points)} pt`;
     },
   };
 }

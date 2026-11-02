@@ -36,8 +36,8 @@ const documentWith = (...selectors) => ({
 
 test("SVG text reports path-conversion guidance", () => {
   assert.deepEqual(getUnsupportedSVGFeatures(documentWith("text", "mask")), [
-    "Unsupported SVG text element. Convert text to paths before uploading.",
-    "Unsupported SVG mask. Apply the mask to the paths before uploading.",
+    "Niet-ondersteund SVG-tekstelement. Zet tekst om naar paden voordat je uploadt.",
+    "Niet-ondersteund SVG-masker. Pas het masker toe op de paden voordat je uploadt.",
   ]);
 });
 
@@ -54,13 +54,13 @@ test("stroke-only artwork reports filled-outline guidance", () => {
 
   assert.throws(
     () => getFilledSVGShapes({ paths: [stroke] }),
-    /Unsupported stroke-only artwork\. Convert strokes to filled outlines/i,
+    /Niet-ondersteund ontwerp met alleen lijnen\. Zet lijnen om naar gevulde omtrekken/i,
   );
 });
 
 test("embedded SVG images report raster artwork as unsupported", () => {
   assert.deepEqual(getUnsupportedSVGFeatures(documentWith("image")), [
-    "Embedded raster images are not supported inside SVG files.",
+    "Ingesloten rasterafbeeldingen worden niet ondersteund in SVG-bestanden.",
   ]);
 });
 
@@ -78,7 +78,7 @@ test("SVGs without filled shapes fail with the specific reason", () => {
   assert.throws(
     () => getFilledSVGShapes({ paths: [unfilled] }),
     (error) => {
-      assert.match(error.message, /SVG contains no usable filled outlines/i);
+      assert.match(error.message, /De SVG bevat geen bruikbare gevulde omtrekken/i);
       assert.equal(error.svgStage, "SVG shape conversion");
       return true;
     },
@@ -95,7 +95,7 @@ test("self-intersecting zero-area SVG contours fail clearly", () => {
 
   assert.throws(
     () => getFilledSVGShapes({ paths: [bowTie] }),
-    /self-intersecting or zero-area filled outline/i,
+    /zichzelf snijdende of oppervlakteloze gevulde omtrek/i,
   );
 });
 
