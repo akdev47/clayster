@@ -69,5 +69,14 @@ class ProductionJob(models.Model):
         view = "products:download_stl" if isinstance(owner, Product) else "orders:download_item_stl"
         return reverse(view, args=[owner.pk])
 
+    @property
+    def display_name(self):
+        if self.order_item_id:
+            return f"{self.product.name} (Order #{self.order_item_id})"
+
+        return self.product.name
+
+
+
     def __str__(self):
         return f"{self.quantity}x {self.product}"
