@@ -82,12 +82,12 @@ const definition = {
 
     // EN: Thickness of the base plate, without the raised letters. Thicker is
     //     sturdier but uses more clay and print time; thinner can bend or
-    //     crack. The total stamp height is this plus the relief depth plus
-    //     the height of the handle.
+    //     crack. The total stamp height is this plus the relief depth (when
+    //     the letters are raised).
     // NL: Dikte van de basisplaat, zonder de verhoogde letters. Dikker is
     //     steviger maar kost meer klei en printtijd; dunner kan buigen of
     //     breken. De totale hoogte van de stempel is deze waarde plus de
-    //     reliëfdiepte plus de hoogte van het handvat.
+    //     reliëfdiepte (als de letters verhoogd zijn).
     faceThicknessMm: { default: 4, min: 1, max: 20, step: 0.5 },
 
     // EN: How far the letters stand out of the plate (raised) or sink into it
@@ -126,7 +126,7 @@ const definition = {
     //     The larger the radius, the further from the edge the curve begins.
     //     The CLAY side is the side with the letters. It is the edge that meets
     //     the clay, so it gets the larger rounding; it prints without supports.
-    //     The HANDLE side is the back of the plate. There the rounding is an
+    //     The BACK side is the back of the plate. There the rounding is an
     //     overhang for the printer: the steepest layer step is about 54 degrees
     //     from vertical at 1 mm, 61 at 1.5 mm and 65 at 2 mm (0.2 mm layers),
     //     so above about 1 mm that side needs supports. Both must stay at or
@@ -143,7 +143,7 @@ const definition = {
     //     scherp. Hoe groter de straal, hoe verder van de rand de bocht begint.
     //     De KLEIKANT is de kant met de letters. Dat is de rand die de klei
     //     raakt, dus die krijgt de grotere afronding; hij print zonder support.
-    //     De HANDVATKANT is de achterkant van de plaat. Daar is de afronding een
+    //     De ACHTERKANT is de achterkant van de plaat. Daar is de afronding een
     //     overhang voor de printer: de steilste laagstap is ongeveer 54 graden
     //     van verticaal bij 1 mm, 61 bij 1,5 mm en 65 bij 2 mm (lagen van
     //     0,2 mm), dus boven ongeveer 1 mm heeft die kant support nodig. Beide
@@ -154,7 +154,7 @@ const definition = {
     //     of op 0: met een 0,4 mm nozzle gaat een kleinere afronding verloren
     //     bij het printen.
     edgeRoundingClaySideMm: 2,
-    edgeRoundingHandleSideMm: 1,
+    edgeRoundingBackSideMm: 1,
 
     // EN: The radius of the rounded corners of a Square or Minimal plate, seen
     //     from above, when the customer switches "Rounded corners" on (a Round
@@ -171,33 +171,6 @@ const definition = {
     //     (de controle bij het laden dwingt dit af). Een kleine plaat krijgt
     //     nooit een straal van meer dan ongeveer 45% van de kortste zijde.
     cornerRadiusMm: 2,
-  },
-
-  // ==========================================================================
-  // handle — the bar you hold on the back / de balk die je aan de achterkant vasthoudt
-  // ==========================================================================
-  handle: {
-    // EN: Size of the handle (a long rectangular bar). Width runs along the
-    //     stamp's width (X) and is the length you hold. Depth is the thickness
-    //     along Y. Height is how far it hangs below the plate. A smaller face
-    //     shrinks the whole bar; these numbers are the full size on a normal stamp.
-    // NL: Maat van het handvat (een lange rechthoekige balk). De breedte loopt
-    //     langs de breedte van de stempel (X) en is de lengte die je vasthoudt.
-    //     De diepte is de dikte langs Y. De hoogte is hoe ver het onder de plaat
-    //     hangt. Een kleiner vlak laat de hele balk krimpen; dit zijn de volle
-    //     maten op een normale stempel.
-    widthMm: 40,
-    depthMm: 14,
-    heightMm: 12,
-
-    // EN: On a small stamp the handle shrinks (keeping its proportions) so
-    //     that its longer side uses at most this share of the stamp's shorter
-    //     side. 0.85 keeps the full 40 mm bar on a 50 mm face.
-    // NL: Op een kleine stempel krimpt het handvat (met behoud van de
-    //     verhoudingen) zodat de langste zijde hoogstens dit deel van de
-    //     kortste zijde van de stempel gebruikt. 0,85 houdt de volle balk van
-    //     40 mm op een vlak van 50 mm.
-    maxShareOfFace: 0.85,
   },
 
   // ==========================================================================
@@ -452,7 +425,7 @@ export function validateSettings(settings) {
   };
   walk(settings, "");
 
-  const { stamp, handle, text, elements, order } = settings;
+  const { stamp, text, elements, order } = settings;
   const rule = (ok, message) => {
     if (!ok) problems.push(message);
   };
@@ -476,7 +449,7 @@ export function validateSettings(settings) {
     stamp.edgeDistanceMaxShareOfFace > 0 && stamp.edgeDistanceMaxShareOfFace <= 0.5,
     "stamp.edgeDistanceMaxShareOfFace must be above 0 and at most 0.5",
   );
-  for (const name of ["edgeRoundingClaySideMm", "edgeRoundingHandleSideMm"]) {
+  for (const name of ["edgeRoundingClaySideMm", "edgeRoundingBackSideMm"]) {
     rule(
       stamp[name] >= 0 && stamp[name] <= stamp.edgeDistanceMm.min,
       `stamp.${name} must be at least 0 and at most stamp.edgeDistanceMm.min`,
@@ -485,14 +458,6 @@ export function validateSettings(settings) {
   rule(
     stamp.cornerRadiusMm > 0 && stamp.cornerRadiusMm <= stamp.edgeDistanceMm.min,
     "stamp.cornerRadiusMm must be above 0 and at most stamp.edgeDistanceMm.min",
-  );
-  rule(
-    handle.widthMm > 0 && handle.depthMm > 0 && handle.heightMm > 0,
-    "handle.widthMm, depthMm and heightMm must be above 0",
-  );
-  rule(
-    handle.maxShareOfFace > 0 && handle.maxShareOfFace <= 1,
-    "handle.maxShareOfFace must be above 0 and at most 1",
   );
   rule(settings.checks.thinFeatureMm > 0, "checks.thinFeatureMm must be above 0");
   rule(settings.checks.clearGapMm > 0, "checks.clearGapMm must be above 0");

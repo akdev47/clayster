@@ -109,7 +109,7 @@ import in the stamp generator resolves the way the browser resolves it.
 ## Settings you can tweak
 
 The numbers you may want to change (stamp size and thickness, the distance
-from the text to the stamp edge, the rounding of the plate edges and corners, the handle size, when the page warns about
+from the text to the stamp edge, the rounding of the plate edges and corners, when the page warns about
 details that are too thin, text and element limits, PNG limits, the maximum
 quantity) live in one file:
 `src/stamp_generator/static/stamp_generator/js/settings.js`. Every value has an

@@ -98,7 +98,6 @@ for (const mirror of [true, false]) {
       transform: { xMm: 12, yMm: 1 },
     }] });
     const pipeline = new Pipeline({ designModel: model });
-    pipeline.stamp.handle = "none";
     pipeline.stamp.mirror = mirror;
     pipeline.buildSolids = false; // Like the 2D editor: the stamp mesh is not built yet.
     try {

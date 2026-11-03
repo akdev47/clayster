@@ -145,7 +145,7 @@ export function prepareClosedStamp(source) {
   const outward = [...shells.values()].filter((shell) => shell.volume > 0);
   if (outward.length !== 1) {
     throw new Error(
-      "Exporteren geblokkeerd: de stempel bestaat uit losse delen. Pas de plaat of het handvat aan.",
+      "Exporteren geblokkeerd: de stempel bestaat uit losse delen. Pas de plaat of het ontwerp aan.",
     );
   }
 

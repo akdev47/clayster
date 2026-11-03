@@ -35,7 +35,6 @@ const rectangle = (minX, minY, maxX, maxY) => [[[
 const settings = (patch = {}) => ({
   ...DEFAULT_STAMP,
   mirror: false,
-  handle: "none",
   roundedCorners: false,
   ...patch,
 });
