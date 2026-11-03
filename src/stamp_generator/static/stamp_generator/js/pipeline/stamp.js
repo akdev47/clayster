@@ -1,4 +1,4 @@
-// Builds the printable backing, artwork, and optional handle, plus a separate mug preview.
+// Builds the printable plate and its artwork, plus a separate mug preview.
 import * as THREE from "three";
 import { bounds, transform } from "./canonical.js";
 import {
@@ -10,7 +10,6 @@ import { UNION, SUBTRACT } from "../combine.js";
 import { pressIntoMug, offTheMug } from "./mug.js";
 import { featureIssues, overflowIssue } from "./validate.js";
 import { createStampLayout, stampFaceShape, stampFaceSize, stampSizeIssue } from "./stampLayout.js";
-import { fitHandleToFace } from "./handle.js";
 import { SETTINGS } from "../settings.js";
 
 export { fitToFace } from "./stampLayout.js";
@@ -27,7 +26,6 @@ export const DEFAULT_STAMP = {
   margin: SETTINGS.stamp.edgeDistanceMm.default,
   roundedEdges: true, // Softens the top and bottom edge of the plate; the customer can switch it off
   roundedCorners: false, // Square and Minimal only; the customer switches it on
-  handle: "small", // 'small' | 'none'
 };
 
 export const FACE_THICKNESS_LIMITS = Object.freeze({
@@ -75,7 +73,7 @@ const OVERLAP = 0.02; // Stops solids meeting on exactly shared planes.
  * Everything is millimetres with Z up, so the geometry that comes out is
  * already in the orientation a slicer expects.
  */
-export function buildStamp(artwork, params, handleGeometry = null, {
+export function buildStamp(artwork, params, {
   textGlyphs = [],
   checkPrintability = true,
 } = {}) {
@@ -144,19 +142,15 @@ export function buildStamp(artwork, params, handleGeometry = null, {
     settings.mode === "emboss" ? relief : face,
     settings,
   );
-  const stamp = attachHandle(face, handleGeometry, {
-    x: layout.minX + layout.widthMm / 2,
-    y: layout.minY + layout.heightMm / 2,
-    widthMm: layout.widthMm,
-    heightMm: layout.heightMm,
-  });
+  // The stamp is the plate and its artwork; nothing is attached to it.
+  const stamp = face;
 
   relief.dispose();
 
   // The stamp stands on the plate; the mug stands beside it. It goes on the
   // far side, where something three times the height cannot stand in front of
-  // it, and the gap is measured off the finished stamp so an offset plate and
-  // the handle both count.
+  // it, and the gap is measured off the finished stamp so an offset plate
+  // counts.
   restOnPlate(stamp);
   restOnPlate(clay);
   clay.translate(stamp.boundingBox.min.x - GAP - clay.boundingBox.max.x, 0, 0);
@@ -174,16 +168,16 @@ export function buildStamp(artwork, params, handleGeometry = null, {
 // The plate is built from the same outline the 2D view and the overflow check
 // use (layout.face), so all three always agree. Its edges are rounded by the
 // radii in settings.js (stamp.edgeRoundingClaySideMm for the side with the
-// letters, stamp.edgeRoundingHandleSideMm for the back) unless the customer has
+// letters, stamp.edgeRoundingBackSideMm for the back) unless the customer has
 // switched "Rounded edges" off.
 function buildBase(layout, settings) {
-  const { edgeRoundingClaySideMm, edgeRoundingHandleSideMm } = SETTINGS.stamp;
+  const { edgeRoundingClaySideMm, edgeRoundingBackSideMm } = SETTINGS.stamp;
   const rounded = settings.roundedEdges ?? DEFAULT_STAMP.roundedEdges;
   return extrudeRoundedPlate(
     layout.face,
     settings.faceThickness,
     rounded ? edgeRoundingClaySideMm : 0,
-    rounded ? edgeRoundingHandleSideMm : 0,
+    rounded ? edgeRoundingBackSideMm : 0,
   );
 }
 
@@ -214,43 +208,13 @@ function buildRelief(artwork, settings) {
   return geometry;
 }
 
-// The handle hangs below the plate, so the finished stamp stands on it the way
-// it would on a table, with the artwork facing up where you can see it. The
-// footprint is the plate's centre and size; the handle is centred on it.
-function attachHandle(face, handleGeometry, footprint) {
-  if (handleGeometry === null) return face.clone();
-
-  // A copy, so the shared handle stays full size for the next, larger face.
-  const handle = fitHandleToFace(
-    handleGeometry.clone(),
-    footprint.widthMm,
-    footprint.heightMm,
-  );
-
-  const box = handle.boundingBox;
-  const centre = box.getCenter(new THREE.Vector3());
-  handle.translate(
-    footprint.x - centre.x,
-    footprint.y - centre.y,
-    -box.max.z + OVERLAP,
-  ); // Overlap, not butt.
-
-  const stamp = booleanGeometry(face, handle, UNION, {
-    firstLabel: "stempelvlak",
-    secondLabel: "handvat",
-  });
-  handle.dispose();
-
-  return stamp;
-}
-
 function restOnPlate(geometry) {
   geometry.computeBoundingBox();
   geometry.translate(0, 0, -geometry.boundingBox.min.z);
   geometry.computeBoundingBox();
 }
 
-// Measurements shown in the UI come from the finished mesh, including its handle.
+// Measurements shown in the UI come from the finished mesh.
 function describe(stamp, layout, settings) {
   stamp.computeBoundingBox();
 

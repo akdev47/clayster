@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PRICING, estimatePrice, faceAreaCm2 } from "../src/stamp_generator/static/stamp_generator/js/pricing.js";
 
-const stamp = { faceShape: "square", faceSize: 50, handle: "none" };
+const stamp = { faceShape: "square", faceSize: 50 };
 const info = { width: 50, depth: 40 };
 
 test("prices a single stamp from base cost and face area", () => {
@@ -20,14 +20,6 @@ test("round faces use the circle area, and the total is per stamp", () => {
 
   const price = estimatePrice({ stamp: round, info, quantity: 2 });
   assert.equal(price.itemsCents, price.unitCents * 2);
-});
-
-test("the handle is free: it changes neither the price nor the price lines", () => {
-  const withHandle = estimatePrice({ stamp: { ...stamp, handle: "small" }, info, quantity: 2 });
-  const without = estimatePrice({ stamp: { ...stamp, handle: "none" }, info, quantity: 2 });
-  assert.deepEqual(withHandle, without);
-  assert.ok(!withHandle.unitLines.some(({ id }) => id === "handle"));
-  assert.ok(!("handleCents" in PRICING));
 });
 
 test("quantity discounts, free shipping and shipping zones", () => {

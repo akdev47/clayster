@@ -9,7 +9,7 @@ import math
 import struct
 from dataclasses import dataclass
 
-MAX_STL_BYTES = 10 * 1024 * 1024  # the small handle is a 12-triangle block; the artwork is the rest
+MAX_STL_BYTES = 10 * 1024 * 1024  # the plate is a few dozen triangles; the artwork is nearly all of it
 MAX_COORDINATE_MM = 1000
 
 _HEADER_BYTES = 80

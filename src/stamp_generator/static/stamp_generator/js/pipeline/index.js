@@ -18,7 +18,6 @@ import {
   DEFAULT_STAMP,
 } from "./stamp.js";
 import { createStampLayout, stampFaceShape, stampMargin, stampSizeIssue } from "./stampLayout.js";
-import { createSmallHandle } from "./handle.js";
 import { SETTINGS } from "../settings.js";
 import { ELEMENT_KIND_LABELS } from "../locale.js";
 import { stageLabel } from "./stages.js";
@@ -95,7 +94,6 @@ export class Pipeline extends EventTarget {
     );
     this.onDesignChange = () => this.schedule();
     this.diagnostics = null;
-    this.handle = null;
 
     this.timer = null;
     this.token = 0;
@@ -242,9 +240,6 @@ export class Pipeline extends EventTarget {
 
       this.setSVGStage("stamp preparation");
       const printability = this.printabilityFor(artworkKey, artwork, textGlyphs);
-      const handle = await this.handleGeometry();
-      if (token !== this.token) return;
-
       await initializeSolids(wasmUrl);
       if (token !== this.token) return;
       const measured = await printability;
@@ -256,7 +251,7 @@ export class Pipeline extends EventTarget {
         info,
         layout,
         notes,
-      } = buildStamp(artwork, this.stamp, handle, {
+      } = buildStamp(artwork, this.stamp, {
         textGlyphs,
         checkPrintability: false,
       });
@@ -547,16 +542,8 @@ export class Pipeline extends EventTarget {
     };
   }
 
-  async handleGeometry() {
-    if (this.stamp.handle === "none") return null;
-
-    // One shared copy at full size; buildStamp shrinks its own copy to fit.
-    this.handle ??= createSmallHandle();
-    return this.handle;
-  }
-
   sourceKey() {
-    // Only artwork inputs belong here; backing/handle edits can reuse the same outlines.
+    // Only artwork inputs belong here; backing edits can reuse the same outlines.
     const source = this.source;
 
     if (source.kind === "svg") {

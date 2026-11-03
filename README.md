@@ -56,7 +56,7 @@ More detail: [install-guide.md](install-guide.md) (Linux and devenv) and
 
 ## Settings you can change
 
-Stamp sizes, margins, plate rounding, handle size, warning limits, text and
+Stamp sizes, margins, plate rounding, warning limits, text and
 element limits and the maximum quantity are in one file:
 `src/stamp_generator/static/stamp_generator/js/settings.js`. Each value has an
 English and a Dutch comment. A nonsensical value stops the page with a message
@@ -80,7 +80,7 @@ Write new customer text in Dutch, addressing the customer as *je*. Terms used so
 |---|---|---|---|---|
 | stamp | stempel | | raised / recessed | verhoogd / verdiept |
 | clay | klei | | relief | reliëf |
-| face (of the plate) | stempelvlak | | handle | handvat |
+| face (of the plate) | stempelvlak | | plate | plaat |
 | base thickness | basisdikte | | margin | marge |
 | minimal / round / square | minimaal / rond / vierkant | | mirror | spiegelen |
 | printability check | printbaarheidscontrole | | review | controle |

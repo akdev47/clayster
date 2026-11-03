@@ -12,10 +12,6 @@ import {
   FACE_SIZE_LIMITS,
   FACE_THICKNESS_LIMITS,
 } from "../src/stamp_generator/static/stamp_generator/js/pipeline/stamp.js";
-import {
-  HANDLE,
-  HANDLE_MAX_FACE_SHARE,
-} from "../src/stamp_generator/static/stamp_generator/js/pipeline/handle.js";
 import { TEXT_LIMITS } from "../src/stamp_generator/static/stamp_generator/js/pipeline/limits.js";
 import { DEFAULT_SOURCE } from "../src/stamp_generator/static/stamp_generator/js/pipeline/index.js";
 import { createDesignElement } from "../src/stamp_generator/static/stamp_generator/js/designModel.js";
@@ -88,7 +84,7 @@ test("a wrong value stops the page with a message that names the setting", () =>
     problemsOf((s) => { s.stamp.faceSizeMm.max = stamp.maxWidthMm + 1; }),
     /stamp\.faceSizeMm\.max must not be above stamp\.maxWidthMm/,
   );
-  for (const name of ["edgeRoundingClaySideMm", "edgeRoundingHandleSideMm"]) {
+  for (const name of ["edgeRoundingClaySideMm", "edgeRoundingBackSideMm"]) {
     assert.match(
       problemsOf((s) => { s.stamp[name] = stamp.edgeDistanceMm.min + 0.5; }),
       new RegExp(`stamp\\.${name} must be at least 0 and at most stamp\\.edgeDistanceMm\\.min`),
@@ -137,10 +133,6 @@ test("a wrong value stops the page with a message that names the setting", () =>
     /faceSizeMm\.min must be more than twice/,
   );
   assert.match(
-    problemsOf((s) => { s.handle.heightMm = 0; }),
-    /handle\.widthMm, depthMm and heightMm must be above 0/,
-  );
-  assert.match(
     problemsOf((s) => { s.text.maxRows = text.maxRows + 0.5; }),
     /text\.maxRows must be a whole number/,
   );
@@ -163,14 +155,14 @@ test("a wrong value stops the page with a message that names the setting", () =>
   // All problems are listed at once, not one per attempt.
   const both = problemsOf((s) => {
     s.stamp.faceSizeMm.min = face.max + 1;
-    s.handle.heightMm = 0;
+    s.checks.thinFeatureMm = 0;
   });
   assert.match(both, /faceSizeMm/);
-  assert.match(both, /handle\./);
+  assert.match(both, /checks\.thinFeatureMm/);
 });
 
 test("the old constant names still carry the settings values", () => {
-  const { stamp, handle, text, elements, images, order } = SETTINGS;
+  const { stamp, text, elements, images, order } = SETTINGS;
   assert.equal(DEFAULT_STAMP.faceSize, stamp.faceSizeMm.default);
   assert.equal(DEFAULT_STAMP.faceThickness, stamp.faceThicknessMm.default);
   assert.equal(DEFAULT_STAMP.reliefDepth, stamp.reliefDepthMm.default);
@@ -187,13 +179,6 @@ test("the old constant names still carry the settings values", () => {
     Math.max(stamp.edgeDistanceMm.min, Math.min(stamp.edgeDistanceMm.max, 40 * stamp.edgeDistanceMaxShareOfFace)),
   );
   assert.equal(stampMarginMaximum({}), stampMarginMaximum({ faceSize: stamp.faceSizeMm.default }));
-
-  assert.deepEqual({ ...HANDLE }, {
-    widthMm: handle.widthMm,
-    depthMm: handle.depthMm,
-    heightMm: handle.heightMm,
-  });
-  assert.equal(HANDLE_MAX_FACE_SHARE, handle.maxShareOfFace);
 
   assert.equal(TEXT_LIMITS.rows, text.maxRows);
   assert.equal(DEFAULT_SOURCE.size, text.defaultSizeMm);
@@ -264,10 +249,6 @@ test("applyInputLimits sets min, max and step, and rejects a link to nothing", (
 
   assert.throws(
     () => applyInputLimits({ querySelectorAll: () => [makeInput("stamp.nope")] }),
-    /does not point to a settings range/,
-  );
-  assert.throws(
-    () => applyInputLimits({ querySelectorAll: () => [makeInput("stamp.handle")] }),
     /does not point to a settings range/,
   );
 });

@@ -83,9 +83,6 @@ export function createReviewPage({ designModel, pipeline, diagnostics, renderPre
         return row;
       }),
     );
-    byId("review-handle").textContent = pipeline.stamp.handle === "none"
-      ? "Geen handvat — alleen het stempelvlak"
-      : "Klein handvat · bij de stempel inbegrepen";
   };
 
   const refresh = () => {

@@ -128,7 +128,6 @@ test("the note that the finished stamp was checked is shortened by the page", as
     source: { text: "CLAY", font: { reference: font }, fontSizeMm: 12 },
   }] });
   const pipeline = new Pipeline({ designModel: model });
-  pipeline.stamp.handle = "none";
   try {
     await pipeline.run();
     assert.equal(pipeline.error, null);

@@ -197,9 +197,9 @@ const font = opentype.parse((() => {
 const artwork = validate(layoutText(font, { text: "CLAY", size: 16 })).artwork;
 // The two roundings share the plate's height, so together they are held to the thickness.
 const radii = (() => {
-  const { edgeRoundingClaySideMm: clay, edgeRoundingHandleSideMm: handle } = SETTINGS.stamp;
-  const fit = clay + handle > THICKNESS ? THICKNESS / (clay + handle) : 1;
-  return { clay: clay * fit, handle: handle * fit };
+  const { edgeRoundingClaySideMm: clay, edgeRoundingBackSideMm: back } = SETTINGS.stamp;
+  const fit = clay + back > THICKNESS ? THICKNESS / (clay + back) : 1;
+  return { clay: clay * fit, back: back * fit };
 })();
 
 for (const faceShape of ["round", "square", "minimal"]) {
@@ -218,7 +218,7 @@ for (const faceShape of ["round", "square", "minimal"]) {
         const top = reachAt(stamp, THICKNESS, centre);
         assert.ok(Math.abs(top - (half - radii.clay)) < slack + 1e-4, `clay side ${top} vs ${half - radii.clay}`);
         const bottom = reachAt(stamp, 0, centre);
-        assert.ok(Math.abs(bottom - (half - radii.handle)) < slack + 1e-4, `handle side ${bottom} vs ${half - radii.handle}`);
+        assert.ok(Math.abs(bottom - (half - radii.back)) < slack + 1e-4, `back side ${bottom} vs ${half - radii.back}`);
       } finally {
         built.stamp.dispose();
         built.clay.dispose();
@@ -247,14 +247,14 @@ for (const faceShape of ["round", "square", "minimal"]) {
       assert.ok(Math.abs(widestAt(off, THICKNESS) - full) < slack, "sharp: the top reaches the side wall");
       assert.ok(Math.abs(widestAt(off, 0) - full) < slack, "sharp: the bottom reaches the side wall");
       assert.ok(Math.abs(widestAt(on, THICKNESS) - (full - radii.clay)) < slack, "rounded: the clay side is pulled in");
-      assert.ok(Math.abs(widestAt(on, 0) - (full - radii.handle)) < slack, "rounded: the handle side is pulled in");
+      assert.ok(Math.abs(widestAt(on, 0) - (full - radii.back)) < slack, "rounded: the back side is pulled in");
       const asDefault = DEFAULT_STAMP.roundedEdges ? on : off;
       assert.ok(Math.abs(widestAt(missing, THICKNESS) - widestAt(asDefault, THICKNESS)) < 1e-9, "no choice made: same as the default says");
 
       off.stamp.computeBoundingBox();
       on.stamp.computeBoundingBox();
       assert.ok(Math.abs(off.info.width - on.info.width) < 1e-6 && Math.abs(off.info.height - on.info.height) < 1e-6, "same outside size");
-      if (radii.clay + radii.handle > 0.01) {
+      if (radii.clay + radii.back > 0.01) {
         assert.ok(volumeOf(on.stamp) < volumeOf(off.stamp), "rounding takes a little material away");
       }
     } finally {
@@ -305,5 +305,5 @@ test("the page has the Rounded edges switch, not hidden", () => {
 test("the letters stay on the flat top of the plate with the shipped settings", () => {
   // Rounding never exceeds the edge distance, so artwork at the distance limit is still on the flat.
   assert.ok(SETTINGS.stamp.edgeRoundingClaySideMm <= SETTINGS.stamp.edgeDistanceMm.min);
-  assert.ok(SETTINGS.stamp.edgeRoundingHandleSideMm <= SETTINGS.stamp.edgeDistanceMm.min);
+  assert.ok(SETTINGS.stamp.edgeRoundingBackSideMm <= SETTINGS.stamp.edgeDistanceMm.min);
 });

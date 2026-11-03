@@ -59,11 +59,22 @@ const text = (id = "label", source = {}) => ({
   source: { text: "BOA8", font: { reference: font }, ...source },
 });
 
+// How many times the pipeline starts preparing the stamp. A design that fails
+// its checks must never get that far.
+function countStampPreparations(pipeline) {
+  const counter = { count: 0 };
+  const setStage = pipeline.setSVGStage.bind(pipeline);
+  pipeline.setSVGStage = (stage, ...rest) => {
+    if (stage === "stamp preparation") counter.count += 1;
+    return setStage(stage, ...rest);
+  };
+  return counter;
+}
+
 function setup(elements, convert = null) {
   const model = new DesignModel({ elements });
   const editor = new DesignEditorController(model);
   const pipeline = new Pipeline({ designModel: model });
-  pipeline.stamp.handle = "none";
   if (convert !== null) {
     const original = pipeline.buildElementArtwork.bind(pipeline);
     pipeline.buildElementArtwork = (element) => convert(element, original);
@@ -161,12 +172,11 @@ for (const kind of ["text", "svg", "png"]) {
         return original(element);
       },
     );
-    let stampPreparations = 0;
-    pipeline.handleGeometry = async () => { stampPreparations += 1; return null; };
+    const preparations = countStampPreparations(pipeline);
     try {
       await rejectedRun(pipeline);
       assert.equal(pipeline.result, null);
-      assert.equal(stampPreparations, 0);
+      assert.equal(preparations.count, 0);
       assert.equal(pipeline.error.elementId, `bad-${kind}`);
       assert.equal(sidebar.state.export.ready, false);
       const message = sidebar.state.rows.map((row) => row.message).join("\n");
@@ -269,7 +279,6 @@ for (const mode of ["emboss", "deboss"]) {
         faceShape: "square",
         faceSize: 45,
         mode,
-        handle: "none",
       });
     } catch (error) {
       constructionError = error;
@@ -360,11 +369,10 @@ test("global polygon repair fails closed before stamp generation and reaches the
   const { pipeline, sidebar } = setup([text()]);
   const checked = validate([[[["0", "0"], ["10", "0"], ["10", "10"], ["0", "10"]]]]);
   pipeline.artwork = async () => checked;
-  let preparations = 0;
-  pipeline.handleGeometry = async () => { preparations += 1; return null; };
+  const preparations = countStampPreparations(pipeline);
   try {
     await pipeline.run();
-    assert.equal(preparations, 0);
+    assert.equal(preparations.count, 0);
     assert.deepEqual(pipeline.result.artwork, []);
     assert.equal(pipeline.result.stamp, null);
     assert.equal(sidebar.state.export.ready, false);

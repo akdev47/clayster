@@ -165,7 +165,7 @@ test("a typed object width scales the height by the same factor", () => {
 
 test("legacy Artwork settings become Square without resizing or moving artwork", async () => {
   const artwork = rectangle(-12, -3, 8, 5);
-  const settings = { ...DEFAULT_STAMP, faceShape: "outline", mirror: false, handle: "none" };
+  const settings = { ...DEFAULT_STAMP, faceShape: "outline", mirror: false };
   const layout = createStampLayout(artwork, settings);
   assert.deepEqual(layout, createStampLayout(artwork, { ...settings, faceShape: "square" }));
   assert.deepEqual(layout.artwork, artwork);
@@ -252,7 +252,7 @@ for (const faceShape of ["round", "square"]) {
       const canonical = elements.flatMap((element) => transform(element.canonical, element.transform));
       const snapshot = structuredClone(canonical);
       // The artwork positions above assume a 50 mm face, so it is fixed here.
-      const built = buildStamp(canonical, { faceShape, mode, faceSize: 50, margin: 2, handle: "none" });
+      const built = buildStamp(canonical, { faceShape, mode, faceSize: 50, margin: 2 });
       try {
         assert.deepEqual(layoutRenderElements(elements, built.layout.artworkTransform).flatMap(({ canonical }) => canonical), built.layout.artwork);
         assert.equal(built.layout.artwork.filter((polygon) => polygon.length === 2).length, 2);
