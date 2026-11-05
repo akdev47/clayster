@@ -7,6 +7,10 @@ and stored with the order for production.
 
 Made for the University of Twente design project 2026.
 
+## Project Poster
+
+![Clayster project poster](clayster-designproject-group1-poster.jpg)
+
 ## What is in it
 
 | Part | Where | What it does |
